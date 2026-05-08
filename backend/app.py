@@ -640,7 +640,7 @@ def generate_profile():
             },
             json={
                 'model': 'claude-sonnet-4-6',
-                'max_tokens': 16000,
+                'max_tokens': 24000,
                 'messages': [{'role': 'user', 'content': prompt}]
             },
             timeout=300,
