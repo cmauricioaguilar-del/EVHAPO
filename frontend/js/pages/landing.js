@@ -1,0 +1,84 @@
+function renderLanding() {
+  const features = [
+    { icon: '🎯', title: 'Diagnóstico Profundo', desc: '94 preguntas en 10 dimensiones clave de la mentalidad del jugador de élite' },
+    { icon: '🕸️', title: 'Gráfico Telaraña', desc: 'Visualiza tus fortalezas y debilidades en un mapa visual intuitivo' },
+    { icon: '📋', title: 'Informe Personalizado', desc: 'Análisis detallado de brechas con recomendaciones específicas para ti' },
+    { icon: '🗓️', title: 'Plan de Trabajo', desc: 'Programa de mejora semana a semana, desde las áreas más críticas' },
+    { icon: '📊', title: 'Benchmark Global', desc: 'Compara tus resultados con el promedio de la comunidad EVHAPO' },
+    { icon: '🔐', title: 'Dashboard Personal', desc: 'Accede a tus resultados y seguimiento en cualquier momento' },
+  ];
+
+  const html = `
+    <div class="hero">
+      <div class="hero-suits">♠ ♥ ♦ ♣</div>
+      <h1>Test de Evaluación de las<br><span>Fortalezas y Debilidades</span><br>del Jugador de Poker</h1>
+      <p class="subtitle">El poker es mucho más que cartas y apuestas. Es un juego de habilidades mentales, estrategia y resistencia emocional. Descubre dónde estás y hasta dónde puedes llegar.</p>
+
+      <div class="hero-video">
+        <video controls poster="">
+          <source src="assets/VIDEO PROMO.mp4" type="video/mp4" />
+          Tu navegador no soporta video HTML5.
+        </video>
+      </div>
+
+      <div class="hero-cta">
+        <button class="btn btn-primary btn-lg" onclick="App.go('register')">
+          ♠ Comenzar mi diagnóstico — USD $9.90
+        </button>
+        <button class="btn btn-secondary btn-lg" onclick="App.go('login')">
+          Ya tengo cuenta
+        </button>
+      </div>
+
+      <div class="chip gold" style="margin-top:8px">✓ Acceso de por vida a tus resultados · ✓ Informe PDF descargable · ✓ 100% en español</div>
+    </div>
+
+    <div class="page">
+      <div class="features">
+        ${features.map(f => `
+          <div class="feature-card">
+            <span class="feature-icon">${f.icon}</span>
+            <h3>${f.title}</h3>
+            <p>${f.desc}</p>
+          </div>
+        `).join('')}
+      </div>
+
+      <div class="price-banner">
+        <div class="price">USD $9.90</div>
+        <div class="price-sub">Pago único · Acceso permanente a tus resultados y futuras comparaciones</div>
+        <div style="margin-top:20px; display:flex; gap:12px; justify-content:center; flex-wrap:wrap">
+          <button class="btn btn-primary" onclick="App.go('register')">Comenzar ahora →</button>
+          <button class="btn btn-outline" onclick="App.go('login')">Iniciar sesión</button>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:32px">
+        <h2 style="margin-bottom:16px; color: var(--accent)">¿Qué mide EVHAPO?</h2>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px">
+          ${EVHAPO_CATEGORIES.map(c => `
+            <div style="display:flex;align-items:center;gap:10px;padding:10px;background:var(--bg2);border-radius:8px;border:1px solid var(--border)">
+              <span style="font-size:1.5rem">${c.icon}</span>
+              <div>
+                <div style="font-weight:700;font-size:0.9rem">${c.label}</div>
+                <div style="font-size:0.8rem;color:var(--text2)">${c.questions.length} preguntas</div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:20px;background:linear-gradient(135deg,var(--card),var(--card2));border-color:var(--accent)">
+        <div style="text-align:center;padding:12px">
+          <div style="font-size:3rem;margin-bottom:12px">♠</div>
+          <blockquote style="font-size:1.1rem;font-style:italic;color:var(--text2);max-width:500px;margin:0 auto">
+            "Si estás aquí es porque comprendes la IMPORTANCIA DEL ASPECTO MENTAL y sabes que el póker es mucho más que cartas y apuestas."
+          </blockquote>
+          <div style="margin-top:16px;color:var(--accent);font-weight:700">— EVHAPO</div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('app').innerHTML = `${renderNavbar()}${html}`;
+}

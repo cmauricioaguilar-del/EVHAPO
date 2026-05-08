@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(powershell -Command \"Select-String -Path '*.html' -Pattern 'title|<h|<span|<div' | head -50\")",
+      "Bash(powershell -Command \"Get-Content '*.html' -Encoding UTF8 | Select-String -Pattern 'DIAGNOSTICO|Bienvenid|instrucciones|Las áreas' -Context 2,2\")",
+      "PowerShell(python --version)",
+      "PowerShell(python3 --version 2>$null)",
+      "PowerShell(pip --version 2>$null)",
+      "mcp__Claude_in_Chrome__tabs_context_mcp",
+      "PowerShell(Get-ChildItem \"C:\\\\Users\\\\pc\\\\OneDrive\\\\Escritorio\\\\GIT EVHAPO\" -Recurse | Where-Object { -not $_.PSIsContainer -and $_.FullName -notmatch '\\\\.claude|__pycache__|\\\\.db$' } | Select-Object @{N='Archivo';E={$_.FullName.Replace\\('C:\\\\Users\\\\pc\\\\OneDrive\\\\Escritorio\\\\GIT EVHAPO\\\\',''\\)}}, @{N='Tamaño';E={\"{0:N0} KB\" -f \\($_.Length/1KB\\)}} | Format-Table -AutoSize)",
+      "Bash(gh auth *)",
+      "PowerShell(gh auth status 2>&1)",
+      "PowerShell(ls \"$env:USERPROFILE\\\\.ssh\\\\\" 2>&1)"
+    ]
+  }
+}
