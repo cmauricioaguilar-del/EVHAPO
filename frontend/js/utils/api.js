@@ -48,7 +48,7 @@ const Api = {
 
   me: () => Api.get('/api/me'),
 
-  createPayment: (method, pais) => Api.post('/api/payment/create', { method, pais }),
+  createPayment: (method, pais, test_type = 'mental') => Api.post('/api/payment/create', { method, pais, test_type }),
   confirmPayment: (payment_id) => Api.post('/api/payment/confirm', { payment_id }),
 
   startTest: (session_id) => Api.post('/api/test/start', { session_id }),

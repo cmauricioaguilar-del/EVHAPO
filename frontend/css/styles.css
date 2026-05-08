@@ -192,7 +192,45 @@ body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', syste
 .gap-item.priority-3 .gap-rank { background: var(--blue); }
 .gap-content h3 { font-weight: 700; margin-bottom: 4px; }
 .gap-content p { color: var(--text2); font-size: 0.9rem; }
+/* ── Plan de mejora ── */
 .workplan-item { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 12px; }
+.plan-phase { margin-bottom: 28px; }
+.plan-phase-header { display: flex; align-items: flex-start; gap: 14px; padding: 16px 20px; border-radius: var(--radius) var(--radius) 0 0; margin-bottom: 2px; }
+.plan-phase-header.phase-1 { background: linear-gradient(135deg, #1a0a0a, #2d1010); border: 1px solid #ef444430; }
+.plan-phase-header.phase-2 { background: linear-gradient(135deg, #1a140a, #2d2210); border: 1px solid #f59e0b30; }
+.plan-phase-header.phase-3 { background: linear-gradient(135deg, #0a1a12, #102d1c); border: 1px solid #22c55e30; }
+.plan-phase-header.phase-ok { background: linear-gradient(135deg, #0a140a, #102010); border: 1px solid #22c55e20; }
+.phase-badge { padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 800; background: rgba(255,255,255,0.1); color: #fff; white-space: nowrap; }
+.phase-title { font-weight: 700; font-size: 1rem; }
+.phase-sub { font-size: 0.8rem; color: var(--text2); margin-top: 2px; }
+.plan-item { background: var(--card); border: 1px solid var(--border); border-radius: 0 0 var(--radius) var(--radius); padding: 20px; margin-bottom: 2px; }
+.plan-item-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+.plan-item-title { display: flex; align-items: flex-start; gap: 12px; flex: 1; }
+.plan-item-score { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.plan-score-now { font-size: 1.4rem; font-weight: 900; color: var(--text2); }
+.plan-score-arrow { color: var(--text3); }
+.plan-score-meta { font-size: 1.2rem; font-weight: 700; color: var(--green); }
+.plan-diag { padding: 10px 14px; border-radius: 8px; font-size: 0.85rem; margin-bottom: 14px; }
+.plan-diag.diag-ok       { background: rgba(34,197,94,0.1);   color: #86efac; }
+.plan-diag.diag-warn     { background: rgba(245,158,11,0.1);  color: #fcd34d; }
+.plan-diag.diag-important{ background: rgba(249,115,22,0.1);  color: #fdba74; }
+.plan-diag.diag-critical { background: rgba(239,68,68,0.1);   color: #fca5a5; }
+.diag-tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 700; }
+.diag-tag.diag-ok       { background: rgba(34,197,94,0.15);   color: #86efac; }
+.diag-tag.diag-warn     { background: rgba(245,158,11,0.15);  color: #fcd34d; }
+.diag-tag.diag-important{ background: rgba(249,115,22,0.15);  color: #fdba74; }
+.diag-tag.diag-critical { background: rgba(239,68,68,0.15);   color: #fca5a5; }
+.plan-progress { margin-bottom: 14px; }
+.plan-bar-track { position: relative; height: 10px; background: rgba(255,255,255,0.07); border-radius: 5px; overflow: visible; }
+.plan-bar-now  { height: 100%; border-radius: 5px; transition: width 0.8s ease; }
+.plan-bar-meta { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--green); border-radius: 2px; }
+.plan-bar-elite{ position: absolute; top: -4px; bottom: -4px; width: 2px; background: rgba(59,130,246,0.6); border-radius: 2px; }
+.plan-bar-labels { display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text3); margin-top: 6px; }
+.plan-actions { margin-top: 4px; }
+.plan-actions-title { font-size: 0.8rem; font-weight: 700; color: var(--text2); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em; }
+.strength-chip { display: flex; align-items: center; gap: 10px; padding: 8px 14px; background: rgba(34,197,94,0.08); border: 1px solid rgba(34,197,94,0.2); border-radius: 8px; font-size: 0.875rem; }
+.strength-pct { font-weight: 800; color: var(--green); }
+.mini-gap { padding: 10px 12px; background: var(--card2); border-radius: 8px; margin-bottom: 8px; font-size: 0.85rem; }
 .workplan-week { font-size: 0.8rem; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
 .workplan-item h3 { font-weight: 700; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
 .workplan-tips { list-style: none; padding: 0; }
