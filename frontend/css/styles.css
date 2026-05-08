@@ -284,6 +284,17 @@ body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', syste
 /* ── PDF Export button ── */
 .export-bar { display: flex; gap: 12px; justify-content: flex-end; margin: 16px 0 24px; flex-wrap: wrap; }
 
+/* ── Perfil IA ── */
+#profile-ia-output { color: var(--text); line-height: 1.7; }
+#profile-ia-output h2 { font-size: 1.3rem; font-weight: 800; margin: 24px 0 8px; }
+#profile-ia-output h3 { font-size: 1.05rem; font-weight: 700; margin: 18px 0 6px; }
+#profile-ia-output p  { margin-bottom: 10px; color: var(--text2); }
+#profile-ia-output ul { padding-left: 20px; margin-bottom: 12px; }
+#profile-ia-output li { margin-bottom: 6px; color: var(--text2); }
+#profile-ia-output hr { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+#profile-ia-output strong { color: var(--accent); }
+#profile-ia-output .report-section { margin-bottom: 28px; }
+
 /* ── CAPTCHA widget ── */
 .captcha-box {
   display: flex; align-items: center; justify-content: space-between;

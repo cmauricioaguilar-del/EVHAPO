@@ -30,6 +30,8 @@ SMTP_PORT   = int(os.environ.get('SMTP_PORT', '587'))
 SMTP_USER   = os.environ.get('SMTP_USER', '')
 SMTP_PASS   = os.environ.get('SMTP_PASS', '')
 
+ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY', '')
+
 # ─── Database ────────────────────────────────────────────────────────────────
 
 def get_db():
@@ -87,6 +89,15 @@ def init_db():
             user_id INTEGER REFERENCES users(id),
             token TEXT UNIQUE NOT NULL,
             expires_at TEXT NOT NULL,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS player_profiles (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER REFERENCES users(id),
+            mental_session_id INTEGER,
+            technical_session_id INTEGER,
+            profile_html TEXT,
             created_at TEXT DEFAULT CURRENT_TIMESTAMP
         );
     """)
@@ -559,6 +570,174 @@ def _send_reset_email(to_email, nombre, temp_pw):
         server.starttls()
         server.login(SMTP_USER, SMTP_PASS)
         server.sendmail(SMTP_USER, to_email, msg.as_string())
+
+# ─── Perfil IA del jugador ────────────────────────────────────────────────────
+
+@app.route('/api/profile/get', methods=['GET'])
+@require_auth
+def get_profile():
+    db = get_db()
+    row = db.execute(
+        "SELECT * FROM player_profiles WHERE user_id=? ORDER BY created_at DESC LIMIT 1",
+        (g.user_id,)
+    ).fetchone()
+    if not row:
+        return jsonify({'profile': None})
+    return jsonify({
+        'profile': row['profile_html'],
+        'created_at': row['created_at'],
+        'mental_session_id': row['mental_session_id'],
+        'technical_session_id': row['technical_session_id'],
+    })
+
+
+@app.route('/api/profile/generate', methods=['POST'])
+@require_auth
+def generate_profile():
+    if not ANTHROPIC_API_KEY:
+        return jsonify({'error': 'ANTHROPIC_API_KEY no configurada. Agrega la variable de entorno para activar el perfil IA.'}), 503
+
+    try:
+        import anthropic as _anthropic
+    except ImportError:
+        return jsonify({'error': 'Librería anthropic no instalada. Ejecuta: pip install anthropic'}), 503
+
+    data = request.json or {}
+    mental_answers   = data.get('mental_answers', [])    # lista enriquecida
+    technical_answers = data.get('technical_answers', [])
+    mental_scores    = data.get('mental_scores', {})
+    technical_scores = data.get('technical_scores', {})
+    inconsistencies  = data.get('inconsistencies', [])
+    mental_session_id    = data.get('mental_session_id')
+    technical_session_id = data.get('technical_session_id')
+    nombre = g.user_name
+
+    prompt = _build_profile_prompt(
+        nombre, mental_answers, technical_answers,
+        mental_scores, technical_scores, inconsistencies
+    )
+
+    client = _anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    message = client.messages.create(
+        model='claude-3-5-sonnet-20241022',
+        max_tokens=4096,
+        messages=[{'role': 'user', 'content': prompt}]
+    )
+    profile_html = message.content[0].text
+
+    db = get_db()
+    db.execute(
+        "DELETE FROM player_profiles WHERE user_id=?", (g.user_id,)
+    )
+    db.execute(
+        "INSERT INTO player_profiles (user_id, mental_session_id, technical_session_id, profile_html, created_at) VALUES (?,?,?,?,?)",
+        (g.user_id, mental_session_id, technical_session_id, profile_html,
+         datetime.datetime.utcnow().isoformat())
+    )
+    db.commit()
+    return jsonify({
+        'profile': profile_html,
+        'created_at': datetime.datetime.utcnow().isoformat()
+    })
+
+
+def _build_profile_prompt(nombre, mental_answers, technical_answers,
+                           mental_scores, technical_scores, inconsistencies):
+    def fmt_scores(scores):
+        return '\n'.join(f'  • {k}: {v}%' for k, v in scores.items())
+
+    def fmt_answers(answers):
+        if not answers:
+            return '  (sin datos)'
+        lines = []
+        current_cat = None
+        for item in answers:
+            if item.get('category') != current_cat:
+                current_cat = item['category']
+                lines.append(f'\n  [{current_cat}]')
+            pts = item.get('points', 0)
+            max_pts = item.get('maxPoints', 10)
+            lines.append(f'    P: {item["question"][:90]}')
+            lines.append(f'    R: {item["answer"]} ({pts}/{max_pts} pts)')
+        return '\n'.join(lines)
+
+    def fmt_inconsistencies(items):
+        if not items:
+            return '  Ninguna detectada automáticamente.'
+        return '\n'.join(f'  ⚠ [{i["type"]}]: {i["detail"]}' for i in items)
+
+    mental_avg  = round(sum(mental_scores.values()) / max(len(mental_scores), 1), 1)
+    tech_avg    = round(sum(technical_scores.values()) / max(len(technical_scores), 1), 1)
+
+    return f"""Eres el coach de poker y psicólogo deportivo más experimentado del mundo hispanohablante, especialista en torneos MTT (Texas Hold'em). Tu tarea es generar un INFORME DE PERFIL COMPLETO Y PERSONALIZADO para el jugador {nombre}, basado en su diagnóstico EVHAPO.
+
+=== RESULTADOS DEL DIAGNÓSTICO ===
+
+PUNTAJES TEST MENTAL (promedio: {mental_avg}%):
+{fmt_scores(mental_scores)}
+
+PUNTAJES TEST TÉCNICO (promedio: {tech_avg}%):
+{fmt_scores(technical_scores)}
+
+=== RESPUESTAS DETALLADAS — TEST MENTAL ===
+{fmt_answers(mental_answers)}
+
+=== RESPUESTAS DETALLADAS — TEST TÉCNICO ===
+{fmt_answers(technical_answers)}
+
+=== INCOHERENCIAS DETECTADAS POR EL SISTEMA ===
+{fmt_inconsistencies(inconsistencies)}
+
+=== INSTRUCCIONES DE FORMATO ===
+
+Genera el informe en HTML limpio (sin <html>/<head>/<body>). Usa SOLO estos elementos:
+- Secciones: <div class="report-section" style="margin-bottom:28px">
+- Títulos: <h2 style="color:var(--accent);margin-bottom:8px">
+- Subtítulos: <h3 style="color:#4DB6AC;margin-bottom:6px">
+- Texto: <p style="color:var(--text2);line-height:1.7;margin-bottom:10px">
+- Resaltado: <strong style="color:var(--accent)">
+- Alertas positivas: <div style="background:rgba(34,197,94,0.1);border:1px solid #22c55e;border-radius:8px;padding:14px;margin:10px 0">
+- Alertas de advertencia: <div style="background:rgba(239,68,68,0.1);border:1px solid #ef4444;border-radius:8px;padding:14px;margin:10px 0">
+- Alertas neutras: <div style="background:rgba(212,175,55,0.1);border:1px solid var(--accent);border-radius:8px;padding:14px;margin:10px 0">
+- Separadores: <hr style="border-color:var(--border);margin:20px 0">
+- Listas: <ul style="padding-left:20px;color:var(--text2)"><li style="margin-bottom:6px">
+- Para planes: <div style="border-left:4px solid [COLOR];padding:12px 16px;margin-bottom:14px;background:var(--bg2);border-radius:0 8px 8px 0">
+
+=== ESTRUCTURA OBLIGATORIA (6 secciones) ===
+
+**SECCIÓN 1 — RESUMEN EJECUTIVO**
+Abre con el ARQUETIPO del jugador (dale un nombre creativo y evocador: ej. "El Técnico con Miedo a la Excelencia", "El Guerrero Emocionalmente Frágil"). Luego 2-3 párrafos de síntesis: quién es este jugador, cuál es su mayor fortaleza y cuál es el obstáculo principal que limita su crecimiento. Cierra con UNA frase-diagnóstico contundente.
+
+**SECCIÓN 2 — PERFIL INTEGRADO MENTAL + TÉCNICO**
+Analiza CORRELACIONES específicas. Por ejemplo: si tilt management es bajo y river value bet es bajo, explica cómo la presión emocional en el final de la mano genera decisiones técnicas subóptimas. Si disciplina es alta pero rangos preflop son malos, explica la paradoja. Cada correlación debe ser concreta y explicada con lógica de causa-efecto.
+
+**SECCIÓN 3 — ANÁLISIS DE INCOHERENCIAS**
+Para CADA incoherencia detectada: (a) qué dice el sistema sobre ella, (b) la explicación psicológica profunda de por qué ocurre esta paradoja, (c) cómo se manifiesta concretamente en la mesa. Si no hay incoherencias detectadas, analiza de todas formas las tensiones internas entre las categorías de los tests.
+
+**SECCIÓN 4 — DIAGNÓSTICO CON EJEMPLOS REALES**
+Describe 3-4 situaciones CONCRETAS de torneo MTT que ilustran el perfil del jugador. Formato para cada ejemplo:
+- Situación: "Es la burbuja con 180 jugadores, {nombre} tiene 22BB en CO, JJ vs 3-bet del BTN..."
+- Cómo reacciona ESTE jugador según su perfil (usando los puntajes reales)
+- Qué decisión tomaría un jugador de élite
+- Por qué la brecha existe (causa mental + causa técnica)
+
+**SECCIÓN 5 — PRONÓSTICO**
+Dos escenarios:
+SIN MEJORA (sé honesto, directo y realista): ¿Qué pasa a 3 meses / 6 meses / 1 año?
+CON EL PLAN DE MEJORA (optimista pero basado en datos): ¿Qué puede lograr a 3 / 6 / 12 meses?
+Incluye impacto esperado en ROI de torneo, ITM%, y calidad de vida como jugador.
+
+**SECCIÓN 6 — PLAN DE TRABAJO PERSONALIZADO (12 semanas)**
+3 fases de 4 semanas. Para cada área de trabajo:
+- Qué hacer exactamente (ejercicios, estudios, rutinas)
+- Cuánto tiempo por semana
+- Cómo medir el progreso
+- Recurso recomendado (libro, solver, video, app)
+Sé MUY específico: no digas "trabaja tu tilt", di "Después de cada sesión, escribe 3 frases en un diario de sesión describiendo el momento de mayor frustración y qué decisión tomaste".
+
+Usa el nombre {nombre} varias veces. Mínimo 1800 palabras. Tono: coach profesional que conoce bien al jugador, directo, honesto, constructivo y motivador.
+"""
+
 
 # ─── Entry point ──────────────────────────────────────────────────────────────
 

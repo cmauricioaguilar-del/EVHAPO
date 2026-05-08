@@ -97,6 +97,7 @@ function renderDashboardContent(data, user) {
     ${hasBoth ? `<button class="tab-btn active" onclick="dashTab('combined')">🔀 Vista Combinada</button>` : ''}
     <button class="tab-btn ${!hasBoth ? 'active' : ''}" onclick="dashTab('mental')">🧠 Mental ${mentalSc ? '' : '<span style=\'font-size:0.7rem;color:var(--text3)\'>— pendiente</span>'}</button>
     <button class="tab-btn" onclick="dashTab('technical')">⚙️ Técnico ${techSc ? '' : '<span style=\'font-size:0.7rem;color:var(--text3)\'>— pendiente</span>'}</button>
+    <button class="tab-btn" onclick="dashTab('profile')">🧬 Mi Perfil</button>
     <button class="tab-btn" onclick="dashTab('history')">📅 Historial</button>
     <button class="tab-btn" onclick="dashTab('benchmark')">🏅 Benchmark</button>
   </div>`;
@@ -202,6 +203,46 @@ function renderDashboardContent(data, user) {
         <button class="btn btn-primary mt-4" onclick="startNewTest('technical')">Comenzar Test Técnico →</button>
       </div>`;
   }
+  html += `</div>`;
+
+  // ─── TAB: Mi Perfil IA ────────────────────────────────────────────────────
+  const hasAnyTest = !!(mentalSc || techSc);
+  html += `<div id="dtab-profile" style="display:none">`;
+  html += `
+    <div class="card" style="margin-bottom:20px">
+      <div class="card-header">
+        <span class="card-icon">🧬</span>
+        <div>
+          <h2>Mi Perfil como Jugador</h2>
+          <div class="card-sub">Análisis integral generado por Inteligencia Artificial · Correlación mental + técnico</div>
+        </div>
+      </div>
+
+      ${!hasAnyTest ? `
+        <div class="empty-state" style="padding:40px 20px">
+          <span class="empty-icon">🧬</span>
+          <h2>Completa al menos un test</h2>
+          <p>Necesitas completar el Test Mental o el Test Técnico para generar tu perfil.</p>
+        </div>
+      ` : `
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px">
+          <button class="btn btn-primary" id="profile-gen-btn" onclick="generateProfile(${latestMental ? latestMental.id : 'null'}, ${latestTechnical ? latestTechnical.id : 'null'})">
+            ✨ Generar mi perfil con IA
+          </button>
+          <div style="color:var(--text2);font-size:0.85rem;align-self:center">
+            ${hasBoth ? '🟢 Test mental + técnico disponibles' : mentalSc ? '🟡 Solo test mental disponible' : '🟡 Solo test técnico disponible'}<br>
+            <span style="font-size:0.75rem">El análisis tarda ~15 segundos · Se guarda automáticamente</span>
+          </div>
+        </div>
+        <div id="profile-content">
+          <div style="text-align:center;padding:40px;color:var(--text2)">
+            <div style="font-size:3rem;margin-bottom:12px">🧬</div>
+            <p>Hacé clic en <strong>"Generar mi perfil con IA"</strong> para obtener tu análisis personalizado.</p>
+            <p style="font-size:0.85rem;margin-top:8px">La IA analiza todas tus respuestas, encuentra correlaciones e incoherencias, y genera un informe con diagnóstico y plan de trabajo.</p>
+          </div>
+        </div>
+      `}
+    </div>`;
   html += `</div>`;
 
   // ─── TAB: Historial ───────────────────────────────────────────────────────
@@ -337,12 +378,186 @@ function drawDashRadar(canvasId, categories, scores, borderColor, bgColor) {
 }
 
 function dashTab(tab) {
-  ['combined','mental','technical','history','benchmark'].forEach(t => {
+  ['combined','mental','technical','profile','history','benchmark'].forEach(t => {
     const el  = document.getElementById(`dtab-${t}`);
     const btn = document.querySelector(`[onclick="dashTab('${t}')"]`);
     if (el)  el.style.display  = t === tab ? 'block' : 'none';
     if (btn) btn.classList.toggle('active', t === tab);
   });
+  // Al abrir el tab de perfil, cargar el perfil guardado si existe
+  if (tab === 'profile') loadSavedProfile();
+}
+
+// ─── Perfil IA ────────────────────────────────────────────────────────────────
+
+let _profileAlreadyLoaded = false;
+
+async function loadSavedProfile() {
+  if (_profileAlreadyLoaded) return;
+  const contentEl = document.getElementById('profile-content');
+  if (!contentEl) return;
+
+  try {
+    const res = await Api.get('/api/profile/get');
+    if (res.profile) {
+      _profileAlreadyLoaded = true;
+      const dt = new Date(res.created_at).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
+      contentEl.innerHTML = `
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;padding:10px 14px;background:rgba(212,175,55,0.08);border-radius:8px;border:1px solid rgba(212,175,55,0.2)">
+          <span style="font-size:1.2rem">📅</span>
+          <span style="font-size:0.85rem;color:var(--text2)">Perfil generado el <strong>${dt}</strong>. Regenerá si completaste nuevos tests.</span>
+        </div>
+        <div id="profile-ia-output">${res.profile}</div>`;
+    }
+  } catch (e) {
+    // Sin perfil guardado — no mostrar error, el botón ya está visible
+  }
+}
+
+async function generateProfile(mentalSessionId, technicalSessionId) {
+  const btn = document.getElementById('profile-gen-btn');
+  const contentEl = document.getElementById('profile-content');
+  if (!btn || !contentEl) return;
+
+  btn.disabled = true;
+  btn.textContent = '⏳ Analizando tu perfil...';
+
+  contentEl.innerHTML = `
+    <div style="text-align:center;padding:48px 20px">
+      <div class="spinner" style="margin:0 auto 20px"></div>
+      <p style="color:var(--text2);font-size:1rem">La IA está analizando tus respuestas y correlaciones...</p>
+      <p style="color:var(--text3);font-size:0.85rem;margin-top:8px">Este proceso tarda entre 15 y 30 segundos.</p>
+    </div>`;
+
+  try {
+    // Obtener sesiones con respuestas completas
+    const [mentalData, techData] = await Promise.all([
+      mentalSessionId ? Api.get(`/api/test/results/${mentalSessionId}`).catch(() => null) : Promise.resolve(null),
+      technicalSessionId ? Api.get(`/api/test/results/${technicalSessionId}`).catch(() => null) : Promise.resolve(null),
+    ]);
+
+    const mentalAnswers   = mentalData  ? _enrichAnswers(mentalData.answers_json  || mentalData.answers  || {}, EVHAPO_CATEGORIES) : [];
+    const techAnswers     = techData    ? _enrichAnswers(techData.answers_json    || techData.answers    || {}, TECHNICAL_CATEGORIES) : [];
+    const mentalScores    = mentalData  ? (mentalData.scores || {}) : {};
+    const techScores      = techData    ? (techData.scores   || {}) : {};
+    const inconsistencies = _detectInconsistencies(mentalScores, techScores);
+
+    const res = await Api.post('/api/profile/generate', {
+      mental_answers: mentalAnswers,
+      technical_answers: techAnswers,
+      mental_scores: mentalScores,
+      technical_scores: techScores,
+      inconsistencies,
+      mental_session_id: mentalSessionId,
+      technical_session_id: technicalSessionId,
+    });
+
+    _profileAlreadyLoaded = true;
+    const now = new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
+    contentEl.innerHTML = `
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;padding:10px 14px;background:rgba(34,197,94,0.08);border-radius:8px;border:1px solid rgba(34,197,94,0.2)">
+        <span style="font-size:1.2rem">✅</span>
+        <span style="font-size:0.85rem;color:var(--text2)">Perfil generado el <strong>${now}</strong>.</span>
+      </div>
+      <div id="profile-ia-output">${res.profile}</div>`;
+
+  } catch (e) {
+    contentEl.innerHTML = `<div class="form-error" style="margin:16px 0">Error al generar el perfil: ${e.message}</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '✨ Regenerar perfil';
+  }
+}
+
+// Enriquece las respuestas con el texto de pregunta y respuesta
+function _enrichAnswers(answersRaw, categories) {
+  const answers = typeof answersRaw === 'string' ? JSON.parse(answersRaw) : answersRaw;
+  const result = [];
+  for (const cat of categories) {
+    for (const q of cat.questions) {
+      const val = answers[String(q.id)] ?? answers[q.id];
+      if (val === undefined) continue;
+      const opt = q.options.find(o => o.value === val);
+      result.push({
+        category: cat.label,
+        question: q.text,
+        answer: opt ? opt.label : val,
+        points: opt ? opt.points : 0,
+        maxPoints: 10,
+      });
+    }
+  }
+  return result;
+}
+
+// Detecta incoherencias entre categorías de ambos tests
+function _detectInconsistencies(mentalSc, techSc) {
+  const issues = [];
+  const hasMental = Object.keys(mentalSc).length > 0;
+  const hasTech   = Object.keys(techSc).length  > 0;
+
+  if (!hasMental || !hasTech) return issues;
+
+  const techAvg   = getTechnicalOverallScore(techSc);
+  const mentalAvg = getOverallScore(mentalSc);
+
+  // 1. Dunning-Kruger: alta confianza mental + bajo conocimiento técnico
+  const confKey = Object.keys(mentalSc).find(k => k.includes('confianz') || k.includes('autoconfi'));
+  if (confKey && mentalSc[confKey] >= 70 && techAvg < 50) {
+    issues.push({
+      type: 'EXCESO DE CONFIANZA (Dunning-Kruger)',
+      detail: `Autoconfianza mental alta (${mentalSc[confKey]}%) vs conocimiento técnico verificado bajo (${techAvg.toFixed(0)}%). El jugador puede sobreestimar su nivel real.`
+    });
+  }
+
+  // 2. Brecha tilt vs control emocional
+  const tiltKey    = Object.keys(mentalSc).find(k => k.includes('tilt'));
+  const emocKey    = Object.keys(mentalSc).find(k => k.includes('emoc') || k.includes('toleranc'));
+  if (tiltKey && emocKey) {
+    const diff = Math.abs(mentalSc[tiltKey] - mentalSc[emocKey]);
+    if (diff > 25) {
+      issues.push({
+        type: 'PARADOJA TILT vs CONTROL EMOCIONAL',
+        detail: `Gestión del Tilt (${mentalSc[tiltKey]}%) y Control Emocional (${mentalSc[emocKey]}%) difieren en ${diff.toFixed(0)} puntos. Estas habilidades suelen estar fuertemente correlacionadas.`
+      });
+    }
+  }
+
+  // 3. Imbalance general mental vs técnico
+  if (mentalAvg > 68 && techAvg < 42) {
+    issues.push({
+      type: 'IMBALANCE MENTAL-TÉCNICO',
+      detail: `Perfil mental sólido (${mentalAvg.toFixed(0)}%) con conocimiento técnico marcadamente inferior (${techAvg.toFixed(0)}%). El potencial mental no se apoya en bases técnicas suficientes.`
+    });
+  } else if (techAvg > 68 && mentalAvg < 42) {
+    issues.push({
+      type: 'IMBALANCE TÉCNICO-MENTAL',
+      detail: `Conocimiento técnico sólido (${techAvg.toFixed(0)}%) con habilidades mentales por debajo (${mentalAvg.toFixed(0)}%). Las decisiones técnicas se ven limitadas por la gestión emocional.`
+    });
+  }
+
+  // 4. Disciplina alta pero bankroll o rangos preflop bajos
+  const discKey = Object.keys(mentalSc).find(k => k.includes('disciplin'));
+  const preflopScore = techSc['rangos_preflop'] || 0;
+  if (discKey && mentalSc[discKey] >= 70 && preflopScore < 45) {
+    issues.push({
+      type: 'DISCIPLINA SIN FUNDAMENTO TÉCNICO',
+      detail: `Alta disciplina mental (${mentalSc[discKey]}%) pero rangos preflop débiles (${preflopScore}%). La disciplina no compensa decisiones preflop técnicamente incorrectas.`
+    });
+  }
+
+  // 5. Gap preflop vs postflop técnico
+  const ipScore  = techSc['juego_ip']  || 0;
+  const oopScore = techSc['juego_oop'] || 0;
+  const postflopAvg = (ipScore + oopScore) / 2;
+  if (preflopScore > 65 && postflopAvg < 40) {
+    issues.push({
+      type: 'GAP PREFLOP SÓLIDO vs POSTFLOP DÉBIL',
+      detail: `Buen conocimiento preflop (${preflopScore}%) pero postflop significativamente por debajo (IP: ${ipScore}%, OOP: ${oopScore}%). La ventaja preflop se pierde en la ejecución postflop.`
+    });
+  }
+
+  return issues;
 }
 
 async function startNewTest(testType = 'mental') {
