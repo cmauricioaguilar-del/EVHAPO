@@ -33,6 +33,69 @@ STRESS = [
     {"label": "Muy alto",    "value": "muy_alto",   "points": 0},
 ]
 
+TECHNICAL_QUESTIONS = {
+    "rangos_preflop": [
+        {"id": 201, "options": [{"value":"a","points":10},{"value":"b","points":0},{"value":"c","points":0},{"value":"d","points":0}]},
+        {"id": 202, "options": [{"value":"a","points":10},{"value":"b","points":0},{"value":"c","points":0},{"value":"d","points":0}]},
+        {"id": 203, "options": [{"value":"a","points":10},{"value":"b","points":0},{"value":"c","points":0},{"value":"d","points":0}]},
+        {"id": 204, "options": [{"value":"a","points":10},{"value":"b","points":0},{"value":"c","points":0},{"value":"d","points":0}]},
+        {"id": 205, "options": [{"value":"a","points":10},{"value":"b","points":0},{"value":"c","points":0},{"value":"d","points":0}]},
+        {"id": 206, "options": [{"value":"a","points":10},{"value":"b","points":0},{"value":"c","points":0},{"value":"d","points":0}]},
+        {"id": 207, "options": [{"value":"a","points":10},{"value":"b","points":0},{"value":"c","points":0},{"value":"d","points":0}]},
+        {"id": 208, "options": [{"value":"a","points":10},{"value":"b","points":0},{"value":"c","points":0},{"value":"d","points":0}]},
+    ],
+    "juego_ip": [
+        {"id": 209, "options": [{"value":"a","points":10},{"value":"b","points":0},{"value":"c","points":0},{"value":"d","points":0}]},
+        {"id": 210, "options": [{"value":"a","points":10},{"value":"b","points":0},{"value":"c","points":0},{"value":"d","points":0}]},
+        {"id": 211, "options": [{"value":"a","points":10},{"value":"b","points":0},{"value":"c","points":0},{"value":"d","points":0}]},
+        {"id": 212, "options": [{"value":"a","points":10},{"value":"b","points":0},{"value":"c","points":0},{"value":"d","points":0}]},
+        {"id": 213, "options": [{"value":"a","points":10},{"value":"b","points":0},{"value":"c","points":0},{"value":"d","points":0}]},
+        {"id": 214, "options": [{"value":"a","points":10},{"value":"b","points":0},{"value":"c","points":0},{"value":"d","points":0}]},
+        {"id": 215, "options": [{"value":"a","points":10},{"value":"b","points":0},{"value":"c","points":0},{"value":"d","points":0}]},
+        {"id": 216, "options": [{"value":"a","points":10},{"value":"b","points":0},{"value":"c","points":0},{"value":"d","points":0}]},
+    ],
+    "juego_oop": [
+        {"id": 217, "options": [{"value":"a","points":10},{"value":"b","points":0},{"value":"c","points":0},{"value":"d","points":0}]},
+        {"id": 218, "options": [{"value":"a","points":10},{"value":"b","points":0},{"value":"c","points":0},{"value":"d","points":0}]},
+        {"id": 219, "options": [{"value":"a","points":10},{"value":"b","points":0},{"value":"c","points":0},{"value":"d","points":0}]},
+        {"id": 220, "options": [{"value":"a","points":10},{"value":"b","points":0},{"value":"c","points":0},{"value":"d","points":0}]},
+        {"id": 221, "options": [{"value":"a","points":10},{"value":"b","points":0},{"value":"c","points":0},{"value":"d","points":0}]},
+        {"id": 222, "options": [{"value":"a","points":10},{"value":"b","points":0},{"value":"c","points":0},{"value":"d","points":0}]},
+        {"id": 223, "options": [{"value":"a","points":10},{"value":"b","points":0},{"value":"c","points":0},{"value":"d","points":0}]},
+        {"id": 224, "options": [{"value":"a","points":10},{"value":"b","points":0},{"value":"c","points":0},{"value":"d","points":0}]},
+    ],
+    "textura_flop": [
+        {"id": 225, "options": [{"value":"a","points":10},{"value":"b","points":0},{"value":"c","points":0},{"value":"d","points":0}]},
+        {"id": 226, "options": [{"value":"a","points":10},{"value":"b","points":0},{"value":"c","points":0},{"value":"d","points":0}]},
+        {"id": 227, "options": [{"value":"a","points":10},{"value":"b","points":0},{"value":"c","points":0},{"value":"d","points":0}]},
+        {"id": 228, "options": [{"value":"a","points":10},{"value":"b","points":0},{"value":"c","points":0},{"value":"d","points":0}]},
+        {"id": 229, "options": [{"value":"a","points":10},{"value":"b","points":0},{"value":"c","points":0},{"value":"d","points":0}]},
+        {"id": 230, "options": [{"value":"a","points":10},{"value":"b","points":0},{"value":"c","points":0},{"value":"d","points":0}]},
+        {"id": 231, "options": [{"value":"a","points":10},{"value":"b","points":0},{"value":"c","points":0},{"value":"d","points":0}]},
+        {"id": 232, "options": [{"value":"a","points":10},{"value":"b","points":0},{"value":"c","points":0},{"value":"d","points":0}]},
+    ],
+    "lineas_turn": [
+        {"id": 233, "options": [{"value":"a","points":10},{"value":"b","points":0},{"value":"c","points":0},{"value":"d","points":0}]},
+        {"id": 234, "options": [{"value":"a","points":10},{"value":"b","points":0},{"value":"c","points":0},{"value":"d","points":0}]},
+        {"id": 235, "options": [{"value":"a","points":10},{"value":"b","points":0},{"value":"c","points":0},{"value":"d","points":0}]},
+        {"id": 236, "options": [{"value":"a","points":10},{"value":"b","points":0},{"value":"c","points":0},{"value":"d","points":0}]},
+        {"id": 237, "options": [{"value":"a","points":10},{"value":"b","points":0},{"value":"c","points":0},{"value":"d","points":0}]},
+        {"id": 238, "options": [{"value":"a","points":10},{"value":"b","points":0},{"value":"c","points":0},{"value":"d","points":0}]},
+        {"id": 239, "options": [{"value":"a","points":10},{"value":"b","points":0},{"value":"c","points":0},{"value":"d","points":0}]},
+        {"id": 240, "options": [{"value":"a","points":10},{"value":"b","points":0},{"value":"c","points":0},{"value":"d","points":0}]},
+    ],
+    "river_value": [
+        {"id": 241, "options": [{"value":"a","points":10},{"value":"b","points":0},{"value":"c","points":0},{"value":"d","points":0}]},
+        {"id": 242, "options": [{"value":"a","points":10},{"value":"b","points":0},{"value":"c","points":0},{"value":"d","points":0}]},
+        {"id": 243, "options": [{"value":"a","points":10},{"value":"b","points":0},{"value":"c","points":0},{"value":"d","points":0}]},
+        {"id": 244, "options": [{"value":"a","points":10},{"value":"b","points":0},{"value":"c","points":0},{"value":"d","points":0}]},
+        {"id": 245, "options": [{"value":"a","points":10},{"value":"b","points":0},{"value":"c","points":0},{"value":"d","points":0}]},
+        {"id": 246, "options": [{"value":"a","points":10},{"value":"b","points":0},{"value":"c","points":0},{"value":"d","points":0}]},
+        {"id": 247, "options": [{"value":"a","points":10},{"value":"b","points":0},{"value":"c","points":0},{"value":"d","points":0}]},
+        {"id": 248, "options": [{"value":"a","points":10},{"value":"b","points":0},{"value":"c","points":0},{"value":"d","points":0}]},
+    ],
+}
+
 QUESTIONS = {
     "tolerancia": [
         {"id": 1,  "text": "¿Soy capaz de escuchar y respetar las opiniones y puntos de vista de los demás, incluso si difieren de los míos?", "options": FREQ},

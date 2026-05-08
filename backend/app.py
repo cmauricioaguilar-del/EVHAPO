@@ -63,6 +63,7 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER REFERENCES users(id),
             payment_id INTEGER REFERENCES payments(id),
+            test_type TEXT DEFAULT 'mental',
             completed INTEGER DEFAULT 0,
             score_total REAL DEFAULT 0,
             scores_json TEXT DEFAULT '{}',
@@ -242,15 +243,17 @@ def create_payment():
         # Demo mode: simulate payment for testing
         db.execute("UPDATE payments SET status='approved', external_id='DEMO' WHERE id=?", (payment_id,))
         db.commit()
+        test_type = data.get('test_type', 'mental')
         session_id = db.execute(
-            "INSERT INTO test_sessions (user_id, payment_id) VALUES (?,?)",
-            (g.user_id, payment_id)
+            "INSERT INTO test_sessions (user_id, payment_id, test_type) VALUES (?,?,?)",
+            (g.user_id, payment_id, test_type)
         ).lastrowid
         db.commit()
         return jsonify({
             'mode': 'demo',
             'payment_id': payment_id,
             'session_id': session_id,
+            'test_type': test_type,
             'message': 'Modo demo activo. En producción se procesará el pago real.'
         })
 
@@ -372,7 +375,8 @@ def submit_test():
         return jsonify({'error': 'Sesión no encontrada'}), 404
 
     # Calculate scores per category
-    scores = calculate_scores(answers)
+    test_type = sess['test_type'] if sess['test_type'] else 'mental'
+    scores = calculate_scores(answers, test_type)
     total = sum(scores.values())
 
     db.execute(
@@ -382,27 +386,24 @@ def submit_test():
     db.commit()
     return jsonify({'ok': True, 'scores': scores, 'total': total, 'session_id': session_id})
 
-def calculate_scores(answers):
-    from scoring import QUESTIONS
+def calculate_scores(answers, test_type='mental'):
+    from scoring import QUESTIONS, TECHNICAL_QUESTIONS
+    question_bank = TECHNICAL_QUESTIONS if test_type == 'technical' else QUESTIONS
     category_scores = {}
-    category_max = {}
 
-    for cat_key, questions in QUESTIONS.items():
+    for cat_key, questions in question_bank.items():
         cat_score = 0
         cat_max = 0
         for q in questions:
             qid = q['id']
             ans = answers.get(str(qid))
             if ans is not None:
-                options = q['options']
-                for opt in options:
+                for opt in q['options']:
                     if opt['value'] == ans:
-                        pts = opt['points']
-                        cat_score += pts
+                        cat_score += opt['points']
                         break
-                cat_max += 10  # max points per question
+                cat_max += 10
         category_scores[cat_key] = round((cat_score / cat_max * 100) if cat_max > 0 else 0, 1)
-        category_max[cat_key] = cat_max
     return category_scores
 
 @app.route('/api/test/results/<int:session_id>', methods=['GET'])
