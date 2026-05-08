@@ -74,8 +74,8 @@ function renderLanding() {
 
         <!-- Test Mental -->
         <div class="card">
-          <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
-            <span style="font-size:1.4rem">🧠</span>
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
+            <span style="font-size:1.8rem">🧠</span>
             <img src="/icons/mindev-logo.png" alt="MindEV" class="section-logo">
           </div>
           <p style="font-size:0.85rem;color:var(--text2);margin-bottom:16px">Test Mental — Habilidades psicológicas del jugador</p>
@@ -86,8 +86,8 @@ function renderLanding() {
 
         <!-- Test Técnico -->
         <div class="card">
-          <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
-            <span style="font-size:1.4rem">⚙️</span>
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
+            <span style="font-size:1.8rem">⚙️</span>
             <img src="/icons/mindev-logo.png" alt="MindEV" class="section-logo">
           </div>
           <p style="font-size:0.85rem;color:var(--text2);margin-bottom:16px">Test Técnico — Conocimiento de Texas Hold'em</p>
