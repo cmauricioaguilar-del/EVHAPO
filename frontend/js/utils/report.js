@@ -216,7 +216,6 @@ function buildReport(scores, userName, categories) {
             </div>
             <div class="cat-score-bar" style="margin-bottom:8px">
               <div class="cat-score-fill" style="width:${cat.pct}%;background:${cat.color}"></div>
-              <div style="position:absolute;left:80%;top:0;bottom:0;width:2px;background:rgba(59,130,246,0.5)"></div>
             </div>
             <div style="display:flex;justify-content:space-between;font-size:0.8rem;color:var(--text2);margin-bottom:8px">
               <span>Tu nivel: <strong style="color:${cat.color}">${cat.pct}%</strong></span>
