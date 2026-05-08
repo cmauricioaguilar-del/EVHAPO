@@ -284,6 +284,30 @@ body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', syste
 /* ── PDF Export button ── */
 .export-bar { display: flex; gap: 12px; justify-content: flex-end; margin: 16px 0 24px; flex-wrap: wrap; }
 
+/* ── CAPTCHA widget ── */
+.captcha-box {
+  display: flex; align-items: center; justify-content: space-between;
+  border: 1px solid #c1c1c1; border-radius: 4px;
+  background: #f9f9f9; padding: 12px 16px;
+  margin: 16px 0; user-select: none; cursor: pointer;
+  transition: border-color 0.2s;
+}
+.captcha-box:hover { border-color: #aaa; }
+.captcha-box.verified { border-color: #4caf50; background: #f0faf0; }
+.captcha-left { display: flex; align-items: center; gap: 14px; }
+.captcha-checkbox {
+  width: 24px; height: 24px; border: 2px solid #c1c1c1; border-radius: 2px;
+  background: #fff; display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; transition: all 0.2s;
+}
+.captcha-checkbox.checked { background: #4caf50; border-color: #4caf50; }
+.captcha-checkbox.checked::after { content: '✓'; color: #fff; font-size: 15px; font-weight: 900; }
+.captcha-label { font-size: 0.95rem; color: #333; font-weight: 500; }
+.captcha-right { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.captcha-logo { font-size: 1.5rem; }
+.captcha-brand { font-size: 0.6rem; color: #777; text-align: center; line-height: 1.2; font-weight: 600; letter-spacing: 0.5px; }
+.captcha-links { font-size: 0.55rem; color: #999; text-align: center; }
+
 /* ── Mobile ── */
 @media (max-width: 640px) {
   .form-row { grid-template-columns: 1fr; }

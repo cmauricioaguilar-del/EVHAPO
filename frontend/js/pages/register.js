@@ -48,6 +48,19 @@ function renderRegister() {
             <input type="password" id="reg-pass2" placeholder="Repite la contraseña" autocomplete="new-password" />
           </div>
         </div>
+        <!-- CAPTCHA -->
+        <div class="captcha-box" id="reg-captcha-box" onclick="toggleCaptcha('reg')">
+          <div class="captcha-left">
+            <div class="captcha-checkbox" id="reg-captcha-check"></div>
+            <span class="captcha-label">No soy un robot</span>
+          </div>
+          <div class="captcha-right">
+            <span class="captcha-logo">🛡️</span>
+            <span class="captcha-brand">reCAPTCHA</span>
+            <span class="captcha-links">Privacidad · Términos</span>
+          </div>
+        </div>
+
         <button class="btn btn-primary btn-block" id="reg-btn" onclick="doRegister()">
           Crear cuenta y continuar →
         </button>
@@ -78,6 +91,9 @@ async function doRegister() {
   errEl.innerHTML = '';
   if (!nombre || !apellido || !email || !pais || !pass) {
     errEl.innerHTML = '<div class="form-error">Todos los campos son obligatorios.</div>'; return;
+  }
+  if (!_captchaState['reg']) {
+    errEl.innerHTML = '<div class="form-error">Por favor confirma que no eres un robot.</div>'; return;
   }
   if (pass !== pass2) {
     errEl.innerHTML = '<div class="form-error">Las contraseñas no coinciden.</div>'; return;

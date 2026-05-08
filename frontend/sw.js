@@ -1,9 +1,9 @@
 // ─── EVHAPO Service Worker ────────────────────────────────────────────────────
 // Versión: incrementar al hacer cambios importantes para forzar actualización
 
-const CACHE_NAME   = 'evhapo-v2';
-const STATIC_CACHE = 'evhapo-static-v2';
-const API_CACHE    = 'evhapo-api-v2';
+const CACHE_NAME   = 'evhapo-v3';
+const STATIC_CACHE = 'evhapo-static-v3';
+const API_CACHE    = 'evhapo-api-v3';
 
 // Archivos que se cachean al instalar (shell de la app)
 const SHELL_FILES = [
@@ -13,6 +13,7 @@ const SHELL_FILES = [
   '/js/data/questions.js',
   '/js/data/technical_questions.js',
   '/js/utils/api.js',
+  '/js/utils/captcha.js',
   '/js/utils/report.js',
   '/js/pages/landing.js',
   '/js/pages/login.js',

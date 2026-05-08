@@ -17,6 +17,19 @@ function renderLogin(msg) {
           <label>Contraseña</label>
           <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password" />
         </div>
+        <!-- CAPTCHA -->
+        <div class="captcha-box" id="login-captcha-box" onclick="toggleCaptcha('login')">
+          <div class="captcha-left">
+            <div class="captcha-checkbox" id="login-captcha-check"></div>
+            <span class="captcha-label">No soy un robot</span>
+          </div>
+          <div class="captcha-right">
+            <span class="captcha-logo">🛡️</span>
+            <span class="captcha-brand">reCAPTCHA</span>
+            <span class="captcha-links">Privacidad · Términos</span>
+          </div>
+        </div>
+
         <button class="btn btn-primary btn-block" id="login-btn" onclick="doLogin()">
           Entrar →
         </button>
@@ -106,6 +119,10 @@ async function doLogin() {
   errEl.innerHTML = '';
   if (!email || !password) {
     errEl.innerHTML = '<div class="form-error">Completa todos los campos.</div>';
+    return;
+  }
+  if (!_captchaState['login']) {
+    errEl.innerHTML = '<div class="form-error">Por favor confirma que no eres un robot.</div>';
     return;
   }
 
