@@ -81,6 +81,18 @@ def init_db():
         );
     """)
     db.commit()
+
+    # Migraciones automáticas (columnas nuevas en tablas existentes)
+    migrations = [
+        "ALTER TABLE test_sessions ADD COLUMN test_type TEXT DEFAULT 'mental'",
+    ]
+    for sql in migrations:
+        try:
+            db.execute(sql)
+            db.commit()
+        except Exception:
+            pass  # La columna ya existe, ignorar
+
     db.close()
 
 # ─── Auth helpers ─────────────────────────────────────────────────────────────
