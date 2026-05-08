@@ -294,7 +294,7 @@ const EVHAPO_CATEGORIES = [
       { id: 97,  text: '¿Cuando pierdo una mano importante, puedo mantener la calma y continuar jugando con objetividad?', options: FREQ },
       { id: 98,  text: '¿Tengo un protocolo o rutina establecida para salir del tilt cuando lo detecto?', options: FREQ },
       { id: 99,  text: '¿Analizo después de cada sesión si estuve en tilt en algún momento?', options: FREQ },
-      { id: 100, text: '¿Evito aumentar las apuestas o jugar más manos cuando estoy perdiendo como forma de "recuperar"?', options: FREQ },
+      { id: 100, text: 'Cuando pierdo una mano importante, siento la urgencia de recuperarme rápidamente antes de que las ciegas suban y me presionen más.', options: FREQ },
       { id: 101, text: '¿Puedo identificar qué tipo de situaciones o jugadores me generan más tilt?', options: FREQ },
       { id: 102, text: '¿Cuando un rival juega mal y gana, puedo aceptarlo como parte de la varianza sin irritarme?', options: FREQ },
       { id: 103, text: '¿Establezco límites de pérdida (stop loss) antes de comenzar una sesión y los respeto?', options: FREQ },

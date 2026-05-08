@@ -2,22 +2,27 @@ let _testState = {
   catIdx: 0,
   answers: {},
   sessionId: null,
+  testType: 'mental',
+  categories: EVHAPO_CATEGORIES,
 };
 
 function renderTest() {
   if (!Api.isLoggedIn()) { App.go('login', 'Inicia sesión para continuar'); return; }
   const sid = localStorage.getItem('evhapo_session');
   if (!sid) { App.go('payment'); return; }
+  const testType = localStorage.getItem('evhapo_test_type') || 'mental';
   _testState.sessionId = parseInt(sid);
   _testState.catIdx = 0;
   _testState.answers = {};
+  _testState.testType = testType;
+  _testState.categories = testType === 'technical' ? TECHNICAL_CATEGORIES : EVHAPO_CATEGORIES;
   renderTestSection();
 }
 
 function renderTestSection() {
   const { catIdx, answers } = _testState;
-  const cat = EVHAPO_CATEGORIES[catIdx];
-  const totalQ = EVHAPO_CATEGORIES.reduce((s, c) => s + c.questions.length, 0);
+  const cat = _testState.categories[catIdx];
+  const totalQ = _testState.categories.reduce((s, c) => s + c.questions.length, 0);
   const answeredSoFar = Object.keys(answers).length;
   const pct = Math.round((answeredSoFar / totalQ) * 100);
 
@@ -39,7 +44,7 @@ function renderTestSection() {
       </div>`;
   }).join('');
 
-  const isLast = catIdx === EVHAPO_CATEGORIES.length - 1;
+  const isLast = catIdx === _testState.categories.length - 1;
   const catAnswered = cat.questions.filter(q => answers[q.id] !== undefined).length;
   const catTotal = cat.questions.length;
 
@@ -58,7 +63,7 @@ function renderTestSection() {
     <div class="test-header">
       <div class="test-meta">
         <div class="test-category">${cat.icon} ${cat.label}</div>
-        <div class="test-counter">Sección ${catIdx + 1} de ${EVHAPO_CATEGORIES.length} · ${catAnswered}/${catTotal} respondidas</div>
+        <div class="test-counter">Sección ${catIdx + 1} de ${_testState.categories.length} · ${catAnswered}/${catTotal} respondidas</div>
       </div>
       <div class="progress-bar">
         <div class="progress-fill" style="width:${pct}%"></div>
@@ -82,11 +87,6 @@ function renderTestSection() {
           ? `<button class="btn btn-secondary" onclick="navSection(-1)">← Anterior</button>`
           : `<button class="btn btn-secondary" onclick="App.go('landing')">← Salir</button>`}
       </div>
-      <div class="test-nav-info">
-        ${isLast
-          ? `<strong style="color:var(--accent)">${catAnswered < catTotal ? catTotal - catAnswered + ' sin responder' : '¡Listo para enviar!'}</strong>`
-          : `${catAnswered}/${catTotal} respondidas`}
-      </div>
       <div>
         ${isLast
           ? `<button class="btn btn-primary" id="submit-btn" onclick="submitTest()">✓ Ver mis resultados</button>`
@@ -103,23 +103,23 @@ function selectAnswer(qid, value, btn) {
   btn.classList.add('selected');
 
   // Update counters
-  const totalQ = EVHAPO_CATEGORIES.reduce((s, c) => s + c.questions.length, 0);
+  const totalQ = _testState.categories.reduce((s, c) => s + c.questions.length, 0);
   const answeredSoFar = Object.keys(_testState.answers).length;
   const pct = Math.round((answeredSoFar / totalQ) * 100);
   const fill = document.querySelector('.progress-fill');
   if (fill) fill.style.width = pct + '%';
 
-  const cat = EVHAPO_CATEGORIES[_testState.catIdx];
+  const cat = _testState.categories[_testState.catIdx];
   const catAnswered = cat.questions.filter(q => _testState.answers[q.id] !== undefined).length;
   const counter = document.querySelector('.test-counter');
-  if (counter) counter.textContent = `Sección ${_testState.catIdx + 1} de ${EVHAPO_CATEGORIES.length} · ${catAnswered}/${cat.questions.length} respondidas`;
+  if (counter) counter.textContent = `Sección ${_testState.catIdx + 1} de ${_testState.categories.length} · ${catAnswered}/${cat.questions.length} respondidas`;
 
   const navbar = document.querySelector('.navbar div:last-child');
   if (navbar) navbar.textContent = `${answeredSoFar} de ${totalQ} preguntas respondidas`;
 }
 
 function navSection(dir) {
-  const cat = EVHAPO_CATEGORIES[_testState.catIdx];
+  const cat = _testState.categories[_testState.catIdx];
   const unanswered = cat.questions.filter(q => _testState.answers[q.id] === undefined);
 
   if (dir > 0 && unanswered.length > 0) {
@@ -141,13 +141,13 @@ function navSection(dir) {
 }
 
 async function submitTest() {
-  const allQ = EVHAPO_CATEGORIES.flatMap(c => c.questions);
+  const allQ = _testState.categories.flatMap(c => c.questions);
   const unanswered = allQ.filter(q => _testState.answers[q.id] === undefined);
 
   if (unanswered.length > 0) {
     // Find which section has unanswered
-    for (let i = 0; i < EVHAPO_CATEGORIES.length; i++) {
-      const cat = EVHAPO_CATEGORIES[i];
+    for (let i = 0; i < _testState.categories.length; i++) {
+      const cat = _testState.categories[i];
       if (cat.questions.some(q => _testState.answers[q.id] === undefined)) {
         _testState.catIdx = i;
         renderTestSection();

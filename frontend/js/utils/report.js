@@ -286,47 +286,74 @@ function buildReport(scores, userName, categories) {
 
 async function exportToPDF(userName, overall, scores) {
   const { jsPDF } = window.jspdf;
-  const reportEl = document.getElementById('report-content');
-  if (!reportEl) return;
 
-  const canvas = await html2canvas(reportEl, { scale: 1.5, backgroundColor: '#111827' });
-  const imgData = canvas.toDataURL('image/png');
-  const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-
-  const pageW = pdf.internal.pageSize.getWidth();
-  const pageH = pdf.internal.pageSize.getHeight();
-
-  // Header
-  pdf.setFillColor(10, 14, 26);
-  pdf.rect(0, 0, pageW, 30, 'F');
-  pdf.setTextColor(212, 175, 55);
-  pdf.setFontSize(20);
-  pdf.setFont('helvetica', 'bold');
-  pdf.text('EVHAPO – Diagnóstico del Jugador de Poker', pageW / 2, 14, { align: 'center' });
-  pdf.setFontSize(11);
-  pdf.setTextColor(148, 163, 184);
-  pdf.text(`Informe de ${userName} · Puntaje global: ${overall}%`, pageW / 2, 23, { align: 'center' });
-
-  // Content paginado
-  const imgRatio = (pageW - 20) / canvas.width;
-  const imgHeightMm = canvas.height * imgRatio;
-  let yPos = 34;
-  let remaining = imgHeightMm;
-  let srcY = 0;
-
-  while (remaining > 0) {
-    const sliceH = Math.min(pageH - yPos - 10, remaining);
-    const srcSliceH = sliceH / imgRatio;
-    const sliceCanvas = document.createElement('canvas');
-    sliceCanvas.width = canvas.width;
-    sliceCanvas.height = srcSliceH;
-    const ctx = sliceCanvas.getContext('2d');
-    ctx.drawImage(canvas, 0, srcY, canvas.width, srcSliceH, 0, 0, canvas.width, srcSliceH);
-    pdf.addImage(sliceCanvas.toDataURL('image/png'), 'PNG', 10, yPos, pageW - 20, sliceH);
-    remaining -= sliceH;
-    srcY += srcSliceH;
-    if (remaining > 0) { pdf.addPage(); yPos = 10; }
+  // Asegurarse de que el tab de informe esté visible para html2canvas
+  const tabReport = document.getElementById('tab-report');
+  const wasHidden = tabReport && tabReport.style.display === 'none';
+  if (wasHidden) {
+    tabReport.style.display = 'block';
+    tabReport.style.position = 'absolute';
+    tabReport.style.left = '-9999px';
+    tabReport.style.top = '0';
   }
 
-  pdf.save(`EVHAPO_Informe_${userName.replace(/\s+/g, '_')}.pdf`);
+  // Pequeña pausa para que el DOM se renderice
+  await new Promise(r => setTimeout(r, 100));
+
+  const reportEl = document.getElementById('report-content');
+  if (!reportEl) {
+    if (wasHidden && tabReport) tabReport.style.display = 'none';
+    alert('No se encontró el contenido del informe. Ve a la pestaña "Informe" e inténtalo de nuevo.');
+    return;
+  }
+
+  try {
+    const canvas = await html2canvas(reportEl, { scale: 1.5, backgroundColor: '#111827', useCORS: true });
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+    const pageW = pdf.internal.pageSize.getWidth();
+    const pageH = pdf.internal.pageSize.getHeight();
+
+    // Header
+    pdf.setFillColor(10, 14, 26);
+    pdf.rect(0, 0, pageW, 30, 'F');
+    pdf.setTextColor(212, 175, 55);
+    pdf.setFontSize(18);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('EVHAPO - Diagnostico del Jugador de Poker', pageW / 2, 14, { align: 'center' });
+    pdf.setFontSize(10);
+    pdf.setTextColor(148, 163, 184);
+    pdf.text(`Informe de ${userName}   Puntaje global: ${overall}%`, pageW / 2, 23, { align: 'center' });
+
+    // Content paginado
+    const imgRatio   = (pageW - 20) / canvas.width;
+    let yPos      = 34;
+    let remaining = canvas.height * imgRatio;
+    let srcY      = 0;
+
+    while (remaining > 0) {
+      const sliceH    = Math.min(pageH - yPos - 10, remaining);
+      const srcSliceH = sliceH / imgRatio;
+      const sliceCanvas = document.createElement('canvas');
+      sliceCanvas.width  = canvas.width;
+      sliceCanvas.height = srcSliceH;
+      const ctx = sliceCanvas.getContext('2d');
+      ctx.drawImage(canvas, 0, srcY, canvas.width, srcSliceH, 0, 0, canvas.width, srcSliceH);
+      pdf.addImage(sliceCanvas.toDataURL('image/png'), 'PNG', 10, yPos, pageW - 20, sliceH);
+      remaining -= sliceH;
+      srcY      += srcSliceH;
+      if (remaining > 0) { pdf.addPage(); yPos = 10; }
+    }
+
+    pdf.save(`EVHAPO_Informe_${userName.replace(/\s+/g, '_')}.pdf`);
+  } finally {
+    // Restaurar visibilidad original
+    if (wasHidden && tabReport) {
+      tabReport.style.display = 'none';
+      tabReport.style.position = '';
+      tabReport.style.left = '';
+      tabReport.style.top = '';
+    }
+  }
 }

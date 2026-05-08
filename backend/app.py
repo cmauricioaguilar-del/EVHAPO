@@ -5,6 +5,11 @@ import hmac
 import json
 import datetime
 import secrets
+import smtplib
+import random
+import string
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from functools import wraps
 from flask import Flask, request, jsonify, send_from_directory, g
 from flask_cors import CORS
@@ -19,6 +24,11 @@ TEST_PRICE_USD = 9.90
 
 MERCADOPAGO_ACCESS_TOKEN = os.environ.get('MERCADOPAGO_ACCESS_TOKEN', '')
 STRIPE_SECRET_KEY = os.environ.get('STRIPE_SECRET_KEY', '')
+
+SMTP_SERVER = os.environ.get('SMTP_SERVER', 'smtp.gmail.com')
+SMTP_PORT   = int(os.environ.get('SMTP_PORT', '587'))
+SMTP_USER   = os.environ.get('SMTP_USER', '')
+SMTP_PASS   = os.environ.get('SMTP_PASS', '')
 
 # ─── Database ────────────────────────────────────────────────────────────────
 
@@ -491,6 +501,64 @@ def admin_stats():
         'total_revenue': total_revenue,
         'benchmark': benchmark
     })
+
+@app.route('/api/password-reset', methods=['POST'])
+def password_reset():
+    data  = request.json or {}
+    email = (data.get('email') or '').strip().lower()
+    if not email:
+        return jsonify({'error': 'Email requerido'}), 400
+
+    db   = get_db()
+    user = db.execute("SELECT id, nombre FROM users WHERE email=?", (email,)).fetchone()
+
+    # Siempre respondemos OK para no revelar si el email existe
+    if not user:
+        return jsonify({'ok': True, 'message': 'Si el email está registrado, recibirás un correo en breve.'})
+
+    # Generar contraseña temporal
+    temp_pw = ''.join(random.choices(string.ascii_letters + string.digits, k=10))
+    db.execute("UPDATE users SET password_hash=? WHERE id=?", (hash_password(temp_pw), user['id']))
+    db.commit()
+
+    if SMTP_USER and SMTP_PASS:
+        try:
+            _send_reset_email(email, user['nombre'], temp_pw)
+            return jsonify({'ok': True, 'message': 'Te enviamos un correo con tu nueva contraseña temporal. Revisa también la carpeta de spam.'})
+        except Exception as e:
+            return jsonify({'error': f'Error al enviar el correo: {str(e)}'}), 500
+    else:
+        # Modo desarrollo: devuelve la clave en la respuesta
+        return jsonify({'ok': True, 'message': f'[MODO DEV] Contraseña temporal: {temp_pw}  —  Configura SMTP_USER y SMTP_PASS para envío real por email.'})
+
+def _send_reset_email(to_email, nombre, temp_pw):
+    msg = MIMEMultipart('alternative')
+    msg['Subject'] = 'EVHAPO – Tu contraseña temporal'
+    msg['From']    = SMTP_USER
+    msg['To']      = to_email
+
+    body = f"""
+    <div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;background:#0a0e1a;color:#e2e8f0;padding:32px;border-radius:12px">
+      <div style="text-align:center;margin-bottom:24px">
+        <span style="font-size:3rem;color:#d4af37">♠</span>
+        <h1 style="color:#d4af37;margin:8px 0">EVHAPO</h1>
+      </div>
+      <h2 style="margin-bottom:8px">Hola, {nombre}</h2>
+      <p>Recibimos tu solicitud de recuperación de contraseña.</p>
+      <p>Tu nueva contraseña temporal es:</p>
+      <div style="background:#1a2235;border:2px solid #d4af37;border-radius:8px;padding:20px;text-align:center;margin:20px 0">
+        <code style="font-size:1.5rem;color:#d4af37;letter-spacing:3px;font-weight:bold">{temp_pw}</code>
+      </div>
+      <p>Ingresa con esta contraseña y cámbiala desde tu perfil lo antes posible.</p>
+      <p style="color:#64748b;font-size:0.85rem;margin-top:24px">Si no solicitaste este cambio, ignora este mensaje.</p>
+    </div>
+    """
+    msg.attach(MIMEText(body, 'html'))
+
+    with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+        server.starttls()
+        server.login(SMTP_USER, SMTP_PASS)
+        server.sendmail(SMTP_USER, to_email, msg.as_string())
 
 # ─── Entry point ──────────────────────────────────────────────────────────────
 

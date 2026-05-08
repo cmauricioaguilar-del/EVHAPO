@@ -20,6 +20,11 @@ function renderLogin(msg) {
         <button class="btn btn-primary btn-block" id="login-btn" onclick="doLogin()">
           Entrar →
         </button>
+        <div style="text-align:center;margin-top:12px">
+          <button class="auth-link" onclick="renderForgotPassword()" style="font-size:0.85rem;color:var(--text2)">
+            ¿Olvidaste tu contraseña?
+          </button>
+        </div>
         <div class="auth-divider">o</div>
         <p style="text-align:center;font-size:0.9rem;color:var(--text2)">
           ¿No tienes cuenta?
@@ -38,11 +43,65 @@ function renderLogin(msg) {
   });
 }
 
+function renderForgotPassword() {
+  const html = `
+    <div class="auth-container">
+      <div class="auth-card">
+        <div style="text-align:center;margin-bottom:24px">
+          <div style="font-size:2.5rem;color:var(--accent)">🔑</div>
+          <h1>Recuperar Contraseña</h1>
+          <p class="auth-sub">Te enviaremos una contraseña temporal a tu correo</p>
+        </div>
+        <div id="forgot-msg"></div>
+        <div class="form-group">
+          <label>Email de tu cuenta</label>
+          <input type="email" id="forgot-email" placeholder="tu@email.com" autocomplete="email" />
+        </div>
+        <button class="btn btn-primary btn-block" id="forgot-btn" onclick="doForgotPassword()">
+          📧 Enviar contraseña temporal
+        </button>
+        <p style="text-align:center;font-size:0.875rem;margin-top:16px;color:var(--text3)">
+          <button class="auth-link" onclick="renderLogin()" style="color:var(--text3)">← Volver al login</button>
+        </p>
+      </div>
+    </div>`;
+
+  document.getElementById('app').innerHTML = `${renderNavbar()}${html}`;
+
+  document.getElementById('forgot-email').addEventListener('keydown', e => {
+    if (e.key === 'Enter') doForgotPassword();
+  });
+}
+
+async function doForgotPassword() {
+  const email = document.getElementById('forgot-email').value.trim();
+  const msgEl = document.getElementById('forgot-msg');
+  const btn   = document.getElementById('forgot-btn');
+
+  if (!email) {
+    msgEl.innerHTML = '<div class="form-error">Ingresa tu email.</div>';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Enviando...';
+
+  try {
+    const res = await Api.post('/api/password-reset', { email });
+    msgEl.innerHTML = `<div class="form-success">✅ ${res.message}</div>`;
+    btn.textContent = '✓ Enviado';
+  } catch (e) {
+    msgEl.innerHTML = `<div class="form-error">${e.message}</div>`;
+    btn.disabled = false;
+    btn.textContent = '📧 Enviar contraseña temporal';
+  }
+}
+
 async function doLogin() {
-  const email = document.getElementById('login-email').value.trim();
+  const email    = document.getElementById('login-email').value.trim();
   const password = document.getElementById('login-password').value;
-  const errEl = document.getElementById('login-error');
-  const btn = document.getElementById('login-btn');
+  const errEl    = document.getElementById('login-error');
+  const btn      = document.getElementById('login-btn');
 
   errEl.innerHTML = '';
   if (!email || !password) {
