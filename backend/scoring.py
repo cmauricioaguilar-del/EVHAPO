@@ -148,6 +148,30 @@ QUESTIONS = {
         {"id": 93, "text": "Tengo la capacidad de posponer la gratificación inmediata y tomar decisiones pensando en el largo plazo.", "options": FREQ},
         {"id": 94, "text": "Mantengo el control emocional en situaciones de alta presión, como en manos clave del poker o decisiones críticas.", "options": FREQ},
     ],
+    "gestion_tilt": [
+        {"id": 95,  "text": "¿Reconozco cuándo estoy en tilt antes de que afecte mis decisiones en la mesa?", "options": FREQ},
+        {"id": 96,  "text": "¿Soy capaz de detener una sesión cuando noto que mis emociones están afectando mi juego?", "options": FREQ},
+        {"id": 97,  "text": "¿Cuando pierdo una mano importante, puedo mantener la calma y continuar jugando con objetividad?", "options": FREQ},
+        {"id": 98,  "text": "¿Tengo un protocolo o rutina establecida para salir del tilt cuando lo detecto?", "options": FREQ},
+        {"id": 99,  "text": "¿Analizo después de cada sesión si estuve en tilt en algún momento?", "options": FREQ},
+        {"id": 100, "text": "¿Evito aumentar las apuestas o jugar más manos cuando estoy perdiendo como forma de 'recuperar'?", "options": FREQ},
+        {"id": 101, "text": "¿Puedo identificar qué tipo de situaciones o jugadores me generan más tilt?", "options": FREQ},
+        {"id": 102, "text": "¿Cuando un rival juega mal y gana, puedo aceptarlo como parte de la varianza sin irritarme?", "options": FREQ},
+        {"id": 103, "text": "¿Establezco límites de pérdida (stop loss) antes de comenzar una sesión y los respeto?", "options": FREQ},
+        {"id": 104, "text": "¿Después de una mala sesión, puedo desconectarme sin seguir pensando en las manos perdidas?", "options": FREQ},
+    ],
+    "mentalidad_crecimiento": [
+        {"id": 105, "text": "¿Veo cada sesión de poker, independientemente del resultado, como una oportunidad de aprendizaje?", "options": FREQ},
+        {"id": 106, "text": "¿Dedico tiempo regular al estudio del poker fuera de las sesiones de juego?", "options": FREQ},
+        {"id": 107, "text": "¿Busco activamente feedback de otros jugadores o coaches para mejorar mi juego?", "options": FREQ},
+        {"id": 108, "text": "¿Cuando cometo un error, lo analizo con objetividad en lugar de castigarme emocionalmente?", "options": FREQ},
+        {"id": 109, "text": "¿Considero que mis habilidades de poker pueden mejorar significativamente con esfuerzo y dedicación?", "options": FREQ},
+        {"id": 110, "text": "¿Estoy dispuesto/a a bajar de límites si necesito reforzar fundamentos básicos de mi juego?", "options": FREQ},
+        {"id": 111, "text": "¿Llevas un registro de manos o sesiones para revisar y aprender de tus errores?", "options": FREQ},
+        {"id": 112, "text": "¿Cuando observas a jugadores mejores que tú, te sirve de inspiración en lugar de desanimarte?", "options": FREQ},
+        {"id": 113, "text": "¿Adaptas tu estrategia de juego cuando te das cuenta de que algo no está funcionando?", "options": FREQ},
+        {"id": 114, "text": "¿Inviertes en tu educación como jugador (libros, cursos, solvers, coaching)?", "options": FREQ},
+    ],
 }
 
 CATEGORY_INFO = {
@@ -279,6 +303,32 @@ CATEGORY_INFO = {
             "Practica el 'stop loss emocional': define un umbral de pérdida tras el cual te retiras de la sesión.",
             "Estudia el concepto de 'tilt' y sus variantes para reconocerlo antes de que afecte tu juego.",
             "Trabaja con un coach mental o psicólogo deportivo especializado en deportes de alta competencia.",
+        ]
+    },
+    "gestion_tilt": {
+        "label": "Gestión del Tilt",
+        "icon": "🌡️",
+        "color": "#E91E63",
+        "description": "Capacidad de detectar, controlar y salir del estado de tilt antes de que comprometa tu toma de decisiones y resultados en la mesa.",
+        "improvement_tips": [
+            "Lleva un 'termómetro de tilt': califica tu estado emocional del 1 al 10 cada 30 minutos de juego.",
+            "Crea una señal de alarma personal que actives cuando notes los primeros síntomas de tilt.",
+            "Estudia los tipos de tilt: por mala suerte, por errores propios, por jugadores irritantes.",
+            "Implementa un descanso obligatorio de 10 minutos cuando pierdas 3 manos importantes seguidas.",
+            "Practica la técnica del 'observador externo': analiza tu juego como si fueras otro jugador.",
+        ]
+    },
+    "mentalidad_crecimiento": {
+        "label": "Mentalidad de Crecimiento",
+        "icon": "🌱",
+        "color": "#8BC34A",
+        "description": "Disposición a aprender continuamente, aceptar el error como parte del proceso y comprometerse con la mejora constante como jugador.",
+        "improvement_tips": [
+            "Reserva al menos 30 minutos diarios para estudiar poker: solvers, vídeos, libros o revisión de manos.",
+            "Adopta el lema 'cada error es un maestro': anota las manos donde dudaste y estúdialas al día siguiente.",
+            "Busca un grupo de estudio con jugadores de tu nivel para crecer juntos.",
+            "Usa software de análisis (GTO Wizard, Pio Solver) para detectar brechas entre tu juego y el óptimo.",
+            "Establece metas de aprendizaje mensuales específicas: dominar un concepto de rangos, mejorar el c-bet, etc.",
         ]
     },
 }
