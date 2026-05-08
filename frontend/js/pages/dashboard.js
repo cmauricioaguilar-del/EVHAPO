@@ -63,11 +63,15 @@ function renderDashboardContent(data, user) {
       <div class="stat-label">⚙️ Nivel Técnico</div>
     </div>
     <div class="stat-card">
-      <div class="stat-val" style="font-size:${mentalOv !== null && techOv !== null ? '1.3rem' : '1.6rem'}">
-        ${mentalOv !== null && techOv !== null
-          ? Math.round((mentalOv + techOv) / 2) + '%'
-          : mentalOv !== null ? mentalOv + '%' : techOv !== null ? techOv + '%' : '—'}
-      </div>
+      ${(() => {
+        const combinado = mentalOv !== null && techOv !== null
+          ? Math.round((mentalOv + techOv) / 2)
+          : mentalOv !== null ? mentalOv : techOv !== null ? techOv : null;
+        const color = combinado !== null
+          ? (combinado >= 80 ? 'var(--green)' : combinado >= 60 ? 'var(--accent)' : 'var(--red)')
+          : 'var(--text2)';
+        return `<div class="stat-val" style="color:${color}">${combinado !== null ? combinado + '%' : '—'}</div>`;
+      })()}
       <div class="stat-label">Índice combinado</div>
     </div>
   </div>`;
