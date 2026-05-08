@@ -597,12 +597,9 @@ def generate_profile():
     if not ANTHROPIC_API_KEY:
         return jsonify({'error': 'ANTHROPIC_API_KEY no configurada.'}), 503
 
-    try:
-        import anthropic as _anthropic
-    except ImportError:
-        return jsonify({'error': 'Librería anthropic no instalada. Ejecuta: pip install anthropic'}), 503
+    import requests as _requests
 
-    # Asegurar que la tabla existe (por si la DB es anterior)
+    # Asegurar que la tabla existe
     try:
         get_db().execute("""
             CREATE TABLE IF NOT EXISTS player_profiles (
@@ -633,13 +630,24 @@ def generate_profile():
             mental_scores, technical_scores, inconsistencies
         )
 
-        client  = _anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
-        message = client.messages.create(
-            model='claude-sonnet-4-6',
-            max_tokens=4096,
-            messages=[{'role': 'user', 'content': prompt}]
+        # Llamada directa a la API de Anthropic usando requests (evita problemas de httpx en Windows)
+        resp = _requests.post(
+            'https://api.anthropic.com/v1/messages',
+            headers={
+                'x-api-key': ANTHROPIC_API_KEY,
+                'anthropic-version': '2023-06-01',
+                'content-type': 'application/json',
+            },
+            json={
+                'model': 'claude-sonnet-4-6',
+                'max_tokens': 4096,
+                'messages': [{'role': 'user', 'content': prompt}]
+            },
+            timeout=120,
+            verify=False  # Evitar problemas de certificados SSL en entornos Windows locales
         )
-        profile_html = message.content[0].text
+        resp.raise_for_status()
+        profile_html = resp.json()['content'][0]['text']
 
         db = get_db()
         db.execute("DELETE FROM player_profiles WHERE user_id=?", (g.user_id,))
