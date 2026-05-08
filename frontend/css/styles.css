@@ -294,4 +294,8 @@ body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', syste
   .category-scores { grid-template-columns: 1fr; }
   .benchmark-label { width: 100px; font-size: 0.8rem; }
   .tabs { overflow-x: auto; }
+  /* Landing: columnas de "¿Qué mide EVHAPO?" se apilan en móvil */
+  .landing-tests-grid { grid-template-columns: 1fr !important; }
+  /* Video: ocupa ancho completo en móvil */
+  .hero-video { max-width: 100% !important; }
 }

@@ -8,17 +8,34 @@ function renderLanding() {
     { icon: '🔐', title: 'Dashboard Personal', desc: 'Accede a tus resultados y seguimiento en cualquier momento' },
   ];
 
+  // Función auxiliar para construir filas de categorías
+  const catRow = (c, borderColor) => `
+    <div style="display:flex;align-items:center;gap:10px;padding:10px;background:var(--bg2);border-radius:8px;border:1px solid ${borderColor || 'var(--border)'}">
+      <span style="font-size:1.5rem">${c.icon}</span>
+      <div>
+        <div style="font-weight:700;font-size:0.9rem">${c.label}</div>
+        <div style="font-size:0.8rem;color:var(--text2)">${c.questions.length} preguntas</div>
+      </div>
+    </div>`;
+
   const html = `
     <div class="hero">
       <div class="hero-suits">♠ ♥ ♦ ♣</div>
       <h1>Test de Evaluación de las<br><span>Fortalezas y Debilidades</span><br>del Jugador de Poker</h1>
       <p class="subtitle">El poker es mucho más que cartas y apuestas. Es un juego de habilidades mentales, estrategia y resistencia emocional. Descubre dónde estás y hasta dónde puedes llegar.</p>
 
-      <div class="hero-video">
-        <video controls poster="">
+      <!-- Video reducido al 50% con overlays que tapan logo TikTok y usuario -->
+      <div class="hero-video" style="max-width:340px;position:relative">
+        <video controls poster="" style="width:100%;display:block;border-radius:var(--radius)">
           <source src="assets/VIDEO PROMO.mp4" type="video/mp4" />
           Tu navegador no soporta video HTML5.
         </video>
+        <!-- Cubre @tiburock (esquina inferior izquierda de TikTok) -->
+        <div style="position:absolute;bottom:0;left:0;width:55%;height:14%;background:#0a0e1a;pointer-events:none;border-bottom-left-radius:var(--radius)"></div>
+        <!-- Cubre logo TikTok (esquina inferior derecha) -->
+        <div style="position:absolute;bottom:0;right:0;width:22%;height:22%;background:#0a0e1a;pointer-events:none;border-bottom-right-radius:var(--radius)"></div>
+        <!-- Cubre posible watermark superior derecho -->
+        <div style="position:absolute;top:0;right:0;width:22%;height:10%;background:#0a0e1a;pointer-events:none;border-top-right-radius:var(--radius)"></div>
       </div>
 
       <div class="hero-cta">
@@ -58,26 +75,34 @@ function renderLanding() {
         </div>
       </div>
 
-      <div class="card" style="margin-top:32px">
-        <h2 style="margin-bottom:16px; color: var(--accent)">¿Qué mide EVHAPO?</h2>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px">
-          ${EVHAPO_CATEGORIES.map(c => `
-            <div style="display:flex;align-items:center;gap:10px;padding:10px;background:var(--bg2);border-radius:8px;border:1px solid var(--border)">
-              <span style="font-size:1.5rem">${c.icon}</span>
-              <div>
-                <div style="font-weight:700;font-size:0.9rem">${c.label}</div>
-                <div style="font-size:0.8rem;color:var(--text2)">${c.questions.length} preguntas</div>
-              </div>
-            </div>
-          `).join('')}
+      <!-- ¿Qué mide EVHAPO? — dos columnas: Mental + Técnico -->
+      <div class="landing-tests-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:32px">
+
+        <!-- Test Mental -->
+        <div class="card">
+          <h2 style="margin-bottom:4px;color:var(--accent)">🧠 ¿Qué mide EVHAPO?</h2>
+          <p style="font-size:0.85rem;color:var(--text2);margin-bottom:16px">Test Mental — Habilidades psicológicas del jugador</p>
+          <div style="display:grid;gap:8px">
+            ${EVHAPO_CATEGORIES.map(c => catRow(c, 'rgba(212,175,55,0.25)')).join('')}
+          </div>
         </div>
+
+        <!-- Test Técnico -->
+        <div class="card">
+          <h2 style="margin-bottom:4px;color:#4DB6AC">⚙️ ¿Qué mide EVHAPO?</h2>
+          <p style="font-size:0.85rem;color:var(--text2);margin-bottom:16px">Test Técnico — Conocimiento de Texas Hold'em</p>
+          <div style="display:grid;gap:8px">
+            ${TECHNICAL_CATEGORIES.map(c => catRow(c, 'rgba(77,182,172,0.25)')).join('')}
+          </div>
+        </div>
+
       </div>
 
       <div class="card" style="margin-top:20px;background:linear-gradient(135deg,var(--card),var(--card2));border-color:var(--accent)">
         <div style="text-align:center;padding:12px">
           <div style="font-size:3rem;margin-bottom:12px">♠</div>
-          <blockquote style="font-size:1.1rem;font-style:italic;color:var(--text2);max-width:500px;margin:0 auto">
-            "Si estás aquí es porque comprendes la IMPORTANCIA DEL ASPECTO MENTAL y sabes que el póker es mucho más que cartas y apuestas."
+          <blockquote style="font-size:1.1rem;font-style:italic;color:var(--text2);max-width:600px;margin:0 auto">
+            "Si estás aquí es porque comprendes la IMPORTANCIA DE LOS ASPECTOS TÉCNICOS Y MENTALES y sabes que el póker es mucho más que cartas y apuestas. Este es tu coach personal. Disfruta tu proceso de crecimiento como jugador de póker y te deseamos éxito en tu sueño de convertirte en un jugador de élite."
           </blockquote>
           <div style="margin-top:16px;color:var(--accent);font-weight:700">— EVHAPO</div>
         </div>
