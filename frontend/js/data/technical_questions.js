@@ -27,7 +27,7 @@ const TECHNICAL_CATEGORIES = [
         text: 'Tienes ATo en CO. El HJ abre a 3BB, todos foldean. ¿Cuál es la acción más equilibrada (GTO)?',
         options: [
           opt('3-bet o fold — ATo no es mano para cold call en CO', 'a', 10),
-          opt('Llamar siempre — ATo es demasiado fuerte para foldear', 'b', 0),
+          opt('Hacer call siempre — ATo es demasiado fuerte para foldear', 'b', 0),
           opt('Foldear siempre — ATo es demasiado débil frente a HJ', 'c', 0),
           opt('Subir siempre a 9BB — tenemos ventaja de posición', 'd', 0),
         ],
@@ -47,7 +47,7 @@ const TECHNICAL_CATEGORIES = [
         text: 'Tienes KQo en BTN. UTG abre 3BB, todos foldean. ¿Cuál es la acción correcta?',
         options: [
           opt('3-bet o fold según el tendencia del rival — KQo es marginal vs UTG', 'a', 10),
-          opt('Llamar siempre — KQo juega bien en posición', 'b', 0),
+          opt('Hacer call siempre — KQo juega bien en posición', 'b', 0),
           opt('Subir siempre — KQo domina el rango de UTG', 'c', 0),
           opt('Foldear siempre — KQo no vale nada frente a UTG', 'd', 0),
         ],
@@ -56,17 +56,17 @@ const TECHNICAL_CATEGORIES = [
         id: 205,
         text: '¿Qué significa "cold call" en el pre-flop?',
         options: [
-          opt('Llamar un raise sin haber puesto fichas previas en el bote', 'a', 10),
-          opt('Llamar una apuesta con una mano muy fuerte para disimular', 'b', 0),
+          opt('Hacer call a un raise sin haber puesto fichas previas en el bote', 'a', 10),
+          opt('Hacer call con una mano muy fuerte para disimular', 'b', 0),
           opt('Hacer call en el big blind cuando no hay raise', 'c', 0),
-          opt('Igualar la apuesta desde el small blind', 'd', 0),
+          opt('Hacer call desde el small blind', 'd', 0),
         ],
       },
       {
         id: 206,
         text: '¿En qué situación es correcto hacer un 4-bet como bluff?',
         options: [
-          opt('Con manos que tienen buenos blockers (ej. A5s, A4s) y poca equity si nos llaman', 'a', 10),
+          opt('Con manos que tienen buenos blockers (ej. A5s, A4s) y poca equity si nos hacen call', 'a', 10),
           opt('Siempre que tengamos una mano de medio par o mejor', 'b', 0),
           opt('Cuando estamos fuera de posición y queremos ganar el bote preflop', 'c', 0),
           opt('Solo cuando tenemos nuts como AA o KK para maximizar valor', 'd', 0),
@@ -136,14 +136,14 @@ const TECHNICAL_CATEGORIES = [
           opt('Checkear el flop en posición y apostar el turn cuando el rival también checkea', 'a', 10),
           opt('Hacer c-bet en el flop y luego bajar el tamaño en el turn', 'b', 0),
           opt('Esperar hasta el river para hacer la primera apuesta', 'c', 0),
-          opt('Subir la apuesta del rival en el turn después de haber llamado en el flop', 'd', 0),
+          opt('Subir la apuesta del rival en el turn después de haber hecho call en el flop', 'd', 0),
         ],
       },
       {
         id: 212,
         text: 'Tienes KK en posición. El flop viene J-T-9 con dos palos. El rival apuesta 2/3 pot. ¿Cuál es la mejor acción?',
         options: [
-          opt('Llamar — tenemos una mano fuerte pero el board es muy húmedo y arriesgado para subir', 'a', 10),
+          opt('Hacer call — tenemos una mano fuerte pero el board es muy húmedo y arriesgado para subir', 'a', 10),
           opt('Foldear siempre — KK sin set es demasiado débil en este board', 'b', 0),
           opt('Subir all-in inmediatamente — KK es muy fuerte', 'c', 0),
           opt('Subir small para "sondear" la fuerza del rival', 'd', 0),
@@ -218,7 +218,7 @@ const TECHNICAL_CATEGORIES = [
       },
       {
         id: 218,
-        text: 'Desde el BB, llamaste el open del BTN. El flop viene K-8-2 rainbow. ¿Qué estrategia es más equilibrada?',
+        text: 'Desde el BB, hiciste call al open del BTN. El flop viene K-8-2 rainbow. ¿Qué estrategia es más equilibrada?',
         options: [
           opt('Check la mayoría del rango — el BTN tiene ventaja de rango en este flop alto', 'a', 10),
           opt('Apostar siempre con cualquier mano para mostrar fuerza', 'b', 0),
@@ -240,7 +240,7 @@ const TECHNICAL_CATEGORIES = [
         id: 220,
         text: 'OOP, el flop viene 6-6-9 rainbow. El rival abrió desde CO. ¿Qué rango se beneficia de un donk bet?',
         options: [
-          opt('Manos con 6 (trips), nines, y algunos draws — tableros paired favorecen al que llamó', 'a', 10),
+          opt('Manos con 6 (trips), nines, y algunos draws — tableros paired favorecen al que hizo call', 'a', 10),
           opt('Solo se hace donk con bluffs totales para confundir', 'b', 0),
           opt('Nunca se hace donk en tableros paired — es una jugada muy avanzada', 'c', 0),
           opt('Solo con la mano más fuerte posible para maximizar valor', 'd', 0),
@@ -262,7 +262,7 @@ const TECHNICAL_CATEGORIES = [
         options: [
           opt('Check-raise — tienes mucha equity y es una excelente mano para semi-bluff', 'a', 10),
           opt('Foldear — los draws fuera de posición no valen la pena', 'b', 0),
-          opt('Llamar siempre — A5s es demasiado débil para subir', 'c', 0),
+          opt('Hacer call siempre — A5s es demasiado débil para subir', 'c', 0),
           opt('Apostar small para "proteger" tu draw', 'd', 0),
         ],
       },
@@ -337,9 +337,9 @@ const TECHNICAL_CATEGORIES = [
         id: 228,
         text: '¿En general, quién se beneficia más de los flops bajos y conectados (ej. 6-5-4)?',
         options: [
-          opt('El jugador que llamó preflop (caller) — tiene más manos conectadas en su rango', 'a', 10),
+          opt('El jugador que hizo call preflop (caller) — tiene más manos conectadas en su rango', 'a', 10),
           opt('El que abrió preflop (PFR) — siempre tiene ventaja de rango', 'b', 0),
-          opt('El BTN independientemente de si abrió o llamó', 'c', 0),
+          opt('El BTN independientemente de si abrió o hizo call', 'c', 0),
           opt('Ninguno — estos tableros son neutros para ambos jugadores', 'd', 0),
         ],
       },
@@ -412,7 +412,7 @@ const TECHNICAL_CATEGORIES = [
       },
       {
         id: 234,
-        text: 'Hiciste c-bet en el flop y te llamaron. El turn es una carta blank (sin draws nuevos). ¿Cuándo continuar apostando?',
+        text: 'Hiciste c-bet en el flop y te hicieron call. El turn es una carta blank (sin draws nuevos). ¿Cuándo continuar apostando?',
         options: [
           opt('Con manos de value fuerte y con bluffs que tienen equity (draws) o buena fold equity', 'a', 10),
           opt('Siempre — si apostaste en el flop hay que dar continuidad', 'b', 0),
@@ -452,10 +452,10 @@ const TECHNICAL_CATEGORIES = [
       },
       {
         id: 238,
-        text: 'Tienes un flush draw en el turn con 9 outs. El bote es $100 y el rival apuesta $60. ¿Es correcto llamar?',
+        text: 'Tienes un flush draw en el turn con 9 outs. El bote es $100 y el rival apuesta $60. ¿Es correcto hacer call?',
         options: [
-          opt('Sí — tienes aprox. 18% de equity en el turn y el precio del call ($60/$160=37.5%) no es suficiente, pero puedes llamar si tienes implied odds', 'a', 10),
-          opt('Sí siempre — los flush draws siempre valen la pena llamar', 'b', 0),
+          opt('Sí — tienes aprox. 18% de equity en el turn y el precio del call ($60/$160=37.5%) no es suficiente, pero puedes hacer call si tienes implied odds', 'a', 10),
+          opt('Sí siempre — los flush draws siempre valen la pena hacer call', 'b', 0),
           opt('No nunca — los draws nunca justifican el call', 'c', 0),
           opt('Solo si el rival es muy agresivo y está farolando siempre', 'd', 0),
         ],
@@ -501,7 +501,7 @@ const TECHNICAL_CATEGORIES = [
         id: 241,
         text: '¿Qué es una "thin value bet" en el river?',
         options: [
-          opt('Apostar con una mano marginalmente ganadora esperando que el rival llame con manos peores', 'a', 10),
+          opt('Apostar con una mano marginalmente ganadora esperando que el rival haga call con manos peores', 'a', 10),
           opt('Una apuesta pequeña para no perder muchas fichas si el rival tiene mejor mano', 'b', 0),
           opt('Apostar solo cuando estás seguro de tener la mejor mano posible', 'c', 0),
           opt('Una apuesta de valor que el rival no puede ver venir', 'd', 0),
@@ -511,8 +511,8 @@ const TECHNICAL_CATEGORIES = [
         id: 242,
         text: 'Llegaste al river con la mano nut (mejor mano posible). El bote es $200. ¿Qué tamaño de value bet es generalmente más correcto?',
         options: [
-          opt('Depende del rango del rival — si tiene manos con las que llama grande, over-bet o 75-100% pot', 'a', 10),
-          opt('Siempre apuesta mínima para asegurarte de que te llamen', 'b', 0),
+          opt('Depende del rango del rival — si tiene manos con las que hace call grande, over-bet o 75-100% pot', 'a', 10),
+          opt('Siempre apuesta mínima para asegurarte de que te hagan call', 'b', 0),
           opt('Siempre all-in — con la mejor mano siempre hay que maximizar', 'c', 0),
           opt('No apuestes — el rival se irá si apuestas con la nut', 'd', 0),
         ],

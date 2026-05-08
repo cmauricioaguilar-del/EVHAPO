@@ -450,7 +450,7 @@ def get_results(session_id):
 def dashboard():
     db = get_db()
     sessions = db.execute(
-        "SELECT id, score_total, scores_json, completed_at FROM test_sessions "
+        "SELECT id, test_type, score_total, scores_json, completed_at FROM test_sessions "
         "WHERE user_id=? AND completed=1 ORDER BY completed_at DESC",
         (g.user_id,)
     ).fetchall()

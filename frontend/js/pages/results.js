@@ -1,6 +1,14 @@
 let _radarChart = null;
 let _radarChart2 = null;
 
+// Datos del resultado actual para el PDF (evitar JSON inline en onclick)
+let _currentResultData = { userName: '', overall: 0, scores: {} };
+
+function downloadPDF() {
+  const { userName, overall, scores } = _currentResultData;
+  exportToPDF(userName, overall, scores);
+}
+
 // Devuelve las categorías y funciones correctas según el tipo de test
 function getTestMeta(testType) {
   if (testType === 'technical') {
@@ -40,6 +48,13 @@ async function renderResults(sessionId) {
       ...c,
       pct: scores[c.key] || 0,
     }));
+
+    // Guardar para uso en downloadPDF()
+    _currentResultData = {
+      userName: `${data.nombre} ${data.apellido}`,
+      overall,
+      scores,
+    };
 
     const scoreCardsHtml = catData.map(c => {
       const needsFocus = c.pct < 80;
@@ -86,7 +101,7 @@ async function renderResults(sessionId) {
       <div class="page">
         <div class="export-bar">
           <button class="btn btn-secondary btn-sm" onclick="App.go('dashboard')">← Mi dashboard</button>
-          <button class="btn btn-primary btn-sm" onclick="exportToPDF('${data.nombre} ${data.apellido}', ${overall}, ${JSON.stringify(scores)})">
+          <button class="btn btn-primary btn-sm" onclick="downloadPDF()">
             ↓ Descargar informe PDF
           </button>
         </div>
@@ -152,7 +167,7 @@ async function renderResults(sessionId) {
 
         <div class="export-bar" style="margin-top:32px">
           <button class="btn btn-outline" onclick="App.go('dashboard')">← Volver al dashboard</button>
-          <button class="btn btn-primary" onclick="exportToPDF('${data.nombre} ${data.apellido}', ${overall}, ${JSON.stringify(scores)})">
+          <button class="btn btn-primary" onclick="downloadPDF()">
             ↓ Descargar informe PDF
           </button>
         </div>
@@ -243,47 +258,6 @@ function drawRadarChart(catData, canvasId = 'radarChart', testLabel = '') {
   if (canvasId === 'radarChart2') _radarChart2 = chart;
 }
 
-function buildWorkPlan(scores, categories) {
-  const cats = (categories || EVHAPO_CATEGORIES).map(c => ({ ...c, pct: scores[c.key] || 0 }));
-  cats.sort((a, b) => a.pct - b.pct);
-  const gaps = cats.filter(c => c.pct < 80);
-  const noFoco = cats.filter(c => c.pct >= 80);
-
-  const weekLabels = ['Semanas 1–2', 'Semanas 3–4', 'Semanas 5–6', 'Semanas 7–8', 'Semanas 9–10'];
-  let html = '';
-
-  gaps.slice(0, 5).forEach((cat, i) => {
-    const urgency = cat.pct < 40 ? '🔴 CRÍTICO' : cat.pct < 60 ? '🟡 IMPORTANTE' : '🟢 MEJORABLE';
-    html += `
-      <div class="workplan-item" style="border-left:4px solid ${cat.color};margin-bottom:16px">
-        <div class="workplan-week">${weekLabels[i] || 'A trabajar'} · ${urgency}</div>
-        <h3 style="color:${cat.color}">${cat.icon} ${cat.label} — ${cat.pct}% → Meta: 80%+</h3>
-        <ul class="workplan-tips">
-          ${cat.tips.map(t => `<li>${t}</li>`).join('')}
-        </ul>
-      </div>`;
-  });
-
-  if (noFoco.length) {
-    html += `
-      <div class="workplan-item no-foco">
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
-          <h3 style="margin:0">✅ Fortalezas — No necesitan foco por ahora</h3>
-          <span class="no-foco-badge">MANTENER</span>
-        </div>
-        <div style="display:flex;flex-wrap:wrap;gap:8px">
-          ${noFoco.map(c => `<span class="chip gold">${c.icon} ${c.label} ${c.pct}%</span>`).join('')}
-        </div>
-        <p style="margin-top:12px;font-size:0.875rem;color:var(--text2)">Sigue con tus rutinas actuales para mantener estas fortalezas mientras trabajas en las áreas de mejora.</p>
-      </div>`;
-  }
-
-  if (!gaps.length) {
-    html = `<div class="form-success">🏆 ¡Excelente! Todas tus habilidades están en 80% o más. Eres un jugador de élite. Continúa con tus rutinas actuales.</div>`;
-  }
-
-  return html;
-}
 
 function switchTab(tab) {
   ['radar','scores','report','plan'].forEach(t => {

@@ -88,6 +88,7 @@ function renderTestSection() {
           : `<button class="btn btn-secondary" onclick="App.go('landing')">← Salir</button>`}
       </div>
       <div>
+        <button class="btn btn-outline" onclick="confirmDashboard()" style="margin-right:8px">🏠 Mi Dashboard</button>
         ${isLast
           ? `<button class="btn btn-primary" id="submit-btn" onclick="submitTest()">✓ Ver mis resultados</button>`
           : `<button class="btn btn-primary" onclick="navSection(1)">Siguiente sección →</button>`}
@@ -138,6 +139,15 @@ function navSection(dir) {
   _testState.catIdx += dir;
   window.scrollTo({ top: 0, behavior: 'smooth' });
   renderTestSection();
+}
+
+function confirmDashboard() {
+  const answered = Object.keys(_testState.answers).length;
+  const total = _testState.categories.reduce((s, c) => s + c.questions.length, 0);
+  if (answered > 0 && answered < total) {
+    if (!confirm(`¿Salir al dashboard? Perderás tu progreso (${answered} de ${total} preguntas respondidas).`)) return;
+  }
+  App.go('dashboard');
 }
 
 async function submitTest() {
