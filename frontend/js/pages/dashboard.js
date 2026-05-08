@@ -401,11 +401,16 @@ async function loadSavedProfile() {
     const res = await Api.get('/api/profile/get');
     if (res.profile) {
       _profileAlreadyLoaded = true;
+      const u  = Api.currentUser();
+      const nombre = u ? u.nombre : 'Jugador';
       const dt = new Date(res.created_at).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
       contentEl.innerHTML = `
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;padding:10px 14px;background:rgba(212,175,55,0.08);border-radius:8px;border:1px solid rgba(212,175,55,0.2)">
-          <span style="font-size:1.2rem">📅</span>
-          <span style="font-size:0.85rem;color:var(--text2)">Perfil generado el <strong>${dt}</strong>. Regenerá si completaste nuevos tests.</span>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px">
+          <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:rgba(212,175,55,0.08);border-radius:8px;border:1px solid rgba(212,175,55,0.2);flex:1;min-width:220px">
+            <span style="font-size:1.2rem">📅</span>
+            <span style="font-size:0.85rem;color:var(--text2)">Perfil generado el <strong>${dt}</strong>. Regenerá si completaste nuevos tests.</span>
+          </div>
+          <button class="btn btn-secondary btn-sm" onclick="downloadProfilePDF('${nombre.replace(/'/g,"\\'")}')">📄 Descargar PDF</button>
         </div>
         <div id="profile-ia-output">${res.profile}</div>`;
     }
@@ -453,11 +458,16 @@ async function generateProfile(mentalSessionId, technicalSessionId) {
     });
 
     _profileAlreadyLoaded = true;
+    const _u  = Api.currentUser();
+    const _nombre = _u ? _u.nombre : 'Jugador';
     const now = new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
     contentEl.innerHTML = `
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;padding:10px 14px;background:rgba(34,197,94,0.08);border-radius:8px;border:1px solid rgba(34,197,94,0.2)">
-        <span style="font-size:1.2rem">✅</span>
-        <span style="font-size:0.85rem;color:var(--text2)">Perfil generado el <strong>${now}</strong>.</span>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px">
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:rgba(34,197,94,0.08);border-radius:8px;border:1px solid rgba(34,197,94,0.2);flex:1;min-width:220px">
+          <span style="font-size:1.2rem">✅</span>
+          <span style="font-size:0.85rem;color:var(--text2)">Perfil generado el <strong>${now}</strong>.</span>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="downloadProfilePDF('${_nombre.replace(/'/g,"\\'")}')">📄 Descargar PDF</button>
       </div>
       <div id="profile-ia-output">${res.profile}</div>`;
 
@@ -558,6 +568,80 @@ function _detectInconsistencies(mentalSc, techSc) {
   }
 
   return issues;
+}
+
+// ─── Descargar perfil IA como PDF ─────────────────────────────────────────────
+
+async function downloadProfilePDF(userName) {
+  const profileEl = document.getElementById('profile-ia-output');
+  if (!profileEl) {
+    alert('Primero genera tu perfil con IA.');
+    return;
+  }
+
+  // Mostrar feedback al usuario
+  const btn = event && event.target ? event.target : null;
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Generando PDF...'; }
+
+  try {
+    const { jsPDF } = window.jspdf;
+
+    // Forzar visibilidad y fondo para captura
+    const origBg = profileEl.style.background;
+    profileEl.style.background = '#111827';
+
+    const canvas = await html2canvas(profileEl, {
+      scale: 1.5,
+      backgroundColor: '#111827',
+      useCORS: true,
+      logging: false,
+    });
+
+    profileEl.style.background = origBg;
+
+    const pdf    = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const pageW  = pdf.internal.pageSize.getWidth();
+    const pageH  = pdf.internal.pageSize.getHeight();
+
+    // ── Cabecera ──
+    pdf.setFillColor(10, 14, 26);
+    pdf.rect(0, 0, pageW, 32, 'F');
+    pdf.setTextColor(212, 175, 55);
+    pdf.setFontSize(18);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('EVHAPO - Perfil como Jugador de Poker', pageW / 2, 13, { align: 'center' });
+    pdf.setFontSize(10);
+    pdf.setTextColor(148, 163, 184);
+    pdf.text(`${userName}   ·   ${new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}`, pageW / 2, 23, { align: 'center' });
+
+    // ── Contenido paginado ──
+    const imgRatio = (pageW - 20) / canvas.width;
+    let yPos    = 36;
+    let srcY    = 0;
+    let remaining = canvas.height * imgRatio;
+
+    while (remaining > 0) {
+      const availH   = pageH - yPos - 10;
+      const sliceH   = Math.min(remaining, availH);
+      const srcSliceH = sliceH / imgRatio;
+
+      const sliceCanvas = document.createElement('canvas');
+      sliceCanvas.width  = canvas.width;
+      sliceCanvas.height = srcSliceH;
+      sliceCanvas.getContext('2d').drawImage(canvas, 0, srcY, canvas.width, srcSliceH, 0, 0, canvas.width, srcSliceH);
+
+      pdf.addImage(sliceCanvas.toDataURL('image/png'), 'PNG', 10, yPos, pageW - 20, sliceH);
+      remaining -= sliceH;
+      srcY      += srcSliceH;
+      if (remaining > 0) { pdf.addPage(); yPos = 10; }
+    }
+
+    pdf.save(`EVHAPO_Perfil_${(userName || 'Jugador').replace(/\s+/g, '_')}.pdf`);
+  } catch (err) {
+    alert('Error al generar el PDF: ' + err.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '📄 Descargar PDF'; }
+  }
 }
 
 async function startNewTest(testType = 'mental') {
