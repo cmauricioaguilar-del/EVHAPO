@@ -1,13 +1,15 @@
-function buildReport(scores, userName) {
-  const cats = EVHAPO_CATEGORIES.map(c => ({ ...c, pct: scores[c.key] || 0 }));
+function buildReport(scores, userName, categories) {
+  const catList = categories || EVHAPO_CATEGORIES;
+  const cats = catList.map(c => ({ ...c, pct: scores[c.key] || 0 }));
   cats.sort((a, b) => a.pct - b.pct);
 
   const gaps = cats.filter(c => c.pct < 80);
   const noFoco = cats.filter(c => c.pct >= 80);
 
-  // Generate HTML report
-  const overall = getOverallScore(scores);
-  const level = getLevel(overall);
+  // Detectar tipo de test por las categorías y usar la función correcta
+  const isTechnical = catList === TECHNICAL_CATEGORIES;
+  const overall = isTechnical ? getTechnicalOverallScore(scores) : getOverallScore(scores);
+  const level = isTechnical ? getTechnicalLevel(overall) : getLevel(overall);
 
   let html = `
     <div class="report-section">

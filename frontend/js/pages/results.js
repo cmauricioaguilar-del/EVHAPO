@@ -1,4 +1,23 @@
 let _radarChart = null;
+let _radarChart2 = null;
+
+// Devuelve las categorías y funciones correctas según el tipo de test
+function getTestMeta(testType) {
+  if (testType === 'technical') {
+    return {
+      categories: TECHNICAL_CATEGORIES,
+      getScore: getTechnicalOverallScore,
+      getLevel: getTechnicalLevel,
+      label: '⚙️ Técnico',
+    };
+  }
+  return {
+    categories: EVHAPO_CATEGORIES,
+    getScore: getOverallScore,
+    getLevel: getLevel,
+    label: '🧠 Mental',
+  };
+}
 
 async function renderResults(sessionId) {
   if (!Api.isLoggedIn()) { App.go('login'); return; }
@@ -9,11 +28,15 @@ async function renderResults(sessionId) {
     const sid = sessionId || localStorage.getItem('evhapo_session');
     const data = await Api.getResults(sid);
     const scores = data.scores || {};
-    const overall = getOverallScore(scores);
-    const level = getLevel(overall);
+
+    // Detectar tipo de test y obtener meta (categorías, funciones, etiqueta)
+    const testType = data.test_type || 'mental';
+    const meta = getTestMeta(testType);
+    const overall = meta.getScore(scores);
+    const level = meta.getLevel(overall);
     const user = Api.currentUser();
 
-    const catData = EVHAPO_CATEGORIES.map(c => ({
+    const catData = meta.categories.map(c => ({
       ...c,
       pct: scores[c.key] || 0,
     }));
@@ -36,10 +59,17 @@ async function renderResults(sessionId) {
         </div>`;
     }).join('');
 
+    const testBadge = testType === 'technical'
+      ? `<span class="chip" style="background:rgba(0,105,92,0.3);color:#4DB6AC">⚙️ Diagnóstico Técnico</span>`
+      : `<span class="chip" style="background:rgba(63,81,181,0.3);color:#9FA8DA">🧠 Diagnóstico Mental</span>`;
+
     document.getElementById('app').innerHTML = `
       ${renderNavbar()}
       <div class="results-hero">
-        <div class="chip" style="margin-bottom:16px">♠ Diagnóstico completado el ${new Date(data.completed_at).toLocaleDateString('es-ES', {day:'numeric',month:'long',year:'numeric'})}</div>
+        <div style="display:flex;gap:8px;justify-content:center;margin-bottom:16px">
+          ${testBadge}
+          <div class="chip">♠ ${new Date(data.completed_at).toLocaleDateString('es-ES', {day:'numeric',month:'long',year:'numeric'})}</div>
+        </div>
         <h1>¡Tu diagnóstico está listo, ${data.nombre}!</h1>
         <div class="results-hero" style="padding:0">
           <div class="results-level ${level.cls}">${level.label}</div>
@@ -74,13 +104,21 @@ async function renderResults(sessionId) {
             <div class="card-header">
               <span class="card-icon">🕸️</span>
               <div>
-                <h2>Mapa de Habilidades</h2>
-                <div class="card-sub">Cuánto más cerca del borde exterior, mayor es tu desarrollo</div>
+                <h2>Mapa de Habilidades ${meta.label}</h2>
+                <div class="card-sub">Cuánto más cerca del borde exterior, mayor es tu desarrollo en cada área</div>
               </div>
             </div>
             <div class="radar-container">
               <canvas id="radarChart"></canvas>
             </div>
+          </div>
+
+          <!-- Leyenda de colores -->
+          <div class="radar-legend">
+            <span><span class="legend-dot" style="background:#22c55e"></span> Fortaleza (≥80%)</span>
+            <span><span class="legend-dot" style="background:#f59e0b"></span> En desarrollo (60–79%)</span>
+            <span><span class="legend-dot" style="background:#f97316"></span> Área de mejora (40–59%)</span>
+            <span><span class="legend-dot" style="background:#ef4444"></span> Crítico (&lt;40%)</span>
           </div>
         </div>
 
@@ -92,7 +130,7 @@ async function renderResults(sessionId) {
         <!-- TAB: Report -->
         <div id="tab-report" class="tab-content" style="display:none">
           <div id="report-content">
-            ${buildReport(scores, data.nombre)}
+            ${buildReport(scores, data.nombre, meta.categories)}
           </div>
         </div>
 
@@ -103,11 +141,11 @@ async function renderResults(sessionId) {
               <span class="card-icon">🗓️</span>
               <div>
                 <h2>Tu Plan de Trabajo</h2>
-                <div class="card-sub">Programa de mejora personalizado semana a semana</div>
+                <div class="card-sub">Programa de mejora personalizado semana a semana basado en tus brechas</div>
               </div>
             </div>
             <div id="workplan-content">
-              ${buildWorkPlan(scores)}
+              ${buildWorkPlan(scores, meta.categories)}
             </div>
           </div>
         </div>
@@ -120,42 +158,57 @@ async function renderResults(sessionId) {
         </div>
       </div>`;
 
-    // Render radar chart
-    setTimeout(() => drawRadarChart(catData), 100);
+    // Render radar chart con las categorías correctas
+    setTimeout(() => drawRadarChart(catData, 'radarChart', meta.label), 100);
 
   } catch (e) {
     document.getElementById('app').innerHTML = `${renderNavbar()}<div class="page"><div class="form-error">Error al cargar resultados: ${e.message}</div><button class="btn btn-secondary mt-4" onclick="App.go('dashboard')">← Dashboard</button></div>`;
   }
 }
 
-function drawRadarChart(catData) {
-  const ctx = document.getElementById('radarChart');
+function drawRadarChart(catData, canvasId = 'radarChart', testLabel = '') {
+  const ctx = document.getElementById(canvasId);
   if (!ctx) return;
-  if (_radarChart) { _radarChart.destroy(); _radarChart = null; }
 
-  _radarChart = new Chart(ctx, {
+  // Destruir instancia previa si existe
+  if (canvasId === 'radarChart' && _radarChart) { _radarChart.destroy(); _radarChart = null; }
+  if (canvasId === 'radarChart2' && _radarChart2) { _radarChart2.destroy(); _radarChart2 = null; }
+
+  const accentColor = testLabel.includes('Técnico')
+    ? 'rgba(77,182,172,0.9)'    // verde azulado para técnico
+    : 'rgba(212,175,55,0.9)';   // dorado para mental
+  const bgColor = testLabel.includes('Técnico')
+    ? 'rgba(77,182,172,0.12)'
+    : 'rgba(212,175,55,0.12)';
+
+  const chart = new Chart(ctx, {
     type: 'radar',
     data: {
       labels: catData.map(c => c.label),
-      datasets: [{
-        label: 'Tu nivel (%)',
-        data: catData.map(c => c.pct),
-        backgroundColor: 'rgba(212,175,55,0.15)',
-        borderColor: 'rgba(212,175,55,0.9)',
-        borderWidth: 2,
-        pointBackgroundColor: catData.map(c => c.pct >= 80 ? '#22c55e' : c.pct >= 60 ? '#f59e0b' : '#ef4444'),
-        pointBorderColor: '#fff',
-        pointRadius: 5,
-        pointHoverRadius: 7,
-      }, {
-        label: 'Objetivo élite (80%)',
-        data: catData.map(() => 80),
-        backgroundColor: 'rgba(59,130,246,0.05)',
-        borderColor: 'rgba(59,130,246,0.4)',
-        borderWidth: 1,
-        borderDash: [5, 5],
-        pointRadius: 0,
-      }],
+      datasets: [
+        {
+          label: `${testLabel || 'Tu nivel'} (%)`,
+          data: catData.map(c => c.pct),
+          backgroundColor: bgColor,
+          borderColor: accentColor,
+          borderWidth: 2,
+          pointBackgroundColor: catData.map(c =>
+            c.pct >= 80 ? '#22c55e' : c.pct >= 60 ? '#f59e0b' : c.pct >= 40 ? '#f97316' : '#ef4444'
+          ),
+          pointBorderColor: '#fff',
+          pointRadius: 5,
+          pointHoverRadius: 7,
+        },
+        {
+          label: 'Objetivo élite (80%)',
+          data: catData.map(() => 80),
+          backgroundColor: 'rgba(59,130,246,0.04)',
+          borderColor: 'rgba(59,130,246,0.35)',
+          borderWidth: 1,
+          borderDash: [5, 5],
+          pointRadius: 0,
+        },
+      ],
     },
     options: {
       responsive: true,
@@ -171,13 +224,13 @@ function drawRadarChart(catData) {
         r: {
           min: 0, max: 100,
           ticks: { stepSize: 20, color: '#64748b', font: { size: 10 }, backdropColor: 'transparent' },
-          grid: { color: 'rgba(255,255,255,0.08)' },
-          angleLines: { color: 'rgba(255,255,255,0.08)' },
+          grid: { color: 'rgba(255,255,255,0.07)' },
+          angleLines: { color: 'rgba(255,255,255,0.07)' },
           pointLabels: {
             color: '#e2e8f0',
             font: { size: 11, weight: '600' },
             callback: (label, idx) => {
-              const cat = EVHAPO_CATEGORIES[idx];
+              const cat = catData[idx];
               return `${cat ? cat.icon : ''} ${label}`;
             },
           },
@@ -185,10 +238,13 @@ function drawRadarChart(catData) {
       },
     },
   });
+
+  if (canvasId === 'radarChart') _radarChart = chart;
+  if (canvasId === 'radarChart2') _radarChart2 = chart;
 }
 
-function buildWorkPlan(scores) {
-  const cats = EVHAPO_CATEGORIES.map(c => ({ ...c, pct: scores[c.key] || 0 }));
+function buildWorkPlan(scores, categories) {
+  const cats = (categories || EVHAPO_CATEGORIES).map(c => ({ ...c, pct: scores[c.key] || 0 }));
   cats.sort((a, b) => a.pct - b.pct);
   const gaps = cats.filter(c => c.pct < 80);
   const noFoco = cats.filter(c => c.pct >= 80);
@@ -237,13 +293,13 @@ function switchTab(tab) {
     if (btn) btn.classList.toggle('active', t === tab);
   });
   if (tab === 'radar') {
-    const cats = EVHAPO_CATEGORIES.map(c => ({ ...c }));
-    // Re-draw if needed
     const ctx = document.getElementById('radarChart');
     if (ctx && !_radarChart) {
       const result = JSON.parse(localStorage.getItem('evhapo_result') || '{}');
       const scores = result.scores || {};
-      drawRadarChart(EVHAPO_CATEGORIES.map(c => ({ ...c, pct: scores[c.key] || 0 })));
+      const testType = result.test_type || 'mental';
+      const meta = getTestMeta(testType);
+      drawRadarChart(meta.categories.map(c => ({ ...c, pct: scores[c.key] || 0 })), 'radarChart', meta.label);
     }
   }
 }
