@@ -41,8 +41,7 @@ function renderNavbar() {
   return `
     <nav class="navbar">
       <div class="nav-brand" onclick="App.go(${user ? "'dashboard'" : "'landing'"})">
-        <span class="suits">♠♦</span>
-        <span class="name">EVHAPO</span>
+        <img src="/icons/mindev-logo.png" alt="MindEV" class="nav-logo">
       </div>
       ${rightSide}
     </nav>`;

@@ -74,7 +74,10 @@ function renderLanding() {
 
         <!-- Test Mental -->
         <div class="card">
-          <h2 style="margin-bottom:4px;color:var(--accent)">🧠 ¿Qué mide EVHAPO?</h2>
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+            <span style="font-size:1.4rem">🧠</span>
+            <img src="/icons/mindev-logo.png" alt="MindEV" class="section-logo">
+          </div>
           <p style="font-size:0.85rem;color:var(--text2);margin-bottom:16px">Test Mental — Habilidades psicológicas del jugador</p>
           <div style="display:grid;gap:8px">
             ${EVHAPO_CATEGORIES.map(c => catRow(c, 'rgba(212,175,55,0.25)')).join('')}
@@ -83,7 +86,10 @@ function renderLanding() {
 
         <!-- Test Técnico -->
         <div class="card">
-          <h2 style="margin-bottom:4px;color:#4DB6AC">⚙️ ¿Qué mide EVHAPO?</h2>
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+            <span style="font-size:1.4rem">⚙️</span>
+            <img src="/icons/mindev-logo.png" alt="MindEV" class="section-logo">
+          </div>
           <p style="font-size:0.85rem;color:var(--text2);margin-bottom:16px">Test Técnico — Conocimiento de Texas Hold'em</p>
           <div style="display:grid;gap:8px">
             ${TECHNICAL_CATEGORIES.map(c => catRow(c, 'rgba(77,182,172,0.25)')).join('')}
@@ -98,7 +104,10 @@ function renderLanding() {
           <blockquote style="font-size:1.1rem;font-style:italic;color:var(--text2);max-width:600px;margin:0 auto">
             "Si estás aquí es porque comprendes la IMPORTANCIA DE LOS ASPECTOS TÉCNICOS Y MENTALES y sabes que el póker es mucho más que cartas y apuestas. Este es tu coach personal. Disfruta tu proceso de crecimiento como jugador de póker y te deseamos éxito en tu sueño de convertirte en un jugador de élite."
           </blockquote>
-          <div style="margin-top:16px;color:var(--accent);font-weight:700">— EVHAPO</div>
+          <div style="margin-top:16px;display:flex;align-items:center;justify-content:center;gap:8px">
+            <span style="color:var(--accent);font-weight:700">—</span>
+            <img src="/icons/mindev-logo.png" alt="MindEV" class="quote-logo">
+          </div>
         </div>
       </div>
     </div>

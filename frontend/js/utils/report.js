@@ -182,7 +182,10 @@ function buildReport(scores, userName, categories) {
       <div class="report-header-band" style="background:linear-gradient(135deg,#0a0e1a,#1a2235);border:1px solid var(--border);border-radius:var(--radius);padding:24px;margin-bottom:24px">
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px">
           <div>
-            <div style="font-size:0.8rem;color:var(--text2);margin-bottom:4px">Informe de Diagnóstico ${testLabel} — EVHAPO</div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+              <img src="/icons/mindev-logo.png" alt="MindEV" style="height:20px;width:auto;border-radius:4px;border:1px solid rgba(212,175,55,0.3);padding:1px 5px;background:rgba(10,14,26,0.5)">
+              <span style="font-size:0.8rem;color:var(--text2)">Informe de Diagnóstico ${testLabel}</span>
+            </div>
             <h2 style="font-size:1.4rem;margin:0">${userName}</h2>
           </div>
           <div style="text-align:center">

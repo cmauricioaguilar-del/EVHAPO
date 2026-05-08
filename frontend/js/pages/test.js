@@ -52,8 +52,7 @@ function renderTestSection() {
   app.innerHTML = `
     <div class="navbar">
       <div class="nav-brand" onclick="App.go('dashboard')">
-        <span class="suits">♠♦</span>
-        <span class="name">EVHAPO</span>
+        <img src="/icons/mindev-logo.png" alt="MindEV" class="nav-logo">
       </div>
       <div style="color:var(--text2);font-size:0.875rem">
         ${answeredSoFar} de ${totalQ} preguntas respondidas
