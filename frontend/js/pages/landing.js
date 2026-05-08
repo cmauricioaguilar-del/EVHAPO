@@ -24,18 +24,12 @@ function renderLanding() {
       <h1>Test de Evaluación de las<br><span>Fortalezas y Debilidades</span><br>del Jugador de Poker</h1>
       <p class="subtitle">El poker es mucho más que cartas y apuestas. Es un juego de habilidades mentales, estrategia y resistencia emocional. Descubre dónde estás y hasta dónde puedes llegar.</p>
 
-      <!-- Video reducido al 50% con overlays que tapan logo TikTok y usuario -->
-      <div class="hero-video" style="max-width:340px;position:relative">
-        <video controls poster="" style="width:100%;display:block;border-radius:var(--radius)">
+      <!-- Video reducido al 50% -->
+      <div class="hero-video" style="max-width:340px">
+        <video controls poster="">
           <source src="assets/VIDEO PROMO.mp4" type="video/mp4" />
           Tu navegador no soporta video HTML5.
         </video>
-        <!-- Cubre @tiburock (esquina inferior izquierda de TikTok) -->
-        <div style="position:absolute;bottom:0;left:0;width:55%;height:14%;background:#0a0e1a;pointer-events:none;border-bottom-left-radius:var(--radius)"></div>
-        <!-- Cubre logo TikTok (esquina inferior derecha) -->
-        <div style="position:absolute;bottom:0;right:0;width:22%;height:22%;background:#0a0e1a;pointer-events:none;border-bottom-right-radius:var(--radius)"></div>
-        <!-- Cubre posible watermark superior derecho -->
-        <div style="position:absolute;top:0;right:0;width:22%;height:10%;background:#0a0e1a;pointer-events:none;border-top-right-radius:var(--radius)"></div>
       </div>
 
       <div class="hero-cta">
