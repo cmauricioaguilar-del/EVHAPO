@@ -640,7 +640,7 @@ def generate_profile():
             },
             json={
                 'model': 'claude-sonnet-4-6',
-                'max_tokens': 12000,
+                'max_tokens': 16000,
                 'messages': [{'role': 'user', 'content': prompt}]
             },
             timeout=300,
@@ -670,68 +670,70 @@ def generate_profile():
 
 def _build_profile_prompt(nombre, mental_answers, technical_answers,
                            mental_scores, technical_scores, inconsistencies):
-    def fmt_scores(scores):
-        return '\n'.join(f'  • {k}: {v}%' for k, v in scores.items())
 
-    def fmt_answers(answers):
+    def fmt_scores(scores):
+        return ', '.join(f'{k}:{v}%' for k, v in scores.items())
+
+    def fmt_key_answers(answers, n_worst=8, n_best=4):
+        """Envía solo las respuestas más diagnósticas (peores + mejores)."""
         if not answers:
-            return '  (sin datos)'
-        lines = []
-        current_cat = None
-        for item in answers:
-            if item.get('category') != current_cat:
-                current_cat = item['category']
-                lines.append(f'\n  [{current_cat}]')
-            pts = item.get('points', 0)
-            max_pts = item.get('maxPoints', 10)
-            lines.append(f'    P: {item["question"][:90]}')
-            lines.append(f'    R: {item["answer"]} ({pts}/{max_pts} pts)')
+            return '(sin datos)'
+        sorted_ans = sorted(answers, key=lambda x: x.get('points', 0))
+        worst = sorted_ans[:n_worst]
+        best  = sorted_ans[-n_best:]
+        def fmt(item):
+            return f'[{item["category"]}] {item["question"][:70]} → {item["answer"]} ({item.get("points",0)}/{item.get("maxPoints",10)}pts)'
+        lines  = ['Peores respuestas:'] + [fmt(a) for a in worst]
+        lines += ['Mejores respuestas:'] + [fmt(a) for a in best]
         return '\n'.join(lines)
 
     def fmt_inconsistencies(items):
         if not items:
-            return '  Ninguna detectada automáticamente.'
-        return '\n'.join(f'  ⚠ [{i["type"]}]: {i["detail"]}' for i in items)
+            return 'Ninguna.'
+        return ' | '.join(f'[{i["type"]}]: {i["detail"]}' for i in items)
 
-    mental_avg  = round(sum(mental_scores.values()) / max(len(mental_scores), 1), 1)
-    tech_avg    = round(sum(technical_scores.values()) / max(len(technical_scores), 1), 1)
+    mental_avg = round(sum(mental_scores.values()) / max(len(mental_scores), 1), 1)
+    tech_avg   = round(sum(technical_scores.values()) / max(len(technical_scores), 1), 1)
 
-    return f"""Eres un coach de poker experto y psicólogo deportivo, especialista en MTT. Genera un informe de perfil completo para {nombre} en HTML (sin html/head/body).
+    return f"""Eres coach de poker experto (MTT) y psicólogo deportivo. Genera un informe HTML completo para {nombre}. NO incluyas etiquetas html/head/body.
 
-DATOS:
-Mental (promedio {mental_avg}%): {fmt_scores(mental_scores)}
-Técnico (promedio {tech_avg}%): {fmt_scores(technical_scores)}
-Incoherencias: {fmt_inconsistencies(inconsistencies)}
-Respuestas mentales: {fmt_answers(mental_answers)}
-Respuestas técnicas: {fmt_answers(technical_answers)}
+SCORES — Mental (avg {mental_avg}%): {fmt_scores(mental_scores)}
+SCORES — Técnico (avg {tech_avg}%): {fmt_scores(technical_scores)}
+INCOHERENCIAS: {fmt_inconsistencies(inconsistencies)}
+RESPUESTAS MENTALES:
+{fmt_key_answers(mental_answers)}
+RESPUESTAS TÉCNICAS:
+{fmt_key_answers(technical_answers)}
 
-FORMATO HTML — usa estos estilos inline:
-- Sección: <div style="margin-bottom:24px">
-- Título: <h2 style="color:#d4af37;margin-bottom:8px;font-size:1.2rem">
-- Subtítulo: <h3 style="color:#4DB6AC;margin-bottom:6px;font-size:1rem">
-- Párrafo: <p style="color:#94a3b8;line-height:1.7;margin-bottom:10px">
-- Destacado: <strong style="color:#d4af37">
-- Alerta roja: <div style="background:rgba(239,68,68,0.1);border-left:4px solid #ef4444;border-radius:4px;padding:12px;margin:10px 0">
-- Alerta verde: <div style="background:rgba(34,197,94,0.1);border-left:4px solid #22c55e;border-radius:4px;padding:12px;margin:10px 0">
-- Alerta dorada: <div style="background:rgba(212,175,55,0.1);border-left:4px solid #d4af37;border-radius:4px;padding:12px;margin:10px 0">
-- Lista: <ul style="padding-left:18px;color:#94a3b8"><li style="margin-bottom:5px">
-- Plan item: <div style="border-left:4px solid [COLOR];padding:10px 14px;margin-bottom:12px;background:#1a2235;border-radius:0 6px 6px 0">
+ESTILOS HTML (usa inline):
+h2→color:#d4af37;font-size:1.2rem | h3→color:#4DB6AC;font-size:1rem | p→color:#94a3b8;line-height:1.7
+alerta-roja→background:rgba(239,68,68,0.1);border-left:4px solid #ef4444;padding:12px;border-radius:4px
+alerta-verde→background:rgba(34,197,94,0.1);border-left:4px solid #22c55e;padding:12px;border-radius:4px
+alerta-dorada→background:rgba(212,175,55,0.1);border-left:4px solid #d4af37;padding:12px;border-radius:4px
+plan-item→border-left:4px solid [COLOR];padding:10px 14px;margin-bottom:10px;background:#1a2235;border-radius:0 6px 6px 0
 
-ESTRUCTURA EXACTA (6 secciones, completa todas):
+GENERA LAS 6 SECCIONES COMPLETAS (no las omitas, no las cortes):
 
-1. RESUMEN EJECUTIVO: Arquetipo creativo del jugador + 3 fortalezas + 3 vulnerabilidades + frase-diagnóstico.
+§1 RESUMEN EJECUTIVO
+Arquetipo creativo + 3 fortalezas principales + 3 vulnerabilidades principales + frase-diagnóstico de {nombre}.
 
-2. PERFIL INTEGRADO MENTAL+TÉCNICO: Correlaciones causa-efecto entre categorías. Cómo las debilidades mentales impactan decisiones técnicas y viceversa.
+§2 PERFIL INTEGRADO MENTAL+TÉCNICO
+Correlaciones causa-efecto entre categorías. Cómo las debilidades mentales sabotean las decisiones técnicas y viceversa. Menciona categorías específicas por nombre.
 
-3. ANÁLISIS DE INCOHERENCIAS: Para cada incoherencia: explicación psicológica + cómo se manifiesta en la mesa con ejemplo concreto.
+§3 ANÁLISIS DE INCOHERENCIAS
+Por cada incoherencia detectada: explicación psicológica breve + cómo se ve en la mesa con ejemplo concreto de mano/situación.
 
-4. DIAGNÓSTICO CON EJEMPLOS MTT: 2 situaciones reales de torneo con formato: Situación → Cómo juega {nombre} → Cómo jugaría un élite → Por qué existe la brecha.
+§4 DIAGNÓSTICO CON EJEMPLOS MTT
+2 situaciones reales de torneo. Formato por situación: Situación → Jugada de {nombre} → Jugada élite → Brecha explicada.
 
-5. PRONÓSTICO: Sin mejora (3/6/12 meses) vs Con el plan (3/6/12 meses). Impacto en ITM% y ROI.
+§5 PRONÓSTICO (tabla comparativa)
+Sin mejora: 3m / 6m / 12m. Con el plan: 3m / 6m / 12m. Incluir impacto estimado en ITM% y ROI.
 
-6. PLAN 12 SEMANAS: Fase 1 (sem 1-4), Fase 2 (sem 5-8), Fase 3 (sem 9-12). Para cada área: qué hacer exactamente, tiempo semanal, cómo medir, recurso específico.
+§6 PLAN 12 SEMANAS
+Fase 1 sem 1-4, Fase 2 sem 5-8, Fase 3 sem 9-12.
+Por cada fase: 3-4 acciones concretas (qué hacer, tiempo semanal, cómo medir progreso).
 
-Usa el nombre {nombre} frecuentemente. Sé directo, honesto y motivador. Completa TODAS las secciones.
+IMPORTANTE: Completa el §6 hasta el final. Usa el nombre {nombre} en cada sección. Sé directo y motivador.
 """
 
 
