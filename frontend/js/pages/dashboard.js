@@ -37,6 +37,10 @@ function renderDashboardContent(data, user) {
   const getScores  = s => s ? (typeof s.scores === 'string' ? JSON.parse(s.scores) : s.scores) : null;
   const mentalSc   = getScores(latestMental);
   const techSc     = getScores(latestTechnical);
+
+  // Guardar globalmente para usarlos al cambiar de tab
+  _dashMentalSc = mentalSc;
+  _dashTechSc   = techSc;
   const mentalOv   = mentalSc    ? getOverallScore(mentalSc)          : null;
   const techOv     = techSc      ? getTechnicalOverallScore(techSc)   : null;
   const mentalLvl  = mentalOv  !== null ? getLevel(mentalOv)          : null;
@@ -93,6 +97,7 @@ function renderDashboardContent(data, user) {
 
   // ─── Tabs ─────────────────────────────────────────────────────────────────
   const hasBoth = mentalSc && techSc;
+  _dashHasBoth  = !!hasBoth;
   html += `<div class="tabs">
     ${hasBoth ? `<button class="tab-btn active" onclick="dashTab('combined')">🔀 Vista Combinada</button>` : ''}
     <button class="tab-btn ${!hasBoth ? 'active' : ''}" onclick="dashTab('mental')">🧠 Mental ${mentalSc ? '' : '<span style=\'font-size:0.7rem;color:var(--text3)\'>— pendiente</span>'}</button>
@@ -318,7 +323,7 @@ function renderTestTab(catData, overall, level, sessionId, canvasId, user, testT
   return `
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px">
       <div class="card">
-        <div class="card-header"><span class="card-icon">🕸️</span><div><h2>Telaraña</h2><div class="card-sub" style="color:${testType === 'technical' ? '#4DB6AC' : 'var(--accent)'}">${overall}% · ${level.label}</div></div></div>
+        <div class="card-header"><span class="card-icon">📡</span><div><h2>Radar</h2><div class="card-sub" style="color:${testType === 'technical' ? '#4DB6AC' : 'var(--accent)'}">${overall}% · ${level.label}</div></div></div>
         <canvas id="${canvasId}" style="max-height:280px"></canvas>
       </div>
       <div>
@@ -345,6 +350,9 @@ function renderTestTab(catData, overall, level, sessionId, canvasId, user, testT
 function drawDashRadar(canvasId, categories, scores, borderColor, bgColor) {
   const ctx = document.getElementById(canvasId);
   if (!ctx) return;
+  // Destruir gráfico existente antes de crear uno nuevo (evita "Canvas already in use")
+  const existing = Chart.getChart(ctx);
+  if (existing) existing.destroy();
   new Chart(ctx, {
     type: 'radar',
     data: {
@@ -386,11 +394,35 @@ function dashTab(tab) {
   });
   // Al abrir el tab de perfil, cargar el perfil guardado si existe
   if (tab === 'profile') loadSavedProfile();
+
+  // Dibujar radares de tabs individuales al hacerlos visibles
+  // (cuando hasBoth=true, los radares solo se habían dibujado para el tab combinado)
+  setTimeout(() => {
+    if (tab === 'mental' && _dashMentalSc) {
+      drawDashRadar('dash-radar-mental-solo', EVHAPO_CATEGORIES, _dashMentalSc,
+        'rgba(212,175,55,0.9)', 'rgba(212,175,55,0.12)');
+    }
+    if (tab === 'technical' && _dashTechSc) {
+      drawDashRadar('dash-radar-tech-solo', TECHNICAL_CATEGORIES, _dashTechSc,
+        'rgba(77,182,172,0.9)', 'rgba(77,182,172,0.12)');
+    }
+    if (tab === 'combined') {
+      if (_dashMentalSc) drawDashRadar('dash-radar-mental', EVHAPO_CATEGORIES, _dashMentalSc,
+        'rgba(212,175,55,0.9)', 'rgba(212,175,55,0.12)');
+      if (_dashTechSc)   drawDashRadar('dash-radar-tech',   TECHNICAL_CATEGORIES, _dashTechSc,
+        'rgba(77,182,172,0.9)', 'rgba(77,182,172,0.12)');
+    }
+  }, 100);
 }
 
 // ─── Perfil IA ────────────────────────────────────────────────────────────────
 
 let _profileAlreadyLoaded = false;
+
+// Scores globales para dibujar radares al cambiar de tab
+let _dashMentalSc  = null;
+let _dashTechSc    = null;
+let _dashHasBoth   = false;
 
 async function loadSavedProfile() {
   if (_profileAlreadyLoaded) return;
