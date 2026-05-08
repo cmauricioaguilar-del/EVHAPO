@@ -640,10 +640,10 @@ def generate_profile():
             },
             json={
                 'model': 'claude-sonnet-4-6',
-                'max_tokens': 16000,
+                'max_tokens': 7000,
                 'messages': [{'role': 'user', 'content': prompt}]
             },
-            timeout=120,
+            timeout=300,
             verify=False  # Evitar problemas de certificados SSL en entornos Windows locales
         )
         resp.raise_for_status()
@@ -696,73 +696,42 @@ def _build_profile_prompt(nombre, mental_answers, technical_answers,
     mental_avg  = round(sum(mental_scores.values()) / max(len(mental_scores), 1), 1)
     tech_avg    = round(sum(technical_scores.values()) / max(len(technical_scores), 1), 1)
 
-    return f"""Eres el coach de poker y psicólogo deportivo más experimentado del mundo hispanohablante, especialista en torneos MTT (Texas Hold'em). Tu tarea es generar un INFORME DE PERFIL COMPLETO Y PERSONALIZADO para el jugador {nombre}, basado en su diagnóstico EVHAPO.
+    return f"""Eres un coach de poker experto y psicólogo deportivo, especialista en MTT. Genera un informe de perfil completo para {nombre} en HTML (sin html/head/body).
 
-=== RESULTADOS DEL DIAGNÓSTICO ===
+DATOS:
+Mental (promedio {mental_avg}%): {fmt_scores(mental_scores)}
+Técnico (promedio {tech_avg}%): {fmt_scores(technical_scores)}
+Incoherencias: {fmt_inconsistencies(inconsistencies)}
+Respuestas mentales: {fmt_answers(mental_answers)}
+Respuestas técnicas: {fmt_answers(technical_answers)}
 
-PUNTAJES TEST MENTAL (promedio: {mental_avg}%):
-{fmt_scores(mental_scores)}
+FORMATO HTML — usa estos estilos inline:
+- Sección: <div style="margin-bottom:24px">
+- Título: <h2 style="color:#d4af37;margin-bottom:8px;font-size:1.2rem">
+- Subtítulo: <h3 style="color:#4DB6AC;margin-bottom:6px;font-size:1rem">
+- Párrafo: <p style="color:#94a3b8;line-height:1.7;margin-bottom:10px">
+- Destacado: <strong style="color:#d4af37">
+- Alerta roja: <div style="background:rgba(239,68,68,0.1);border-left:4px solid #ef4444;border-radius:4px;padding:12px;margin:10px 0">
+- Alerta verde: <div style="background:rgba(34,197,94,0.1);border-left:4px solid #22c55e;border-radius:4px;padding:12px;margin:10px 0">
+- Alerta dorada: <div style="background:rgba(212,175,55,0.1);border-left:4px solid #d4af37;border-radius:4px;padding:12px;margin:10px 0">
+- Lista: <ul style="padding-left:18px;color:#94a3b8"><li style="margin-bottom:5px">
+- Plan item: <div style="border-left:4px solid [COLOR];padding:10px 14px;margin-bottom:12px;background:#1a2235;border-radius:0 6px 6px 0">
 
-PUNTAJES TEST TÉCNICO (promedio: {tech_avg}%):
-{fmt_scores(technical_scores)}
+ESTRUCTURA EXACTA (6 secciones, completa todas):
 
-=== RESPUESTAS DETALLADAS — TEST MENTAL ===
-{fmt_answers(mental_answers)}
+1. RESUMEN EJECUTIVO: Arquetipo creativo del jugador + 3 fortalezas + 3 vulnerabilidades + frase-diagnóstico.
 
-=== RESPUESTAS DETALLADAS — TEST TÉCNICO ===
-{fmt_answers(technical_answers)}
+2. PERFIL INTEGRADO MENTAL+TÉCNICO: Correlaciones causa-efecto entre categorías. Cómo las debilidades mentales impactan decisiones técnicas y viceversa.
 
-=== INCOHERENCIAS DETECTADAS POR EL SISTEMA ===
-{fmt_inconsistencies(inconsistencies)}
+3. ANÁLISIS DE INCOHERENCIAS: Para cada incoherencia: explicación psicológica + cómo se manifiesta en la mesa con ejemplo concreto.
 
-=== INSTRUCCIONES DE FORMATO ===
+4. DIAGNÓSTICO CON EJEMPLOS MTT: 2 situaciones reales de torneo con formato: Situación → Cómo juega {nombre} → Cómo jugaría un élite → Por qué existe la brecha.
 
-Genera el informe en HTML limpio (sin <html>/<head>/<body>). Usa SOLO estos elementos:
-- Secciones: <div class="report-section" style="margin-bottom:28px">
-- Títulos: <h2 style="color:var(--accent);margin-bottom:8px">
-- Subtítulos: <h3 style="color:#4DB6AC;margin-bottom:6px">
-- Texto: <p style="color:var(--text2);line-height:1.7;margin-bottom:10px">
-- Resaltado: <strong style="color:var(--accent)">
-- Alertas positivas: <div style="background:rgba(34,197,94,0.1);border:1px solid #22c55e;border-radius:8px;padding:14px;margin:10px 0">
-- Alertas de advertencia: <div style="background:rgba(239,68,68,0.1);border:1px solid #ef4444;border-radius:8px;padding:14px;margin:10px 0">
-- Alertas neutras: <div style="background:rgba(212,175,55,0.1);border:1px solid var(--accent);border-radius:8px;padding:14px;margin:10px 0">
-- Separadores: <hr style="border-color:var(--border);margin:20px 0">
-- Listas: <ul style="padding-left:20px;color:var(--text2)"><li style="margin-bottom:6px">
-- Para planes: <div style="border-left:4px solid [COLOR];padding:12px 16px;margin-bottom:14px;background:var(--bg2);border-radius:0 8px 8px 0">
+5. PRONÓSTICO: Sin mejora (3/6/12 meses) vs Con el plan (3/6/12 meses). Impacto en ITM% y ROI.
 
-=== ESTRUCTURA OBLIGATORIA (6 secciones) ===
+6. PLAN 12 SEMANAS: Fase 1 (sem 1-4), Fase 2 (sem 5-8), Fase 3 (sem 9-12). Para cada área: qué hacer exactamente, tiempo semanal, cómo medir, recurso específico.
 
-**SECCIÓN 1 — RESUMEN EJECUTIVO**
-Abre con el ARQUETIPO del jugador (dale un nombre creativo y evocador: ej. "El Técnico con Miedo a la Excelencia", "El Guerrero Emocionalmente Frágil"). Luego 2-3 párrafos de síntesis: quién es este jugador, cuál es su mayor fortaleza y cuál es el obstáculo principal que limita su crecimiento. Cierra con UNA frase-diagnóstico contundente.
-
-**SECCIÓN 2 — PERFIL INTEGRADO MENTAL + TÉCNICO**
-Analiza CORRELACIONES específicas. Por ejemplo: si tilt management es bajo y river value bet es bajo, explica cómo la presión emocional en el final de la mano genera decisiones técnicas subóptimas. Si disciplina es alta pero rangos preflop son malos, explica la paradoja. Cada correlación debe ser concreta y explicada con lógica de causa-efecto.
-
-**SECCIÓN 3 — ANÁLISIS DE INCOHERENCIAS**
-Para CADA incoherencia detectada: (a) qué dice el sistema sobre ella, (b) la explicación psicológica profunda de por qué ocurre esta paradoja, (c) cómo se manifiesta concretamente en la mesa. Si no hay incoherencias detectadas, analiza de todas formas las tensiones internas entre las categorías de los tests.
-
-**SECCIÓN 4 — DIAGNÓSTICO CON EJEMPLOS REALES**
-Describe 3-4 situaciones CONCRETAS de torneo MTT que ilustran el perfil del jugador. Formato para cada ejemplo:
-- Situación: "Es la burbuja con 180 jugadores, {nombre} tiene 22BB en CO, JJ vs 3-bet del BTN..."
-- Cómo reacciona ESTE jugador según su perfil (usando los puntajes reales)
-- Qué decisión tomaría un jugador de élite
-- Por qué la brecha existe (causa mental + causa técnica)
-
-**SECCIÓN 5 — PRONÓSTICO**
-Dos escenarios:
-SIN MEJORA (sé honesto, directo y realista): ¿Qué pasa a 3 meses / 6 meses / 1 año?
-CON EL PLAN DE MEJORA (optimista pero basado en datos): ¿Qué puede lograr a 3 / 6 / 12 meses?
-Incluye impacto esperado en ROI de torneo, ITM%, y calidad de vida como jugador.
-
-**SECCIÓN 6 — PLAN DE TRABAJO PERSONALIZADO (12 semanas)**
-3 fases de 4 semanas. Para cada área de trabajo:
-- Qué hacer exactamente (ejercicios, estudios, rutinas)
-- Cuánto tiempo por semana
-- Cómo medir el progreso
-- Recurso recomendado (libro, solver, video, app)
-Sé MUY específico: no digas "trabaja tu tilt", di "Después de cada sesión, escribe 3 frases en un diario de sesión describiendo el momento de mayor frustración y qué decisión tomaste".
-
-Usa el nombre {nombre} varias veces. Mínimo 1800 palabras. Tono: coach profesional que conoce bien al jugador, directo, honesto, constructivo y motivador.
+Usa el nombre {nombre} frecuentemente. Sé directo, honesto y motivador. Completa TODAS las secciones.
 """
 
 
