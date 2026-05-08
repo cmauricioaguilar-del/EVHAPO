@@ -30,7 +30,12 @@ function renderLanding() {
         </button>
       </div>
 
-      <div class="chip gold" style="margin-top:8px">✓ Acceso de por vida a tus resultados · ✓ Informe PDF descargable · ✓ 100% en español</div>
+      <!-- Botón de instalación PWA (solo aparece cuando el navegador lo permite) -->
+      <button id="pwa-install-btn" class="btn btn-outline btn-sm" style="display:none;margin-top:12px" onclick="installPWA()">
+        📲 Instalar App en mi dispositivo
+      </button>
+
+      <div class="chip gold" style="margin-top:8px">✓ Disponible en Android y PC · ✓ Informe PDF descargable · ✓ 100% en español</div>
     </div>
 
     <div class="page">

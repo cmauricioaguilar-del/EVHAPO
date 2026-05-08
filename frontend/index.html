@@ -2,9 +2,30 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>EVHAPO – Diagnóstico Mental del Jugador de Poker</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>EVHAPO – Diagnóstico Poker</title>
+  <meta name="description" content="Diagnóstico mental y técnico para jugadores de Texas Hold'em. Identifica tus brechas y mejora tu juego." />
+  <meta name="theme-color" content="#d4af37" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="EVHAPO" />
+
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="/manifest.json" />
+
+  <!-- Íconos -->
+  <link rel="icon" type="image/svg+xml" href="/icons/icon-192.svg" />
+  <link rel="apple-touch-icon" href="/icons/icon-192.svg" />
+
+  <!-- Open Graph (para compartir en redes) -->
+  <meta property="og:title" content="EVHAPO – Diagnóstico Poker" />
+  <meta property="og:description" content="Descubre tu nivel real como jugador de Texas Hold'em. Test mental + técnico con plan de mejora personalizado." />
+  <meta property="og:type" content="website" />
+  <meta property="og:image" content="/icons/icon-512.svg" />
+
   <link rel="stylesheet" href="css/styles.css" />
+
   <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <!-- jsPDF -->
@@ -35,5 +56,50 @@
   <script src="js/pages/results.js"></script>
   <script src="js/pages/dashboard.js"></script>
   <script src="js/app.js"></script>
+
+  <!-- Registro del Service Worker (PWA) -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then(reg => console.log('[PWA] Service Worker registrado:', reg.scope))
+          .catch(err => console.warn('[PWA] Error al registrar SW:', err));
+      });
+    }
+
+    // Manejar shortcuts del manifiesto
+    const params = new URLSearchParams(window.location.search);
+    const shortcut = params.get('shortcut');
+    if (shortcut && (shortcut === 'mental' || shortcut === 'technical')) {
+      window.addEventListener('evhapo:ready', () => {
+        if (typeof startNewTest === 'function') {
+          startNewTest(shortcut);
+        }
+      }, { once: true });
+    }
+
+    // Mostrar botón "Instalar App" cuando el navegador lo permita
+    let deferredInstallPrompt = null;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredInstallPrompt = e;
+      // Mostrar botón de instalación si existe en el DOM
+      const btn = document.getElementById('pwa-install-btn');
+      if (btn) btn.style.display = 'block';
+    });
+
+    window.installPWA = async () => {
+      if (!deferredInstallPrompt) return;
+      deferredInstallPrompt.prompt();
+      const { outcome } = await deferredInstallPrompt.userChoice;
+      console.log('[PWA] Resultado de instalación:', outcome);
+      deferredInstallPrompt = null;
+    };
+
+    window.addEventListener('appinstalled', () => {
+      console.log('[PWA] App instalada correctamente');
+      deferredInstallPrompt = null;
+    });
+  </script>
 </body>
 </html>
