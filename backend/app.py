@@ -595,50 +595,69 @@ def get_profile():
 @require_auth
 def generate_profile():
     if not ANTHROPIC_API_KEY:
-        return jsonify({'error': 'ANTHROPIC_API_KEY no configurada. Agrega la variable de entorno para activar el perfil IA.'}), 503
+        return jsonify({'error': 'ANTHROPIC_API_KEY no configurada.'}), 503
 
     try:
         import anthropic as _anthropic
     except ImportError:
         return jsonify({'error': 'Librería anthropic no instalada. Ejecuta: pip install anthropic'}), 503
 
-    data = request.json or {}
-    mental_answers   = data.get('mental_answers', [])    # lista enriquecida
-    technical_answers = data.get('technical_answers', [])
-    mental_scores    = data.get('mental_scores', {})
-    technical_scores = data.get('technical_scores', {})
-    inconsistencies  = data.get('inconsistencies', [])
-    mental_session_id    = data.get('mental_session_id')
-    technical_session_id = data.get('technical_session_id')
-    nombre = g.user_name
+    # Asegurar que la tabla existe (por si la DB es anterior)
+    try:
+        get_db().execute("""
+            CREATE TABLE IF NOT EXISTS player_profiles (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER,
+                mental_session_id INTEGER,
+                technical_session_id INTEGER,
+                profile_html TEXT,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )""")
+        get_db().commit()
+    except Exception:
+        pass
 
-    prompt = _build_profile_prompt(
-        nombre, mental_answers, technical_answers,
-        mental_scores, technical_scores, inconsistencies
-    )
+    try:
+        data = request.json or {}
+        mental_answers       = data.get('mental_answers', [])
+        technical_answers    = data.get('technical_answers', [])
+        mental_scores        = data.get('mental_scores', {})
+        technical_scores     = data.get('technical_scores', {})
+        inconsistencies      = data.get('inconsistencies', [])
+        mental_session_id    = data.get('mental_session_id')
+        technical_session_id = data.get('technical_session_id')
+        nombre = g.user_name
 
-    client = _anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
-    message = client.messages.create(
-        model='claude-3-5-sonnet-20241022',
-        max_tokens=4096,
-        messages=[{'role': 'user', 'content': prompt}]
-    )
-    profile_html = message.content[0].text
+        prompt = _build_profile_prompt(
+            nombre, mental_answers, technical_answers,
+            mental_scores, technical_scores, inconsistencies
+        )
 
-    db = get_db()
-    db.execute(
-        "DELETE FROM player_profiles WHERE user_id=?", (g.user_id,)
-    )
-    db.execute(
-        "INSERT INTO player_profiles (user_id, mental_session_id, technical_session_id, profile_html, created_at) VALUES (?,?,?,?,?)",
-        (g.user_id, mental_session_id, technical_session_id, profile_html,
-         datetime.datetime.utcnow().isoformat())
-    )
-    db.commit()
-    return jsonify({
-        'profile': profile_html,
-        'created_at': datetime.datetime.utcnow().isoformat()
-    })
+        client  = _anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+        message = client.messages.create(
+            model='claude-sonnet-4-6',
+            max_tokens=4096,
+            messages=[{'role': 'user', 'content': prompt}]
+        )
+        profile_html = message.content[0].text
+
+        db = get_db()
+        db.execute("DELETE FROM player_profiles WHERE user_id=?", (g.user_id,))
+        db.execute(
+            "INSERT INTO player_profiles (user_id, mental_session_id, technical_session_id, profile_html, created_at) VALUES (?,?,?,?,?)",
+            (g.user_id, mental_session_id, technical_session_id, profile_html,
+             datetime.datetime.utcnow().isoformat())
+        )
+        db.commit()
+        return jsonify({
+            'profile': profile_html,
+            'created_at': datetime.datetime.utcnow().isoformat()
+        })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': f'Error al generar perfil: {str(e)}'}), 500
 
 
 def _build_profile_prompt(nombre, mental_answers, technical_answers,
