@@ -410,7 +410,7 @@ async function loadSavedProfile() {
             <span style="font-size:1.2rem">📅</span>
             <span style="font-size:0.85rem;color:var(--text2)">Perfil generado el <strong>${dt}</strong>. Regenerá si completaste nuevos tests.</span>
           </div>
-          <button class="btn btn-secondary btn-sm" onclick="downloadProfilePDF('${nombre.replace(/'/g,"\\'")}')">📄 Descargar PDF</button>
+          <button class="btn btn-primary btn-sm" onclick="downloadProfilePDF('${nombre.replace(/'/g,"\\'")}')">📄 Descargar PDF</button>
         </div>
         <div id="profile-ia-output">${res.profile}</div>`;
     }
