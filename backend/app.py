@@ -453,14 +453,35 @@ def confirm_payment():
     ).fetchone()
     if not pay:
         return jsonify({'error': 'Pago no encontrado'}), 404
-
     db.execute("UPDATE payments SET status='approved' WHERE id=?", (payment_id,))
+    db.commit()
+    return jsonify({'ok': True})
+
+@app.route('/api/test/new-session', methods=['POST'])
+@require_auth
+def new_test_session():
+    """Crea una sesión de test. Requiere al menos un pago aprobado."""
+    data = request.json or {}
+    test_type = data.get('test_type', 'mental')
+    db = get_db()
+
+    # Verificar acceso: pago aprobado o es admin
+    user = db.execute("SELECT is_admin FROM users WHERE id=?", (g.user_id,)).fetchone()
+    payment = db.execute(
+        "SELECT id FROM payments WHERE user_id=? AND status='approved' ORDER BY id DESC LIMIT 1",
+        (g.user_id,)
+    ).fetchone()
+
+    if not payment and not (user and user['is_admin']):
+        return jsonify({'error': 'no_payment', 'message': 'Necesitas completar el pago para acceder al test'}), 402
+
+    payment_id = payment['id'] if payment else None
     session_id = db.execute(
-        "INSERT INTO test_sessions (user_id, payment_id) VALUES (?,?)",
-        (g.user_id, payment_id)
+        "INSERT INTO test_sessions (user_id, payment_id, test_type) VALUES (?,?,?)",
+        (g.user_id, payment_id, test_type)
     ).lastrowid
     db.commit()
-    return jsonify({'session_id': session_id})
+    return jsonify({'session_id': session_id, 'test_type': test_type})
 
 # Mercado Pago webhook
 @app.route('/api/payment/webhook/mp', methods=['POST'])

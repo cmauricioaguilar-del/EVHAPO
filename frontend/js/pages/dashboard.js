@@ -683,13 +683,19 @@ async function downloadProfilePDF(userName) {
 async function startNewTest(testType = 'mental') {
   if (!Api.isLoggedIn()) { App.go('login'); return; }
   try {
-    const result = await Api.createPayment('demo', 'US', testType);
+    const result = await Api.post('/api/test/new-session', { test_type: testType });
     if (result.session_id) {
       localStorage.setItem('evhapo_session', result.session_id);
       localStorage.setItem('evhapo_test_type', testType);
       App.go('test');
     }
   } catch (e) {
-    alert('Error: ' + e.message);
+    if (e.message && e.message.includes('402')) {
+      App.go('payment');
+    } else if (e.status === 402) {
+      App.go('payment');
+    } else {
+      App.go('payment');
+    }
   }
 }

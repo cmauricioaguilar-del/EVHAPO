@@ -28,12 +28,10 @@ async function _handleMpReturn(pid, mpPaymentId) {
       payment_id: parseInt(pid),
       mp_payment_id: mpPaymentId
     });
-    if (res.ok && res.session_id) {
-      localStorage.setItem('evhapo_session', res.session_id);
-      localStorage.setItem('evhapo_test_type', res.test_type || 'mental');
-      setTimeout(() => App.go('test'), 300);
+    if (res.ok) {
+      setTimeout(() => App.go('dashboard'), 300);
     } else {
-      setTimeout(() => alert('Pago recibido. Si el test no abre, contacta soporte.'), 300);
+      setTimeout(() => alert('Pago recibido. Si no ves acceso, contacta soporte.'), 300);
     }
   } catch (e) {
     setTimeout(() => alert('Error verificando pago: ' + e.message), 300);
@@ -100,14 +98,6 @@ async function renderPayment() {
           🎮 <strong>Modo Demo:</strong> El test se habilitará sin cargo real.
         </div>
 
-        <div style="margin-bottom:16px">
-          <label style="font-size:0.9rem;color:var(--text2);margin-bottom:8px;display:block">¿Qué test quieres tomar?</label>
-          <select id="test-type-select" style="width:100%;padding:10px;border-radius:8px;background:var(--bg3);color:var(--text1);border:1px solid var(--border)">
-            <option value="mental">🧠 Test Mental (Psicológico)</option>
-            <option value="technical">🎯 Test Técnico (Habilidades)</option>
-          </select>
-        </div>
-
         <button class="btn btn-primary btn-block btn-lg" id="pay-btn" onclick="doPayment()">
           ♠ Pagar y comenzar el test
         </button>
@@ -131,8 +121,7 @@ function selectMethod(method) {
 async function doPayment() {
   const btn     = document.getElementById('pay-btn');
   const errEl   = document.getElementById('pay-error');
-  const pais    = (JSON.parse(localStorage.getItem('evhapo_user') || '{}').pais || 'CL').toUpperCase();
-  const testType = document.getElementById('test-type-select')?.value || 'mental';
+  const pais = (JSON.parse(localStorage.getItem('evhapo_user') || '{}').pais || 'CL').toUpperCase();
 
   errEl.innerHTML = '';
   btn.disabled = true;
@@ -141,14 +130,12 @@ async function doPayment() {
   try {
     const result = await Api.post('/api/payment/create', {
       method: _selectedMethod,
-      pais: pais,
-      test_type: testType
+      pais: pais
     });
 
-    if (result.mode === 'demo' && result.session_id) {
-      localStorage.setItem('evhapo_session', result.session_id);
-      localStorage.setItem('evhapo_test_type', testType);
-      App.go('test');
+    if (result.mode === 'demo') {
+      // Demo: pago aprobado → ir al dashboard
+      App.go('dashboard');
       return;
     }
 

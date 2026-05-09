@@ -15,7 +15,11 @@ const Api = {
     if (body) opts.body = JSON.stringify(body);
     const r = await fetch(API_BASE + path, opts);
     const data = await r.json().catch(() => ({}));
-    if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
+    if (!r.ok) {
+      const err = new Error(data.error || `HTTP ${r.status}`);
+      err.status = r.status;
+      throw err;
+    }
     return data;
   },
 
