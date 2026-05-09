@@ -1351,45 +1351,6 @@ IMPORTANTE: Usa ejemplos REALES de las manos del historial (nivel, cartas, accio
 """
 
 
-# ─── Endpoint temporal: limpiar usuarios sin pago ni tests ───────────────────
-
-@app.route('/api/admin/cleanup-users', methods=['POST'])
-def admin_cleanup_users():
-    data = request.get_json()
-    if not data or data.get('admin_key') != 'EVHAPO_IMPORT_2026':
-        return jsonify({'error': 'No autorizado'}), 403
-
-    dry_run = data.get('dry_run', True)
-    db = get_db()
-
-    rows = db.execute('''
-        SELECT u.id, u.nombre, u.email, u.created_at,
-               COUNT(DISTINCT p.id)  as pagos_aprobados,
-               COUNT(DISTINCT s.id)  as tests_completados
-        FROM users u
-        LEFT JOIN payments p ON p.user_id=u.id AND p.status="approved"
-        LEFT JOIN test_sessions s ON s.user_id=u.id AND s.completed=1
-        WHERE u.is_admin=0
-        GROUP BY u.id
-        HAVING pagos_aprobados=0 AND tests_completados=0
-    ''').fetchall()
-
-    to_delete = [dict(r) for r in rows]
-
-    if not dry_run:
-        for u in to_delete:
-            uid = u['id']
-            db.execute('DELETE FROM tokens WHERE user_id=?', (uid,))
-            db.execute('DELETE FROM test_sessions WHERE user_id=?', (uid,))
-            db.execute('DELETE FROM payments WHERE user_id=?', (uid,))
-            db.execute('DELETE FROM player_profiles WHERE user_id=?', (uid,))
-            db.execute('DELETE FROM tournament_analyses WHERE user_id=?', (uid,))
-            db.execute('DELETE FROM users WHERE id=?', (uid,))
-        db.commit()
-
-    return jsonify({'dry_run': dry_run, 'count': len(to_delete), 'users': to_delete})
-
-
 # Inicializar BD al importar el módulo (gunicorn no ejecuta __main__)
 init_db()
 
