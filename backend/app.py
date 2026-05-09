@@ -297,9 +297,9 @@ def mp_config():
     """Devuelve la Public Key de MercadoPago al frontend."""
     pk  = os.environ.get('MERCADOPAGO_PUBLIC_KEY', MERCADOPAGO_PUBLIC_KEY)
     tok = os.environ.get('MERCADOPAGO_ACCESS_TOKEN', MERCADOPAGO_ACCESS_TOKEN)
-    # Debug temporal
-    mp_keys = {k: v[:10]+'...' for k,v in os.environ.items() if 'MERCADO' in k.upper() or 'BASE' in k.upper()}
-    return jsonify({'public_key': pk, 'enabled': bool(tok), '_debug': mp_keys})
+    # Debug temporal — lista todos los nombres de env vars
+    all_keys = sorted(os.environ.keys())
+    return jsonify({'public_key': pk, 'enabled': bool(tok), '_all_keys': all_keys})
 
 @app.route('/api/payment/create', methods=['POST'])
 @require_auth
