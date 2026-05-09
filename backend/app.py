@@ -33,18 +33,29 @@ SMTP_PORT   = int(os.environ.get('SMTP_PORT', '587'))
 SMTP_USER   = os.environ.get('SMTP_USER', '')
 SMTP_PASS   = os.environ.get('SMTP_PASS', '')
 
-# Cargar .env si existe (para que funcione sin necesidad del .bat)
-_env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
-if os.path.exists(_env_path):
-    with open(_env_path, encoding='utf-8') as _ef:
-        for _line in _ef:
-            _line = _line.strip()
-            if _line and not _line.startswith('#') and '=' in _line:
-                _k, _v = _line.split('=', 1)
-                # Sobreescribir siempre para que .env tenga prioridad
-                os.environ[_k.strip()] = _v.strip()
+# Cargar .env SOLO si la variable no viene ya del entorno (del .bat)
+if not os.environ.get('ANTHROPIC_API_KEY'):
+    for _candidate in [
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env'),
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '.env'),
+    ]:
+        if os.path.exists(_candidate):
+            try:
+                with open(_candidate, encoding='utf-8') as _ef:
+                    for _line in _ef:
+                        _line = _line.strip()
+                        if _line and not _line.startswith('#') and '=' in _line:
+                            _k, _v = _line.split('=', 1)
+                            if _k.strip() == 'ANTHROPIC_API_KEY' and _v.strip():
+                                os.environ['ANTHROPIC_API_KEY'] = _v.strip()
+            except Exception:
+                pass
+            break
 
 ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY', '')
+
+# Log de arranque para diagnóstico
+print(f"[CONFIG] ANTHROPIC_API_KEY: {'OK (' + str(len(ANTHROPIC_API_KEY)) + ' chars)' if ANTHROPIC_API_KEY else 'NO ENCONTRADA — ejecuta iniciar_servidor.bat'}")
 
 # ─── Database ────────────────────────────────────────────────────────────────
 
@@ -608,9 +619,9 @@ def get_profile():
 @app.route('/api/profile/generate', methods=['POST'])
 @require_auth
 def generate_profile():
-    _api_key = os.environ.get('ANTHROPIC_API_KEY', ANTHROPIC_API_KEY)
+    _api_key = os.environ.get('ANTHROPIC_API_KEY') or ANTHROPIC_API_KEY
     if not _api_key:
-        return jsonify({'error': 'ANTHROPIC_API_KEY no configurada.'}), 503
+        return jsonify({'error': 'Servicio no disponible. Reinicia el servidor con iniciar_servidor.bat'}), 503
 
     import requests as _requests
 
@@ -996,9 +1007,9 @@ def _format_hand_compact(h):
 @app.route('/api/tournament/analyze', methods=['POST'])
 @require_auth
 def analyze_tournament():
-    _api_key = os.environ.get('ANTHROPIC_API_KEY', ANTHROPIC_API_KEY)
+    _api_key = os.environ.get('ANTHROPIC_API_KEY') or ANTHROPIC_API_KEY
     if not _api_key:
-        return jsonify({'error': 'ANTHROPIC_API_KEY no configurada.'}), 503
+        return jsonify({'error': 'Servicio no disponible. Reinicia el servidor con iniciar_servidor.bat'}), 503
 
     import requests as _requests
 
