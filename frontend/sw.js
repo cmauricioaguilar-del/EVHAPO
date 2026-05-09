@@ -1,9 +1,9 @@
 // ─── EVHAPO Service Worker ────────────────────────────────────────────────────
 // Versión: incrementar al hacer cambios importantes para forzar actualización
 
-const CACHE_NAME   = 'evhapo-v15';
-const STATIC_CACHE = 'evhapo-static-v14';
-const API_CACHE    = 'evhapo-api-v14';
+const CACHE_NAME   = 'evhapo-v16';
+const STATIC_CACHE = 'evhapo-static-v15';
+const API_CACHE    = 'evhapo-api-v15';
 
 // Archivos que se cachean al instalar (shell de la app)
 const SHELL_FILES = [
@@ -44,7 +44,7 @@ self.addEventListener('install', event => {
   );
 });
 
-// ─── Activación: limpiar cachés viejas ───────────────────────────────────────
+// ─── Activación: limpiar cachés viejas y tomar control inmediato ─────────────
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(keys =>
@@ -57,6 +57,12 @@ self.addEventListener('activate', event => {
           })
       )
     ).then(() => self.clients.claim())
+      .then(() => {
+        // Forzar recarga en todos los clientes al actualizar SW
+        self.clients.matchAll({ type: 'window' }).then(clients => {
+          clients.forEach(client => client.navigate(client.url));
+        });
+      })
   );
 });
 
