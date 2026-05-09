@@ -33,6 +33,17 @@ SMTP_PORT   = int(os.environ.get('SMTP_PORT', '587'))
 SMTP_USER   = os.environ.get('SMTP_USER', '')
 SMTP_PASS   = os.environ.get('SMTP_PASS', '')
 
+# Cargar .env si existe (para que funcione sin necesidad del .bat)
+_env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
+if os.path.exists(_env_path):
+    with open(_env_path, encoding='utf-8') as _ef:
+        for _line in _ef:
+            _line = _line.strip()
+            if _line and not _line.startswith('#') and '=' in _line:
+                _k, _v = _line.split('=', 1)
+                # Sobreescribir siempre para que .env tenga prioridad
+                os.environ[_k.strip()] = _v.strip()
+
 ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY', '')
 
 # ─── Database ────────────────────────────────────────────────────────────────
@@ -597,7 +608,8 @@ def get_profile():
 @app.route('/api/profile/generate', methods=['POST'])
 @require_auth
 def generate_profile():
-    if not ANTHROPIC_API_KEY:
+    _api_key = os.environ.get('ANTHROPIC_API_KEY', ANTHROPIC_API_KEY)
+    if not _api_key:
         return jsonify({'error': 'ANTHROPIC_API_KEY no configurada.'}), 503
 
     import requests as _requests
@@ -637,7 +649,7 @@ def generate_profile():
         resp = _requests.post(
             'https://api.anthropic.com/v1/messages',
             headers={
-                'x-api-key': ANTHROPIC_API_KEY,
+                'x-api-key': _api_key,
                 'anthropic-version': '2023-06-01',
                 'content-type': 'application/json',
             },
@@ -984,7 +996,8 @@ def _format_hand_compact(h):
 @app.route('/api/tournament/analyze', methods=['POST'])
 @require_auth
 def analyze_tournament():
-    if not ANTHROPIC_API_KEY:
+    _api_key = os.environ.get('ANTHROPIC_API_KEY', ANTHROPIC_API_KEY)
+    if not _api_key:
         return jsonify({'error': 'ANTHROPIC_API_KEY no configurada.'}), 503
 
     import requests as _requests
@@ -1041,7 +1054,7 @@ def analyze_tournament():
         resp = _requests.post(
             'https://api.anthropic.com/v1/messages',
             headers={
-                'x-api-key': ANTHROPIC_API_KEY,
+                'x-api-key': _api_key,
                 'anthropic-version': '2023-06-01',
                 'content-type': 'application/json',
             },
