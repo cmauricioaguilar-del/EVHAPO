@@ -63,6 +63,31 @@ function renderLanding() {
       <div class="price-banner">
         <div class="price">USD $9.90</div>
         <div class="price-sub">Pago único · Acceso permanente a tus resultados y futuras comparaciones</div>
+
+        <!-- Métodos de pago y países -->
+        <div style="margin-top:24px;padding:20px;background:rgba(0,0,0,0.2);border-radius:12px;border:1px solid rgba(212,175,55,0.2)">
+          <div style="font-size:0.85rem;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:1px;margin-bottom:14px">
+            💳 Métodos de pago aceptados
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap;justify-content:center">
+            <span style="background:rgba(0,102,255,0.15);border:1px solid rgba(0,102,255,0.3);border-radius:8px;padding:6px 14px;font-size:0.85rem;color:#4a9eff">
+              💙 Mercado Pago
+            </span>
+            <span style="background:rgba(212,175,55,0.1);border:1px solid rgba(212,175,55,0.2);border-radius:8px;padding:6px 14px;font-size:0.85rem;color:var(--text2)">
+              💳 Débito · Crédito · Transferencia
+            </span>
+          </div>
+          <div style="font-size:0.82rem;color:var(--text2);line-height:1.6;margin-bottom:10px">
+            Usuarios de <strong style="color:var(--text1)">Chile, Argentina, Brasil, México, Colombia, Perú y Uruguay</strong>
+            pueden pagar con su tarjeta local en moneda local. MercadoPago convierte automáticamente.
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center">
+            ${['🇨🇱 Chile','🇦🇷 Argentina','🇧🇷 Brasil','🇲🇽 México','🇨🇴 Colombia','🇵🇪 Perú','🇺🇾 Uruguay'].map(p =>
+              `<span style="background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:6px;padding:3px 10px;font-size:0.78rem;color:var(--text2)">${p}</span>`
+            ).join('')}
+          </div>
+        </div>
+
         <div style="margin-top:20px; display:flex; gap:12px; justify-content:center; flex-wrap:wrap">
           <button class="btn btn-primary" onclick="App.go('register')">Comenzar ahora →</button>
           <button class="btn btn-outline" onclick="App.go('login')">Iniciar sesión</button>
