@@ -232,7 +232,23 @@ def register():
     db = get_db()
     existing = db.execute("SELECT id FROM users WHERE email=?", (email,)).fetchone()
     if existing:
-        return jsonify({'error': 'Este email ya está registrado'}), 409
+        uid = existing['id']
+        # Verificar si ya tiene pago aprobado
+        paid = db.execute(
+            "SELECT id FROM payments WHERE user_id=? AND status='approved' LIMIT 1", (uid,)
+        ).fetchone()
+        if paid:
+            # Ya pagó → no puede re-registrarse, debe iniciar sesión
+            return jsonify({'error': 'already_paid', 'message': 'Ya tienes una cuenta activa con este email. Inicia sesión para continuar.'}), 409
+        else:
+            # No ha pagado → eliminar cuenta anterior y crear nueva
+            db.execute('DELETE FROM tokens WHERE user_id=?', (uid,))
+            db.execute('DELETE FROM test_sessions WHERE user_id=?', (uid,))
+            db.execute('DELETE FROM payments WHERE user_id=?', (uid,))
+            db.execute('DELETE FROM player_profiles WHERE user_id=?', (uid,))
+            db.execute('DELETE FROM tournament_analyses WHERE user_id=?', (uid,))
+            db.execute('DELETE FROM users WHERE id=?', (uid,))
+            db.commit()
 
     db.execute(
         "INSERT INTO users (nombre, apellido, email, password_hash, pais) VALUES (?,?,?,?,?)",

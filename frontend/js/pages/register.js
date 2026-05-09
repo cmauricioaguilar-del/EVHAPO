@@ -107,7 +107,15 @@ async function doRegister() {
     await Api.register({ nombre, apellido, email, pais, password: pass });
     App.go('payment');
   } catch (e) {
-    errEl.innerHTML = `<div class="form-error">${e.message}</div>`;
+    if (e.message && e.message.includes('already_paid')) {
+      // Ya pagó → redirigir a login
+      errEl.innerHTML = `<div class="alert alert-info" style="margin-bottom:0">
+        ✅ Ya tienes una cuenta activa con este email.
+        <a href="#" onclick="App.go('login')" style="color:var(--accent);font-weight:700">Inicia sesión aquí →</a>
+      </div>`;
+    } else {
+      errEl.innerHTML = `<div class="form-error">${e.message}</div>`;
+    }
     btn.disabled = false; btn.textContent = 'Crear cuenta y continuar →';
   }
 }
