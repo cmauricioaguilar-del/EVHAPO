@@ -22,7 +22,7 @@ function renderLanding() {
     <div class="hero">
       <div style="display:flex;justify-content:center;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">
         ${[['cl','Chile'],['ar','Argentina'],['br','Brasil'],['mx','México'],['co','Colombia'],['pe','Perú'],['uy','Uruguay']].map(([code,name]) =>
-          `<img src="https://flagcdn.com/40x30/${code}.png" alt="${name}" title="${name}"
+          `<img src="/icons/flags/${code}.png" alt="${name}" title="${name}"
             style="height:28px;width:auto;border-radius:3px;box-shadow:0 1px 4px rgba(0,0,0,0.4)">`
         ).join('')}
       </div>
@@ -90,7 +90,7 @@ function renderLanding() {
           <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center">
             ${[['cl','Chile'],['ar','Argentina'],['br','Brasil'],['mx','México'],['co','Colombia'],['pe','Perú'],['uy','Uruguay']].map(([code,name]) =>
               `<span style="background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:6px;padding:3px 10px;font-size:0.78rem;color:var(--text2);display:inline-flex;align-items:center;gap:5px">
-                <img src="https://flagcdn.com/20x15/${code}.png" alt="${name}" style="height:13px;border-radius:2px">${name}
+                <img src="/icons/flags/${code}.png" alt="${name}" style="height:13px;border-radius:2px">${name}
               </span>`
             ).join('')}
           </div>

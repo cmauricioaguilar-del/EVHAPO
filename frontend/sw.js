@@ -1,9 +1,9 @@
 // ─── EVHAPO Service Worker ────────────────────────────────────────────────────
 // Versión: incrementar al hacer cambios importantes para forzar actualización
 
-const CACHE_NAME   = 'evhapo-v16';
-const STATIC_CACHE = 'evhapo-static-v15';
-const API_CACHE    = 'evhapo-api-v15';
+const CACHE_NAME   = 'evhapo-v17';
+const STATIC_CACHE = 'evhapo-static-v17';
+const API_CACHE    = 'evhapo-api-v17';
 
 // Archivos que se cachean al instalar (shell de la app)
 const SHELL_FILES = [
@@ -27,6 +27,13 @@ const SHELL_FILES = [
   '/icons/icon-192.svg',
   '/icons/icon-512.svg',
   '/icons/mindev-logo.png',
+  '/icons/flags/cl.png',
+  '/icons/flags/ar.png',
+  '/icons/flags/br.png',
+  '/icons/flags/mx.png',
+  '/icons/flags/co.png',
+  '/icons/flags/pe.png',
+  '/icons/flags/uy.png',
   '/manifest.json',
   // Librerías externas
   'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js',
