@@ -277,14 +277,22 @@ function renderDashboardContent(data, user) {
 
   // ─── TAB: Benchmark ───────────────────────────────────────────────────────
   html += `<div id="dtab-benchmark" style="display:none">`;
-  if (Object.keys(benchmark).length > 0 && mentalSc) {
-    const benchCats = EVHAPO_CATEGORIES.filter(c => benchmark[c.key] !== undefined);
-    html += `
-      <div class="card">
-        <div class="card-header"><span class="card-icon">🏅</span><div><h2>Benchmark Global 🧠 Mental</h2><div class="card-sub">Tu nivel vs. promedio de la comunidad EVHAPO</div></div></div>
-        ${benchCats.map(c => {
-          const myPct  = mentalSc[c.key] || 0;
-          const avgPct = benchmark[c.key] || 0;
+
+  const hasBenchData = Object.keys(benchmark).length > 0;
+
+  // Helper para renderizar una tarjeta de benchmark
+  const renderBenchCard = (title, sub, icon, categories, userScores, accentColor) => {
+    const cats = categories.filter(c => benchmark[c.key] !== undefined);
+    if (!userScores || cats.length === 0) return '';
+    return `
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-header">
+          <span class="card-icon">${icon}</span>
+          <div><h2>${title}</h2><div class="card-sub">${sub}</div></div>
+        </div>
+        ${cats.map(c => {
+          const myPct  = userScores[c.key] || 0;
+          const avgPct = benchmark[c.key]  || 0;
           const diff   = myPct - avgPct;
           return `
             <div style="margin-bottom:18px">
@@ -298,13 +306,32 @@ function renderDashboardContent(data, user) {
                 <div class="benchmark-pct" style="color:var(--blue)">${myPct}%</div>
               </div>
               <div class="benchmark-bar">
-                <div class="benchmark-label" style="font-size:0.8rem;color:var(--accent)">Promedio</div>
-                <div class="benchmark-track"><div class="benchmark-fill" style="width:${avgPct}%"></div></div>
-                <div class="benchmark-pct">${avgPct}%</div>
+                <div class="benchmark-label" style="font-size:0.8rem;color:${accentColor}">Promedio</div>
+                <div class="benchmark-track"><div class="benchmark-fill" style="width:${avgPct}%;background:${accentColor}"></div></div>
+                <div class="benchmark-pct" style="color:${accentColor}">${avgPct}%</div>
               </div>
             </div>`;
         }).join('')}
       </div>`;
+  };
+
+  if (hasBenchData && (mentalSc || techSc)) {
+    html += renderBenchCard(
+      'Benchmark Global 🧠 Mental',
+      'Tu nivel vs. promedio de la comunidad MindEV',
+      '🏅', EVHAPO_CATEGORIES, mentalSc, 'var(--accent)'
+    );
+    html += renderBenchCard(
+      'Benchmark Global ⚙️ Técnico',
+      'Tu conocimiento de Texas Hold\'em vs. promedio de la comunidad MindEV',
+      '🏅', TECHNICAL_CATEGORIES, techSc, '#4db6ac'
+    );
+    if (!mentalSc) {
+      html += '<div class="alert alert-info" style="margin-bottom:12px">Completa el test mental para ver tu benchmark mental.</div>';
+    }
+    if (!techSc) {
+      html += '<div class="alert alert-info">Completa el test técnico para ver tu benchmark técnico.</div>';
+    }
   } else {
     html += '<div class="alert alert-info">El benchmark estará disponible cuando más jugadores completen el diagnóstico.</div>';
   }

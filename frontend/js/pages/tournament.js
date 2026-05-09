@@ -61,7 +61,6 @@ function renderTournamentTab() {
           <button id="tourn-analyze-btn" class="btn btn-primary" onclick="tournAnalyze()" disabled style="opacity:0.5">
             🤖 Analizar torneo con IA
           </button>
-          <div style="color:#64748b;font-size:0.82rem">El análisis tarda entre 20 y 40 segundos</div>
         </div>
       </div>
 
