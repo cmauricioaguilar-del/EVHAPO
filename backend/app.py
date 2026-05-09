@@ -1201,10 +1201,12 @@ IMPORTANTE: Usa ejemplos REALES de las manos del historial (nivel, cartas, accio
 """
 
 
+# Inicializar BD al importar el módulo (gunicorn no ejecuta __main__)
+init_db()
+
 # ─── Entry point ──────────────────────────────────────────────────────────────
 
 if __name__ == '__main__':
-    init_db()
     port = int(os.environ.get('PORT', 5000))
     print("=" * 60)
     print("  MindEV - Diagnóstico Mental del Jugador de Poker")
