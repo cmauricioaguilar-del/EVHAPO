@@ -122,6 +122,80 @@ function tournClearFile() {
 }
 
 // ─── Análisis ─────────────────────────────────────────────────────────────────
+let _tournPollTimer = null;
+let _tournSeconds   = 0;
+
+function _tournShowResult(data) {
+  const resultEl = document.getElementById('tourn-result');
+  resultEl.innerHTML = `
+    <div class="card" style="margin-bottom:20px">
+      <div class="card-header">
+        <span class="card-icon">🏆</span>
+        <div>
+          <h2 style="margin:0">${data.meta?.tournament_name || 'Torneo'}</h2>
+          <div class="card-sub">${data.meta?.platform || ''} · ${data.meta?.date?.slice(0,10) || ''} · Buy-in: ${data.meta?.buy_in || 'N/D'}</div>
+        </div>
+        <div style="margin-left:auto;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+          <span style="background:rgba(212,175,55,0.12);border:1px solid rgba(212,175,55,0.3);color:#d4af37;padding:6px 14px;border-radius:6px;font-size:0.82rem">
+            🃏 ${data.meta?.total_hands || 0} manos totales · ${data.meta?.hero_hands || 0} jugadas
+          </span>
+          <button class="btn btn-primary btn-sm" onclick="tournDownloadPDF()">📄 Descargar PDF</button>
+        </div>
+      </div>
+      <div id="tourn-report-content">
+        ${data.report}
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap">
+      <button class="btn btn-secondary btn-sm" onclick="tournClearFile()">🔄 Analizar otro torneo</button>
+      <button class="btn btn-primary btn-sm"   onclick="tournDownloadPDF()">📄 Descargar PDF</button>
+    </div>`;
+}
+
+function _tournShowError(msg) {
+  const resultEl = document.getElementById('tourn-result');
+  resultEl.innerHTML = `
+    <div class="form-error" style="margin:0">
+      ❌ ${msg}
+      <div style="margin-top:8px;font-size:0.85rem;color:#94a3b8">Verifica que el archivo contenga manos de torneo válidas y vuelve a intentarlo.</div>
+    </div>`;
+}
+
+function _tournStopPolling() {
+  if (_tournPollTimer) { clearInterval(_tournPollTimer); _tournPollTimer = null; }
+  const btn = document.getElementById('tourn-analyze-btn');
+  if (btn) { btn.disabled = false; btn.textContent = '🤖 Analizar torneo con IA'; btn.style.opacity = '1'; }
+}
+
+async function _tournPoll(jobId, meta) {
+  _tournSeconds += 4;
+  const elapsed = _tournSeconds;
+  // Actualizar texto del spinner con tiempo transcurrido
+  const p = document.querySelector('#tourn-result .spinner-msg');
+  if (p) p.textContent = `La IA está analizando tu torneo… (${elapsed}s)`;
+
+  try {
+    const token = localStorage.getItem('evhapo_token');
+    const res = await fetch(`/api/tournament/status/${jobId}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+
+    if (data.status === 'done') {
+      _tournStopPolling();
+      _tournShowResult(data);
+    } else if (data.status === 'error') {
+      _tournStopPolling();
+      _tournShowError(data.error || 'Error al generar el análisis.');
+    }
+    // Si status === 'processing', seguir esperando
+  } catch (err) {
+    // Error de red — seguir intentando
+    console.warn('[poll] error temporal:', err.message);
+  }
+}
+
 async function tournAnalyze() {
   if (!_tournFile) return;
 
@@ -129,16 +203,17 @@ async function tournAnalyze() {
   const resultEl = document.getElementById('tourn-result');
 
   btn.disabled = true;
-  btn.textContent = '⏳ Analizando...';
+  btn.style.opacity = '0.6';
+  btn.textContent = '⏳ Enviando archivo...';
 
   resultEl.style.display = 'block';
   resultEl.innerHTML = `
     <div class="card" style="text-align:center;padding:48px 20px">
       <div class="spinner" style="margin:0 auto 20px"></div>
-      <p style="color:#94a3b8;font-size:1rem;margin-bottom:8px">La IA está analizando tu torneo…</p>
-      <p style="color:#64748b;font-size:0.85rem">Leyendo historial de manos, evaluando decisiones y correlacionando con tu perfil</p>
+      <p class="spinner-msg" style="color:#94a3b8;font-size:1rem;margin-bottom:8px">Subiendo archivo y preparando análisis…</p>
+      <p style="color:#64748b;font-size:0.85rem">La IA leerá cada mano y evaluará tus decisiones. Esto puede tardar 1-3 minutos.</p>
       <div style="margin-top:16px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
-        ${['📂 Leyendo archivo','🃏 Parseando manos','🤖 Analizando con IA','📊 Generando reporte'].map((s,i) =>
+        ${['📂 Leyendo archivo','🃏 Parseando manos','🤖 Analizando con IA','📊 Generando reporte'].map(s =>
           `<span style="font-size:0.8rem;color:#64748b;padding:4px 10px;background:#1a2235;border-radius:20px">${s}</span>`
         ).join('')}
       </div>
@@ -161,40 +236,22 @@ async function tournAnalyze() {
     }
 
     const data = await res.json();
+    const jobId = data.job_id;
 
-    resultEl.innerHTML = `
-      <div class="card" style="margin-bottom:20px">
-        <div class="card-header">
-          <span class="card-icon">🏆</span>
-          <div>
-            <h2 style="margin:0">${data.meta?.tournament_name || 'Torneo'}</h2>
-            <div class="card-sub">${data.meta?.platform || ''} · ${data.meta?.date?.slice(0,10) || ''} · Buy-in: ${data.meta?.buy_in || 'N/D'}</div>
-          </div>
-          <div style="margin-left:auto;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-            <span style="background:rgba(212,175,55,0.12);border:1px solid rgba(212,175,55,0.3);color:#d4af37;padding:6px 14px;border-radius:6px;font-size:0.82rem">
-              🃏 ${data.meta?.total_hands || 0} manos totales · ${data.meta?.hero_hands || 0} jugadas
-            </span>
-            <button class="btn btn-primary btn-sm" onclick="tournDownloadPDF()">📄 Descargar PDF</button>
-          </div>
-        </div>
-        <div id="tourn-report-content">
-          ${data.report}
-        </div>
-      </div>
-      <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap">
-        <button class="btn btn-secondary btn-sm" onclick="tournClearFile()">🔄 Analizar otro torneo</button>
-        <button class="btn btn-primary btn-sm"   onclick="tournDownloadPDF()">📄 Descargar PDF</button>
-      </div>`;
+    btn.textContent = '⏳ Analizando...';
+    _tournSeconds = 0;
+
+    // Actualizar spinner con meta del torneo
+    const spinnerMsg = document.querySelector('#tourn-result .spinner-msg');
+    if (spinnerMsg) spinnerMsg.textContent = `Analizando ${data.meta?.tournament_name || 'torneo'}…`;
+
+    // Iniciar polling cada 4 segundos
+    if (_tournPollTimer) clearInterval(_tournPollTimer);
+    _tournPollTimer = setInterval(() => _tournPoll(jobId, data.meta), 4000);
 
   } catch (err) {
-    resultEl.innerHTML = `
-      <div class="form-error" style="margin:0">
-        ❌ ${err.message}
-        <div style="margin-top:8px;font-size:0.85rem;color:#94a3b8">Verifica que el archivo contenga manos de torneo válidas y vuelve a intentarlo.</div>
-      </div>`;
-  } finally {
-    btn.disabled    = false;
-    btn.textContent = '🤖 Analizar torneo con IA';
+    _tournShowError(err.message);
+    _tournStopPolling();
   }
 }
 

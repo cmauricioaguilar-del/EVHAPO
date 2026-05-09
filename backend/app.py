@@ -11,6 +11,7 @@ import string
 import zipfile
 import io
 import re
+import threading
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from functools import wraps
@@ -147,10 +148,19 @@ def init_db():
             hero_hands INTEGER,
             date TEXT,
             report_html TEXT,
+            status TEXT DEFAULT 'done',
+            error_msg TEXT,
             created_at TEXT DEFAULT CURRENT_TIMESTAMP
         );
     """)
     db.commit()
+    # Migración: agregar columnas nuevas si no existen (para DBs ya creadas)
+    for col, definition in [('status', "TEXT DEFAULT 'done'"), ('error_msg', 'TEXT')]:
+        try:
+            db.execute(f"ALTER TABLE tournament_analyses ADD COLUMN {col} {definition}")
+            db.commit()
+        except Exception:
+            pass  # La columna ya existe
 
     # Migraciones automáticas (columnas nuevas en tablas existentes)
     migrations = [
@@ -1137,14 +1147,58 @@ def _format_hand_compact(h):
     return f"[{level_str}] Stack:{chips} Cards:[{cards}] {flag_str}\n  Acciones: {acts}\n  Board: {board}"
 
 
+def _bg_tournament_analysis(job_id, meta, prompt, api_key):
+    """Ejecuta el análisis Claude en background y actualiza la BD al terminar."""
+    import requests as _requests
+    try:
+        resp = _requests.post(
+            'https://api.anthropic.com/v1/messages',
+            headers={
+                'x-api-key': api_key,
+                'anthropic-version': '2023-06-01',
+                'content-type': 'application/json',
+            },
+            json={
+                'model': 'claude-sonnet-4-6',
+                'max_tokens': 16000,
+                'messages': [{'role': 'user', 'content': prompt}]
+            },
+            timeout=300,
+            verify=False
+        )
+        resp.raise_for_status()
+        report_html = resp.json()['content'][0]['text']
+
+        conn = sqlite3.connect(DB_PATH)
+        try:
+            conn.execute(
+                "UPDATE tournament_analyses SET status='done', report_html=? WHERE id=?",
+                (report_html, job_id)
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        conn = sqlite3.connect(DB_PATH)
+        try:
+            conn.execute(
+                "UPDATE tournament_analyses SET status='error', error_msg=? WHERE id=?",
+                (str(e)[:500], job_id)
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+
 @app.route('/api/tournament/analyze', methods=['POST'])
 @require_auth
 def analyze_tournament():
     _api_key = _get_api_key()
     if not _api_key:
         return jsonify({'error': 'Servicio no disponible. Reinicia el servidor con iniciar_servidor.bat'}), 503
-
-    import requests as _requests
 
     # ── 1. Leer archivo ────────────────────────────────────────────────────────
     file = request.files.get('file')
@@ -1182,7 +1236,6 @@ def analyze_tournament():
             (g.user_id,)
         ).fetchone()
         if row:
-            # Extraer texto plano del HTML del perfil (quitar tags)
             raw_profile = row['profile_html'] or ''
             player_profile = re.sub(r'<[^>]+>', ' ', raw_profile)
             player_profile = re.sub(r'\s+', ' ', player_profile).strip()[:3000]
@@ -1193,54 +1246,68 @@ def analyze_tournament():
     nombre = g.user_name
     prompt = _build_tournament_prompt(nombre, meta, player_profile)
 
-    # ── 5. Llamar a Claude ─────────────────────────────────────────────────────
-    try:
-        resp = _requests.post(
-            'https://api.anthropic.com/v1/messages',
-            headers={
-                'x-api-key': _api_key,
-                'anthropic-version': '2023-06-01',
-                'content-type': 'application/json',
-            },
-            json={
-                'model': 'claude-sonnet-4-6',
-                'max_tokens': 16000,
-                'messages': [{'role': 'user', 'content': prompt}]
-            },
-            timeout=300,
-            verify=False
-        )
-        resp.raise_for_status()
-        report_html = resp.json()['content'][0]['text']
+    # ── 5. Insertar job con status='processing' y lanzar hilo background ──────
+    db = get_db()
+    cursor = db.execute(
+        """INSERT INTO tournament_analyses
+           (user_id, tournament_name, platform, buy_in, total_hands, hero_hands, date, status, created_at)
+           VALUES (?,?,?,?,?,?,?,?,?)""",
+        (g.user_id, meta['tournament_name'], meta['platform'], meta['buy_in'],
+         meta['total_hands'], meta['hero_hands_played'], meta['date'],
+         'processing', datetime.datetime.utcnow().isoformat())
+    )
+    job_id = cursor.lastrowid
+    db.commit()
 
-        # Guardar análisis en BD para recuperarlo después
-        db = get_db()
-        db.execute(
-            """INSERT INTO tournament_analyses
-               (user_id, tournament_name, platform, buy_in, total_hands, hero_hands, date, report_html, created_at)
-               VALUES (?,?,?,?,?,?,?,?,?)""",
-            (g.user_id, meta['tournament_name'], meta['platform'], meta['buy_in'],
-             meta['total_hands'], meta['hero_hands_played'], meta['date'],
-             report_html, datetime.datetime.utcnow().isoformat())
-        )
-        db.commit()
+    t = threading.Thread(
+        target=_bg_tournament_analysis,
+        args=(job_id, meta, prompt, _api_key),
+        daemon=True
+    )
+    t.start()
 
-        return jsonify({
-            'report': report_html,
-            'meta': {
-                'tournament_name': meta['tournament_name'],
-                'buy_in':          meta['buy_in'],
-                'platform':        meta['platform'],
-                'total_hands':     meta['total_hands'],
-                'hero_hands':      meta['hero_hands_played'],
-                'date':            meta['date'],
-            }
-        })
+    return jsonify({
+        'job_id': job_id,
+        'meta': {
+            'tournament_name': meta['tournament_name'],
+            'buy_in':          meta['buy_in'],
+            'platform':        meta['platform'],
+            'total_hands':     meta['total_hands'],
+            'hero_hands':      meta['hero_hands_played'],
+            'date':            meta['date'],
+        }
+    })
 
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return jsonify({'error': f'Error al generar análisis: {str(e)}'}), 500
+
+@app.route('/api/tournament/status/<int:job_id>', methods=['GET'])
+@require_auth
+def tournament_job_status(job_id):
+    """Polling endpoint: devuelve el estado del análisis background."""
+    db = get_db()
+    row = db.execute(
+        "SELECT * FROM tournament_analyses WHERE id=? AND user_id=?",
+        (job_id, g.user_id)
+    ).fetchone()
+    if not row:
+        return jsonify({'error': 'Job no encontrado'}), 404
+
+    status = row['status'] or 'done'
+    result = {'status': status}
+
+    if status == 'done':
+        result['report'] = row['report_html']
+        result['meta'] = {
+            'tournament_name': row['tournament_name'],
+            'buy_in':          row['buy_in'],
+            'platform':        row['platform'],
+            'total_hands':     row['total_hands'],
+            'hero_hands':      row['hero_hands'],
+            'date':            row['date'],
+        }
+    elif status == 'error':
+        result['error'] = row['error_msg'] or 'Error desconocido al generar el análisis.'
+
+    return jsonify(result)
 
 
 @app.route('/api/tournament/history', methods=['GET'])
