@@ -295,7 +295,10 @@ def me():
 @app.route('/api/payment/mp-config', methods=['GET'])
 def mp_config():
     """Devuelve la Public Key de MercadoPago al frontend."""
-    return jsonify({'public_key': MERCADOPAGO_PUBLIC_KEY, 'enabled': bool(MERCADOPAGO_ACCESS_TOKEN)})
+    # Leer en tiempo real por si gunicorn cargó antes que las vars
+    pk  = os.environ.get('MERCADOPAGO_PUBLIC_KEY', MERCADOPAGO_PUBLIC_KEY)
+    tok = os.environ.get('MERCADOPAGO_ACCESS_TOKEN', MERCADOPAGO_ACCESS_TOKEN)
+    return jsonify({'public_key': pk, 'enabled': bool(tok)})
 
 @app.route('/api/payment/create', methods=['POST'])
 @require_auth
