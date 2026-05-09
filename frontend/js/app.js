@@ -54,6 +54,13 @@ function doLogout() {
 
 // Boot
 window.addEventListener('load', () => {
+  // Si viene de retorno de MercadoPago, payment.js lo maneja en su IIFE
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('mp_result') && Api.isLoggedIn()) {
+    App.go('dashboard'); // Pantalla de espera mientras se verifica
+    return;
+  }
+
   const hash = location.hash.replace('#', '');
   const pageMap = { login: 'login', register: 'register', payment: 'payment', test: 'test', results: 'results', dashboard: 'dashboard' };
   const page = pageMap[hash] || (Api.isLoggedIn() ? 'dashboard' : 'landing');

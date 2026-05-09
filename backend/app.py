@@ -29,7 +29,9 @@ DB_PATH = os.path.join(_DATA_DIR, 'evhapo.db')
 TEST_PRICE_USD = 9.90
 
 MERCADOPAGO_ACCESS_TOKEN = os.environ.get('MERCADOPAGO_ACCESS_TOKEN', '')
-STRIPE_SECRET_KEY = os.environ.get('STRIPE_SECRET_KEY', '')
+MERCADOPAGO_PUBLIC_KEY   = os.environ.get('MERCADOPAGO_PUBLIC_KEY', '')
+STRIPE_SECRET_KEY        = os.environ.get('STRIPE_SECRET_KEY', '')
+BASE_URL = os.environ.get('BASE_URL', 'http://localhost:5000')
 
 SMTP_SERVER = os.environ.get('SMTP_SERVER', 'smtp.gmail.com')
 SMTP_PORT   = int(os.environ.get('SMTP_PORT', '587'))
@@ -153,6 +155,7 @@ def init_db():
     # Migraciones automáticas (columnas nuevas en tablas existentes)
     migrations = [
         "ALTER TABLE test_sessions ADD COLUMN test_type TEXT DEFAULT 'mental'",
+        "ALTER TABLE payments ADD COLUMN test_type TEXT DEFAULT 'mental'",
     ]
     for sql in migrations:
         try:
@@ -289,41 +292,46 @@ def me():
 
 # ─── Payment routes ───────────────────────────────────────────────────────────
 
+@app.route('/api/payment/mp-config', methods=['GET'])
+def mp_config():
+    """Devuelve la Public Key de MercadoPago al frontend."""
+    return jsonify({'public_key': MERCADOPAGO_PUBLIC_KEY, 'enabled': bool(MERCADOPAGO_ACCESS_TOKEN)})
+
 @app.route('/api/payment/create', methods=['POST'])
 @require_auth
 def create_payment():
     data = request.json or {}
-    method = data.get('method', 'stripe')
-    pais = data.get('pais', 'US')
+    method = data.get('method', 'mercadopago')
+    pais   = data.get('pais', 'CL')
+    test_type = data.get('test_type', 'mental')
 
-    # Determine currency based on country
+    # Montos reales en moneda local (sin dividir por 100)
     currency_map = {
-        'AR': ('ARS', 9000),   # approx 9.90 USD in ARS
-        'CL': ('CLP', 9500),   # approx 9.90 USD in CLP
+        'AR': ('ARS', 9000),
+        'CL': ('CLP', 9500),
         'MX': ('MXN', 170),
         'CO': ('COP', 40000),
         'PE': ('PEN', 37),
         'UY': ('UYU', 390),
         'BR': ('BRL', 50),
     }
-    currency, local_amount = currency_map.get(pais.upper(), ('USD', 990))  # 990 cents
+    currency, local_amount = currency_map.get(pais.upper(), ('USD', 9.90))
 
     db = get_db()
     payment_id = db.execute(
-        "INSERT INTO payments (user_id, amount, currency, method, status) VALUES (?,?,?,?,?)",
-        (g.user_id, TEST_PRICE_USD, 'USD', method, 'pending')
+        "INSERT INTO payments (user_id, amount, currency, method, status, test_type) VALUES (?,?,?,?,?,?)",
+        (g.user_id, TEST_PRICE_USD, 'USD', method, 'pending', test_type)
     ).lastrowid
     db.commit()
 
     if method == 'mercadopago' and MERCADOPAGO_ACCESS_TOKEN:
-        return _create_mercadopago_payment(payment_id, local_amount, currency, pais)
+        return _create_mercadopago_payment(payment_id, local_amount, currency, test_type)
     elif method == 'stripe' and STRIPE_SECRET_KEY:
         return _create_stripe_payment(payment_id)
     else:
-        # Demo mode: simulate payment for testing
+        # Demo mode
         db.execute("UPDATE payments SET status='approved', external_id='DEMO' WHERE id=?", (payment_id,))
         db.commit()
-        test_type = data.get('test_type', 'mental')
         session_id = db.execute(
             "INSERT INTO test_sessions (user_id, payment_id, test_type) VALUES (?,?,?)",
             (g.user_id, payment_id, test_type)
@@ -334,23 +342,28 @@ def create_payment():
             'payment_id': payment_id,
             'session_id': session_id,
             'test_type': test_type,
-            'message': 'Modo demo activo. En producción se procesará el pago real.'
+            'message': 'Modo demo activo.'
         })
 
-def _create_mercadopago_payment(payment_id, amount, currency, pais):
+def _create_mercadopago_payment(payment_id, amount, currency, test_type='mental'):
     try:
         import mercadopago
         sdk = mercadopago.SDK(MERCADOPAGO_ACCESS_TOKEN)
         pref = sdk.preference().create({
-            "items": [{"title": "EVHAPO Diagnóstico Mental Poker", "quantity": 1,
-                        "unit_price": amount / 100, "currency_id": currency}],
+            "items": [{
+                "title": f"MindEV – Diagnóstico {'Mental' if test_type == 'mental' else 'Técnico'} Poker",
+                "quantity": 1,
+                "unit_price": float(amount),
+                "currency_id": currency
+            }],
             "back_urls": {
-                "success": f"http://localhost:5000/payment/success?pid={payment_id}",
-                "failure": f"http://localhost:5000/payment/failure",
-                "pending": f"http://localhost:5000/payment/pending"
+                "success": f"{BASE_URL}/?mp_result=success&pid={payment_id}",
+                "failure": f"{BASE_URL}/?mp_result=failure&pid={payment_id}",
+                "pending": f"{BASE_URL}/?mp_result=pending&pid={payment_id}"
             },
             "auto_return": "approved",
-            "external_reference": str(payment_id)
+            "external_reference": str(payment_id),
+            "statement_descriptor": "MindEV Poker"
         })
         return jsonify({
             'mode': 'mercadopago',
@@ -359,6 +372,56 @@ def _create_mercadopago_payment(payment_id, amount, currency, pais):
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+@app.route('/api/payment/mp-verify', methods=['POST'])
+@require_auth
+def mp_verify():
+    """Verifica el estado de un pago de MercadoPago y crea la sesión de test."""
+    data = request.json or {}
+    payment_id = data.get('payment_id')
+    db = get_db()
+    pay = db.execute(
+        "SELECT * FROM payments WHERE id=? AND user_id=?", (payment_id, g.user_id)
+    ).fetchone()
+    if not pay:
+        return jsonify({'error': 'Pago no encontrado'}), 404
+
+    # Si ya está aprobado, devolver sesión existente o crear una
+    if pay['status'] == 'approved':
+        existing = db.execute(
+            "SELECT id FROM test_sessions WHERE payment_id=?", (payment_id,)
+        ).fetchone()
+        if existing:
+            return jsonify({'ok': True, 'session_id': existing['id'], 'test_type': pay['test_type']})
+        session_id = db.execute(
+            "INSERT INTO test_sessions (user_id, payment_id, test_type) VALUES (?,?,?)",
+            (g.user_id, payment_id, pay['test_type'])
+        ).lastrowid
+        db.commit()
+        return jsonify({'ok': True, 'session_id': session_id, 'test_type': pay['test_type']})
+
+    # Consultar estado en MercadoPago
+    mp_payment_id = data.get('mp_payment_id')
+    if mp_payment_id and MERCADOPAGO_ACCESS_TOKEN:
+        try:
+            import mercadopago
+            sdk = mercadopago.SDK(MERCADOPAGO_ACCESS_TOKEN)
+            info = sdk.payment().get(mp_payment_id)
+            status = info['response'].get('status')
+            if status == 'approved':
+                db.execute("UPDATE payments SET status='approved', external_id=? WHERE id=?",
+                           (str(mp_payment_id), payment_id))
+                db.commit()
+                session_id = db.execute(
+                    "INSERT INTO test_sessions (user_id, payment_id, test_type) VALUES (?,?,?)",
+                    (g.user_id, payment_id, pay['test_type'])
+                ).lastrowid
+                db.commit()
+                return jsonify({'ok': True, 'session_id': session_id, 'test_type': pay['test_type']})
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+
+    return jsonify({'ok': False, 'status': pay['status']})
 
 def _create_stripe_payment(payment_id):
     try:
@@ -411,12 +474,17 @@ def mp_webhook():
                 if info['response']['status'] == 'approved':
                     ref = info['response']['external_reference']
                     db = sqlite3.connect(DB_PATH)
+                    db.row_factory = sqlite3.Row
                     db.execute("UPDATE payments SET status='approved', external_id=? WHERE id=?",
                                (str(payment_id_external), ref))
-                    row = db.execute("SELECT user_id FROM payments WHERE id=?", (ref,)).fetchone()
+                    row = db.execute("SELECT user_id, test_type FROM payments WHERE id=?", (ref,)).fetchone()
                     if row:
-                        db.execute("INSERT INTO test_sessions (user_id, payment_id) VALUES (?,?)",
-                                   (row[0], ref))
+                        existing = db.execute("SELECT id FROM test_sessions WHERE payment_id=?", (ref,)).fetchone()
+                        if not existing:
+                            db.execute(
+                                "INSERT INTO test_sessions (user_id, payment_id, test_type) VALUES (?,?,?)",
+                                (row['user_id'], ref, row['test_type'] or 'mental')
+                            )
                     db.commit()
                     db.close()
             except:
