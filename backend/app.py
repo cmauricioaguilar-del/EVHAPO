@@ -1260,47 +1260,6 @@ IMPORTANTE: Usa ejemplos REALES de las manos del historial (nivel, cartas, accio
 """
 
 
-# ─── Endpoint temporal: importar perfil y análisis de torneo ─────────────────
-
-@app.route('/api/admin/import-extra', methods=['POST'])
-def admin_import_extra():
-    data = request.get_json()
-    if not data or data.get('admin_key') != 'EVHAPO_IMPORT_2026':
-        return jsonify({'error': 'No autorizado'}), 403
-    db = get_db()
-    try:
-        email = data.get('email')
-        row = db.execute('SELECT id FROM users WHERE email=?', (email,)).fetchone()
-        if not row:
-            return jsonify({'error': 'Usuario no encontrado'}), 404
-        uid = row['id']
-
-        # Insertar/actualizar perfil
-        if data.get('profile_html'):
-            db.execute('DELETE FROM player_profiles WHERE user_id=?', (uid,))
-            db.execute(
-                'INSERT INTO player_profiles (user_id, profile_html, created_at) VALUES (?,?,?)',
-                (uid, data['profile_html'], data.get('profile_created_at', datetime.datetime.utcnow().isoformat()))
-            )
-
-        # Insertar análisis de torneo
-        for ta in data.get('tournament_analyses', []):
-            db.execute(
-                '''INSERT INTO tournament_analyses
-                   (user_id, tournament_name, platform, buy_in, total_hands, hero_hands, date, report_html, created_at)
-                   VALUES (?,?,?,?,?,?,?,?,?)''',
-                (uid, ta.get('tournament_name'), ta.get('platform'), ta.get('buy_in'),
-                 ta.get('total_hands'), ta.get('hero_hands'), ta.get('date'),
-                 ta.get('report_html'), ta.get('created_at', datetime.datetime.utcnow().isoformat()))
-            )
-
-        db.commit()
-        return jsonify({'ok': True, 'user_id': uid})
-    except Exception as e:
-        db.rollback()
-        return jsonify({'error': str(e)}), 500
-
-
 # Inicializar BD al importar el módulo (gunicorn no ejecuta __main__)
 init_db()
 
