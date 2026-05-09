@@ -21,13 +21,10 @@ function renderLanding() {
   const html = `
     <div class="hero">
       <div style="display:flex;justify-content:center;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">
-        <span style="font-size:1.9rem" title="Chile">🇨🇱</span>
-        <span style="font-size:1.9rem" title="Argentina">🇦🇷</span>
-        <span style="font-size:1.9rem" title="Brasil">🇧🇷</span>
-        <span style="font-size:1.9rem" title="México">🇲🇽</span>
-        <span style="font-size:1.9rem" title="Colombia">🇨🇴</span>
-        <span style="font-size:1.9rem" title="Perú">🇵🇪</span>
-        <span style="font-size:1.9rem" title="Uruguay">🇺🇾</span>
+        ${[['cl','Chile'],['ar','Argentina'],['br','Brasil'],['mx','México'],['co','Colombia'],['pe','Perú'],['uy','Uruguay']].map(([code,name]) =>
+          `<img src="https://flagcdn.com/40x30/${code}.png" alt="${name}" title="${name}"
+            style="height:28px;width:auto;border-radius:3px;box-shadow:0 1px 4px rgba(0,0,0,0.4)">`
+        ).join('')}
       </div>
       <div class="hero-suits">♠ ♥ ♦ ♣</div>
       <h1>Test de Evaluación de las<br><span>Fortalezas y Debilidades</span><br>del Jugador de Poker</h1>
@@ -91,8 +88,10 @@ function renderLanding() {
             pueden pagar con su tarjeta local en moneda local. MercadoPago convierte automáticamente.
           </div>
           <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center">
-            ${['🇨🇱 Chile','🇦🇷 Argentina','🇧🇷 Brasil','🇲🇽 México','🇨🇴 Colombia','🇵🇪 Perú','🇺🇾 Uruguay'].map(p =>
-              `<span style="background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:6px;padding:3px 10px;font-size:0.78rem;color:var(--text2)">${p}</span>`
+            ${[['cl','Chile'],['ar','Argentina'],['br','Brasil'],['mx','México'],['co','Colombia'],['pe','Perú'],['uy','Uruguay']].map(([code,name]) =>
+              `<span style="background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:6px;padding:3px 10px;font-size:0.78rem;color:var(--text2);display:inline-flex;align-items:center;gap:5px">
+                <img src="https://flagcdn.com/20x15/${code}.png" alt="${name}" style="height:13px;border-radius:2px">${name}
+              </span>`
             ).join('')}
           </div>
         </div>
