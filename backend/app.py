@@ -1201,6 +1201,67 @@ IMPORTANTE: Usa ejemplos REALES de las manos del historial (nivel, cartas, accio
 """
 
 
+# ─── Endpoint temporal de importación de datos (se eliminará tras uso) ────────
+
+@app.route('/api/admin/import-data', methods=['POST'])
+def admin_import_data():
+    """Importa datos de usuario desde JSON. Protegido por clave de admin."""
+    data = request.get_json()
+    if not data or data.get('admin_key') != 'EVHAPO_IMPORT_2026':
+        return jsonify({'error': 'No autorizado'}), 403
+
+    db = get_db()
+    try:
+        user = data['user']
+        # Crear usuario si no existe
+        existing = db.execute('SELECT id FROM users WHERE email=?', (user['email'],)).fetchone()
+        if existing:
+            uid = existing['id']
+            db.execute('''UPDATE users SET nombre=?, apellido=?, password_hash=?, pais=?, created_at=?, is_admin=?
+                          WHERE id=?''',
+                       (user['nombre'], user['apellido'], user['password_hash'],
+                        user['pais'], user['created_at'], user['is_admin'], uid))
+        else:
+            db.execute('''INSERT INTO users (nombre, apellido, email, password_hash, pais, created_at, is_admin)
+                          VALUES (?,?,?,?,?,?,?)''',
+                       (user['nombre'], user['apellido'], user['email'], user['password_hash'],
+                        user['pais'], user['created_at'], user['is_admin']))
+            uid = db.execute('SELECT id FROM users WHERE email=?', (user['email'],)).fetchone()['id']
+
+        # Pagos de referencia para las sesiones
+        payment_map = {}  # old_id -> new_id
+        for p in data.get('payments', []):
+            cur = db.execute('''INSERT INTO payments (user_id, amount, currency, method, status, external_id, created_at)
+                                VALUES (?,?,?,?,?,?,?)''',
+                             (uid, p['amount'], p['currency'], p['method'],
+                              p['status'], p.get('external_id'), p['created_at']))
+            payment_map[p['id']] = cur.lastrowid
+
+        # Sesiones completadas
+        for s in data.get('sessions', []):
+            new_pay_id = payment_map.get(s['payment_id'])
+            db.execute('''INSERT INTO test_sessions
+                          (user_id, payment_id, test_type, completed, score_total, scores_json, answers_json, created_at, completed_at)
+                          VALUES (?,?,?,?,?,?,?,?,?)''',
+                       (uid, new_pay_id, s['test_type'], s['completed'],
+                        s['score_total'], s['scores_json'], s['answers_json'],
+                        s['created_at'], s['completed_at']))
+
+        # Perfiles
+        for prof in data.get('profiles', []):
+            db.execute('''INSERT INTO player_profiles (user_id, mental_session_id, technical_session_id, profile_html, created_at)
+                          VALUES (?,?,?,?,?)''',
+                       (uid, prof.get('mental_session_id'), prof.get('technical_session_id'),
+                        prof.get('profile_html'), prof.get('created_at')))
+
+        db.commit()
+        return jsonify({'ok': True, 'user_id': uid, 'sessions_imported': len(data.get('sessions', [])),
+                        'profiles_imported': len(data.get('profiles', []))})
+    except Exception as e:
+        db.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
 # Inicializar BD al importar el módulo (gunicorn no ejecuta __main__)
 init_db()
 
