@@ -183,7 +183,7 @@ def build_logo_horizontal(scale=2):
 
     # ── Fuentes: wordmark normal, slogans GRANDES ──
     fb  = font('C:/Windows/Fonts/segoeuib.ttf', 96*scale)   # wordmark
-    fi  = font('C:/Windows/Fonts/segoeuib.ttf', 46*scale)   # tagline grande
+    fi  = font('C:/Windows/Fonts/segoeuib.ttf', 44*scale)   # tagline grande
     fs  = font('C:/Windows/Fonts/segoeui.ttf',  27*scale)   # subtítulo (reducido para que quepa)
 
     # Sombra del wordmark
