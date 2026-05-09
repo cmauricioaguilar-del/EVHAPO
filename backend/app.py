@@ -134,6 +134,19 @@ def init_db():
             profile_html TEXT,
             created_at TEXT DEFAULT CURRENT_TIMESTAMP
         );
+
+        CREATE TABLE IF NOT EXISTS tournament_analyses (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER REFERENCES users(id),
+            tournament_name TEXT,
+            platform TEXT,
+            buy_in TEXT,
+            total_hands INTEGER,
+            hero_hands INTEGER,
+            date TEXT,
+            report_html TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
     """)
     db.commit()
 
@@ -1089,6 +1102,18 @@ def analyze_tournament():
         resp.raise_for_status()
         report_html = resp.json()['content'][0]['text']
 
+        # Guardar análisis en BD para recuperarlo después
+        db = get_db()
+        db.execute(
+            """INSERT INTO tournament_analyses
+               (user_id, tournament_name, platform, buy_in, total_hands, hero_hands, date, report_html, created_at)
+               VALUES (?,?,?,?,?,?,?,?,?)""",
+            (g.user_id, meta['tournament_name'], meta['platform'], meta['buy_in'],
+             meta['total_hands'], meta['hero_hands_played'], meta['date'],
+             report_html, datetime.datetime.utcnow().isoformat())
+        )
+        db.commit()
+
         return jsonify({
             'report': report_html,
             'meta': {
@@ -1105,6 +1130,40 @@ def analyze_tournament():
         import traceback
         traceback.print_exc()
         return jsonify({'error': f'Error al generar análisis: {str(e)}'}), 500
+
+
+@app.route('/api/tournament/history', methods=['GET'])
+@require_auth
+def tournament_history():
+    """Devuelve los análisis de torneo guardados del usuario."""
+    db = get_db()
+    rows = db.execute(
+        """SELECT id, tournament_name, platform, buy_in, total_hands, hero_hands, date, created_at
+           FROM tournament_analyses WHERE user_id=? ORDER BY id DESC""",
+        (g.user_id,)
+    ).fetchall()
+    return jsonify({'analyses': [dict(r) for r in rows]})
+
+
+@app.route('/api/tournament/analysis/<int:analysis_id>', methods=['GET'])
+@require_auth
+def get_tournament_analysis(analysis_id):
+    """Devuelve el reporte completo de un análisis guardado."""
+    db = get_db()
+    row = db.execute(
+        "SELECT * FROM tournament_analyses WHERE id=? AND user_id=?",
+        (analysis_id, g.user_id)
+    ).fetchone()
+    if not row:
+        return jsonify({'error': 'Análisis no encontrado'}), 404
+    return jsonify({'report': row['report_html'], 'meta': {
+        'tournament_name': row['tournament_name'],
+        'platform': row['platform'],
+        'buy_in': row['buy_in'],
+        'total_hands': row['total_hands'],
+        'hero_hands': row['hero_hands'],
+        'date': row['date'],
+    }})
 
 
 def _build_tournament_prompt(nombre, meta, player_profile):
@@ -1199,6 +1258,47 @@ Una lista numerada con ítems card-gold. Cada recomendación conecta directament
 
 IMPORTANTE: Usa ejemplos REALES de las manos del historial (nivel, cartas, acciones reales). Sé directo, técnico y motivador. Completa TODAS las secciones hasta el final.
 """
+
+
+# ─── Endpoint temporal: importar perfil y análisis de torneo ─────────────────
+
+@app.route('/api/admin/import-extra', methods=['POST'])
+def admin_import_extra():
+    data = request.get_json()
+    if not data or data.get('admin_key') != 'EVHAPO_IMPORT_2026':
+        return jsonify({'error': 'No autorizado'}), 403
+    db = get_db()
+    try:
+        email = data.get('email')
+        row = db.execute('SELECT id FROM users WHERE email=?', (email,)).fetchone()
+        if not row:
+            return jsonify({'error': 'Usuario no encontrado'}), 404
+        uid = row['id']
+
+        # Insertar/actualizar perfil
+        if data.get('profile_html'):
+            db.execute('DELETE FROM player_profiles WHERE user_id=?', (uid,))
+            db.execute(
+                'INSERT INTO player_profiles (user_id, profile_html, created_at) VALUES (?,?,?)',
+                (uid, data['profile_html'], data.get('profile_created_at', datetime.datetime.utcnow().isoformat()))
+            )
+
+        # Insertar análisis de torneo
+        for ta in data.get('tournament_analyses', []):
+            db.execute(
+                '''INSERT INTO tournament_analyses
+                   (user_id, tournament_name, platform, buy_in, total_hands, hero_hands, date, report_html, created_at)
+                   VALUES (?,?,?,?,?,?,?,?,?)''',
+                (uid, ta.get('tournament_name'), ta.get('platform'), ta.get('buy_in'),
+                 ta.get('total_hands'), ta.get('hero_hands'), ta.get('date'),
+                 ta.get('report_html'), ta.get('created_at', datetime.datetime.utcnow().isoformat()))
+            )
+
+        db.commit()
+        return jsonify({'ok': True, 'user_id': uid})
+    except Exception as e:
+        db.rollback()
+        return jsonify({'error': str(e)}), 500
 
 
 # Inicializar BD al importar el módulo (gunicorn no ejecuta __main__)
