@@ -1,50 +1,6 @@
 let _selectedMethod = 'mercadopago';
 let _mpConfigLoaded  = false;
 
-// ─── Detectar retorno desde MercadoPago ───────────────────────────────────────
-(function checkMpReturn() {
-  const params = new URLSearchParams(window.location.search);
-  const result = params.get('mp_result');
-  const pid    = params.get('pid');
-  const mpPid  = params.get('payment_id'); // MP devuelve su propio payment_id
-
-  if (!result || !pid) return;
-
-  // Limpiar URL
-  history.replaceState(null, '', '/');
-
-  if (result === 'success') {
-    _handleMpReturn(pid, mpPid);
-  } else if (result === 'pending') {
-    setTimeout(() => {
-      alert('⏳ Tu pago está pendiente de confirmación. Recibirás acceso cuando se acredite.');
-      if (Api.isLoggedIn()) App.go('dashboard');
-    }, 500);
-  } else {
-    // failure o cancelación — volver a la pantalla de pago
-    setTimeout(() => {
-      if (Api.isLoggedIn()) App.go('payment');
-      else App.go('landing');
-    }, 100);
-  }
-})();
-
-async function _handleMpReturn(pid, mpPaymentId) {
-  try {
-    const res = await Api.post('/api/payment/mp-verify', {
-      payment_id: parseInt(pid),
-      mp_payment_id: mpPaymentId
-    });
-    if (res.ok) {
-      setTimeout(() => App.go('dashboard'), 300);
-    } else {
-      setTimeout(() => alert('Pago recibido. Si no ves acceso, contacta soporte.'), 300);
-    }
-  } catch (e) {
-    setTimeout(() => alert('Error verificando pago: ' + e.message), 300);
-  }
-}
-
 // ─── Renderizado ──────────────────────────────────────────────────────────────
 async function renderPayment() {
   const user = Api.currentUser();

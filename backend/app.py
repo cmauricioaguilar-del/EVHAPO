@@ -285,9 +285,13 @@ def me():
         "SELECT id, score_total, scores_json, completed_at FROM test_sessions "
         "WHERE user_id=? AND completed=1 ORDER BY completed_at DESC", (g.user_id,)
     ).fetchall()
+    payment = db.execute(
+        "SELECT id FROM payments WHERE user_id=? AND status='approved' LIMIT 1", (g.user_id,)
+    ).fetchone()
     return jsonify({
         'user': dict(user),
-        'sessions': [dict(s) for s in sessions]
+        'sessions': [dict(s) for s in sessions],
+        'has_payment': bool(payment)
     })
 
 # ─── Payment routes ───────────────────────────────────────────────────────────

@@ -53,18 +53,62 @@ function doLogout() {
 }
 
 // Boot
-window.addEventListener('load', () => {
-  // Si viene de retorno de MercadoPago, payment.js lo maneja en su IIFE
-  const params = new URLSearchParams(window.location.search);
-  if (params.get('mp_result') && Api.isLoggedIn()) {
-    App.go('dashboard'); // Pantalla de espera mientras se verifica
+window.addEventListener('load', async () => {
+  const params   = new URLSearchParams(window.location.search);
+  const mpResult = params.get('mp_result');
+  const mpPid    = params.get('pid');
+  const mpPayId  = params.get('payment_id');
+
+  // ── Retorno desde MercadoPago ──────────────────────────────────────────────
+  if (mpResult) {
+    history.replaceState(null, '', '/');
+    if (!Api.isLoggedIn()) { App.go('landing'); return; }
+
+    if (mpResult === 'success') {
+      // Verificar y activar acceso
+      try {
+        const res = await Api.post('/api/payment/mp-verify', {
+          payment_id: parseInt(mpPid),
+          mp_payment_id: mpPayId
+        });
+        App.go(res.ok ? 'dashboard' : 'payment');
+      } catch { App.go('payment'); }
+    } else if (mpResult === 'pending') {
+      alert('⏳ Tu pago está pendiente. Recibirás acceso cuando se confirme.');
+      App.go('dashboard');
+    } else {
+      // failure o cancelación → volver a pagar
+      App.go('payment');
+    }
     return;
   }
 
-  const hash = location.hash.replace('#', '');
-  const pageMap = { login: 'login', register: 'register', payment: 'payment', test: 'test', results: 'results', dashboard: 'dashboard' };
-  const page = pageMap[hash] || (Api.isLoggedIn() ? 'dashboard' : 'landing');
-  App.go(page);
+  // ── Navegación normal ──────────────────────────────────────────────────────
+  const hash    = location.hash.replace('#', '');
+  const pageMap = { login:'login', register:'register', payment:'payment',
+                    test:'test', results:'results', dashboard:'dashboard' };
+
+  if (!Api.isLoggedIn()) {
+    App.go(pageMap[hash] || 'landing');
+    return;
+  }
+
+  // Usuario logueado → verificar si tiene pago antes de ir al dashboard
+  if (!pageMap[hash] || pageMap[hash] === 'dashboard') {
+    try {
+      const me = await Api.me();
+      if (me.has_payment) {
+        App.go('dashboard');
+      } else {
+        App.go('payment');
+      }
+    } catch {
+      App.go('landing');
+    }
+    return;
+  }
+
+  App.go(pageMap[hash]);
 });
 
 window.addEventListener('popstate', () => {

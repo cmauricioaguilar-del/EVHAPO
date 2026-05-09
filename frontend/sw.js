@@ -1,9 +1,9 @@
 // ─── EVHAPO Service Worker ────────────────────────────────────────────────────
 // Versión: incrementar al hacer cambios importantes para forzar actualización
 
-const CACHE_NAME   = 'evhapo-v14';
-const STATIC_CACHE = 'evhapo-static-v13';
-const API_CACHE    = 'evhapo-api-v13';
+const CACHE_NAME   = 'evhapo-v15';
+const STATIC_CACHE = 'evhapo-static-v14';
+const API_CACHE    = 'evhapo-api-v14';
 
 // Archivos que se cachean al instalar (shell de la app)
 const SHELL_FILES = [

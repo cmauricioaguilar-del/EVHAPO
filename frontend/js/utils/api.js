@@ -50,7 +50,17 @@ const Api = {
   isLoggedIn: () => !!localStorage.getItem('evhapo_token'),
   currentUser: () => JSON.parse(localStorage.getItem('evhapo_user') || 'null'),
 
-  me: () => Api.get('/api/me'),
+  me: async () => {
+    const d = await Api.get('/api/me');
+    // Guardar has_payment en localStorage para acceso rápido
+    if (d && d.user) {
+      const u = JSON.parse(localStorage.getItem('evhapo_user') || '{}');
+      u.has_payment = d.has_payment;
+      u.pais = u.pais || d.user.pais;
+      localStorage.setItem('evhapo_user', JSON.stringify(u));
+    }
+    return d;
+  },
 
   createPayment: (method, pais, test_type = 'mental') => Api.post('/api/payment/create', { method, pais, test_type }),
   confirmPayment: (payment_id) => Api.post('/api/payment/confirm', { payment_id }),
