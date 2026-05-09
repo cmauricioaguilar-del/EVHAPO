@@ -103,6 +103,7 @@ function renderDashboardContent(data, user) {
     <button class="tab-btn ${!hasBoth ? 'active' : ''}" onclick="dashTab('mental')">🧠 Mental ${mentalSc ? '' : '<span style=\'font-size:0.7rem;color:var(--text3)\'>— pendiente</span>'}</button>
     <button class="tab-btn" onclick="dashTab('technical')">⚙️ Técnico ${techSc ? '' : '<span style=\'font-size:0.7rem;color:var(--text3)\'>— pendiente</span>'}</button>
     <button class="tab-btn" onclick="dashTab('profile')">🧬 Mi Perfil</button>
+    <button class="tab-btn" onclick="dashTab('tournament')">🏆 Torneo</button>
     <button class="tab-btn" onclick="dashTab('history')">📅 Historial</button>
     <button class="tab-btn" onclick="dashTab('benchmark')">🏅 Benchmark</button>
   </div>`;
@@ -250,6 +251,9 @@ function renderDashboardContent(data, user) {
     </div>`;
   html += `</div>`;
 
+  // ─── TAB: Torneo ─────────────────────────────────────────────────────────
+  html += renderTournamentTab();
+
   // ─── TAB: Historial ───────────────────────────────────────────────────────
   html += `<div id="dtab-history" style="display:none">`;
   html += history.map(s => {
@@ -386,7 +390,7 @@ function drawDashRadar(canvasId, categories, scores, borderColor, bgColor) {
 }
 
 function dashTab(tab) {
-  ['combined','mental','technical','profile','history','benchmark'].forEach(t => {
+  ['combined','mental','technical','profile','tournament','history','benchmark'].forEach(t => {
     const el  = document.getElementById(`dtab-${t}`);
     const btn = document.querySelector(`[onclick="dashTab('${t}')"]`);
     if (el)  el.style.display  = t === tab ? 'block' : 'none';

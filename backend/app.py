@@ -8,6 +8,9 @@ import secrets
 import smtplib
 import random
 import string
+import zipfile
+import io
+import re
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from functools import wraps
@@ -734,6 +737,434 @@ Fase 1 sem 1-4, Fase 2 sem 5-8, Fase 3 sem 9-12.
 Por cada fase: 3-4 acciones concretas (qué hacer, tiempo semanal, cómo medir progreso).
 
 IMPORTANTE: Completa el §6 hasta el final. Usa el nombre {nombre} en cada sección. Sé directo y motivador.
+"""
+
+
+# ─── Tournament Analysis ──────────────────────────────────────────────────────
+
+def _parse_hand_history(content):
+    """
+    Parsea un historial de manos multi-plataforma y devuelve:
+      - meta: info del torneo
+      - hero_hands: manos donde Hero participó (compactas)
+      - stats: estadísticas agregadas
+    Soporta: GGPoker, PokerStars, ACR, 888poker, WPT Global, Coolbet.
+    """
+    lines = content.replace('\r\n', '\n').replace('\r', '\n')
+
+    # ── Detectar plataforma ────────────────────────────────────────────────────
+    platform = 'Unknown'
+    if 'Poker Hand #TM' in lines or 'GG' in lines[:200]:
+        platform = 'GGPoker'
+    elif 'PokerStars Hand' in lines[:200]:
+        platform = 'PokerStars'
+    elif 'Hand #' in lines[:200] and 'ACR' in lines[:500]:
+        platform = 'ACR'
+    elif '888poker' in lines[:500]:
+        platform = '888poker'
+    elif 'WPT' in lines[:500]:
+        platform = 'WPT Global'
+
+    # ── Split por manos ────────────────────────────────────────────────────────
+    # Patrones de inicio de mano para distintas plataformas
+    split_pats = [
+        r'Poker Hand #TM\d+',          # GGPoker tournament
+        r'Poker Hand #\d+',             # GGPoker cash
+        r'PokerStars Hand #\d+',        # PokerStars
+        r'Hand #\d+',                   # ACR / genérico
+        r'\*\*\* \d{3}-\d{3} \*\*\*',  # 888poker
+    ]
+    raw_blocks = None
+    for pat in split_pats:
+        parts = re.split(f'({pat})', lines)
+        if len(parts) > 3:
+            # Reconstruir bloques completos
+            raw_blocks = []
+            for i in range(1, len(parts), 2):
+                block = parts[i] + (parts[i+1] if i+1 < len(parts) else '')
+                raw_blocks.append(block)
+            break
+
+    if not raw_blocks:
+        raw_blocks = [lines]
+
+    total_hands = len(raw_blocks)
+
+    # ── Detectar y normalizar orden cronológico ────────────────────────────────
+    # GGPoker exporta más reciente primero; PokerStars cronológico.
+    # Detectar comparando nivel del primer y último bloque.
+    lv_first_raw = _extract_level(raw_blocks[0])
+    lv_last_raw  = _extract_level(raw_blocks[-1])
+    if lv_first_raw and lv_last_raw and lv_first_raw > lv_last_raw:
+        raw_blocks = list(reversed(raw_blocks))   # Poner en orden cronológico
+
+    # ── Extraer meta del torneo del primer bloque (cronológico = inicio torneo) ─
+    first = raw_blocks[0] if raw_blocks else ''
+    last  = raw_blocks[-1] if raw_blocks else ''
+
+    # Nombre del torneo (buscar en ambos extremos)
+    tourn_name = 'Torneo desconocido'
+    for search_block in [first, last]:
+        m = re.search(r'Tournament #\d+,\s*(.+?)(?:Hold\'em|Omaha|\n|-\s*Level)', search_block)
+        if not m:
+            m = re.search(r'Tournament[:\s]+(.+?)(?:Hold\'em|Omaha|\n)', search_block, re.I)
+        if m:
+            tourn_name = m.group(1).strip().rstrip(',').strip()
+            break
+
+    # Buy-in
+    buy_in = 'N/A'
+    m = re.search(r'\$(\d+[\.,]?\d*)', tourn_name + first[:300] + last[:300])
+    if m:
+        buy_in = '$' + m.group(1)
+
+    # Fecha (del inicio del torneo = primer bloque)
+    date_str = 'N/A'
+    m = re.search(r'(\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2})', first)
+    if not m:
+        m = re.search(r'(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})', first)
+    if m:
+        date_str = m.group(1)
+
+    # Nivel inicial y final (ahora en orden cronológico correcto)
+    level_first = _extract_level(first)
+    level_last  = _extract_level(last)
+
+    # ── Procesar cada mano ────────────────────────────────────────────────────
+    hero_hands     = []   # manos donde Hero tiene cartas
+    hero_wins      = 0
+    hero_allin     = 0
+    showdown_hands = 0
+    max_players    = 0
+    starting_chips = None
+    ending_chips   = None
+
+    for block in raw_blocks:
+        if 'Hero' not in block:
+            continue
+
+        hand = _parse_single_hand(block)
+        if not hand:
+            continue
+
+        if starting_chips is None and hand.get('hero_chips_start'):
+            starting_chips = hand['hero_chips_start']
+        if hand.get('hero_chips_start'):
+            ending_chips = hand['hero_chips_start']
+
+        players_in_hand = hand.get('players', 0)
+        if players_in_hand > max_players:
+            max_players = players_in_hand
+
+        if hand.get('hero_won'):
+            hero_wins += 1
+        if hand.get('hero_allin'):
+            hero_allin += 1
+        if hand.get('went_showdown'):
+            showdown_hands += 1
+
+        hero_hands.append(hand)
+
+    # ── Seleccionar las manos más relevantes para el prompt ────────────────────
+    # Prioridad: all-in > showdown > big_decision > fold
+    def hand_priority(h):
+        score = 0
+        if h.get('hero_allin'):       score += 100
+        if h.get('went_showdown'):    score += 60
+        if h.get('hero_big_raise'):   score += 40
+        if h.get('hero_big_call'):    score += 30
+        if h.get('hero_won'):         score += 20
+        if not h.get('hero_folded_preflop'): score += 10
+        return score
+
+    sorted_hands = sorted(hero_hands, key=hand_priority, reverse=True)
+    # Tomar las 40 mejores + primeras 5 + últimas 5 del torneo
+    first5 = hero_hands[:5]
+    last5  = hero_hands[-5:]
+    top_hands = sorted_hands[:35]
+    selected = {id(h): h for h in top_hands + first5 + last5}
+    selected_hands = list(selected.values())
+
+    return {
+        'platform': platform,
+        'tournament_name': tourn_name,
+        'buy_in': buy_in,
+        'date': date_str,
+        'total_hands': total_hands,
+        'hero_hands_played': len(hero_hands),
+        'hero_wins': hero_wins,
+        'hero_allin_count': hero_allin,
+        'showdown_hands': showdown_hands,
+        'max_players_seen': max_players,
+        'starting_chips': starting_chips,
+        'ending_chips': ending_chips,
+        'level_first': level_first,
+        'level_last': level_last,
+        'selected_hands': selected_hands,
+    }
+
+
+def _extract_level(block):
+    m = re.search(r'Level\s*(\d+)\s*\(', block)
+    return int(m.group(1)) if m else None
+
+
+def _parse_single_hand(block):
+    """Extrae los datos clave de un bloque de mano individual."""
+    hand = {}
+
+    # Nivel / blinds
+    m = re.search(r'Level\s*(\d+)\s*\((\d[\d,]*)/(\d[\d,]*)', block)
+    if m:
+        hand['level']  = int(m.group(1))
+        hand['sb']     = int(m.group(2).replace(',', ''))
+        hand['bb']     = int(m.group(3).replace(',', ''))
+    else:
+        m = re.search(r'\((\d[\d,]*)/(\d[\d,]*)\)', block)
+        if m:
+            hand['sb'] = int(m.group(1).replace(',', ''))
+            hand['bb'] = int(m.group(2).replace(',', ''))
+
+    # Chips de Hero al inicio
+    m = re.search(r'Hero\s*\((\d[\d,]*)\s*in chips\)', block)
+    if m:
+        hand['hero_chips_start'] = int(m.group(1).replace(',', ''))
+
+    # Número de jugadores en la mesa
+    seats = re.findall(r'^Seat \d+:', block, re.MULTILINE)
+    hand['players'] = len(seats)
+
+    # Cartas del Hero
+    m = re.search(r'Dealt to Hero \[(.+?)\]', block)
+    hand['hero_cards'] = m.group(1) if m else None
+
+    # Acciones de Hero
+    hero_actions = re.findall(r'^Hero:\s+(.+)$', block, re.MULTILINE)
+    hand['hero_actions'] = hero_actions
+
+    # Detectar situaciones especiales
+    hero_block = '\n'.join(hero_actions)
+    hand['hero_allin']           = 'all-in' in hero_block.lower()
+    hand['hero_big_raise']       = bool(re.search(r'raises .{0,30} to (\d[\d,]{4,})', hero_block))
+    hand['hero_big_call']        = bool(re.search(r'calls (\d[\d,]{4,})', hero_block))
+    hand['hero_folded_preflop']  = hero_actions and 'folds' in hero_actions[0].lower() and 'HOLE CARDS' in block.split('Hero')[0] if hero_actions else False
+
+    # ¿Fue a showdown?
+    hand['went_showdown'] = bool(re.search(r'Hero.*?showed?\s*\[', block))
+
+    # ¿Ganó Hero?
+    hand['hero_won'] = bool(re.search(r'Hero collected', block))
+
+    # Board
+    boards = re.findall(r'\*\*\* (?:FLOP|TURN|RIVER) \*\*\*\s*\[([^\]]+)\]', block)
+    hand['board'] = ' → '.join(boards) if boards else None
+
+    # Resumen compact para el prompt
+    hand['summary'] = _format_hand_compact(hand)
+    return hand
+
+
+def _format_hand_compact(h):
+    """Devuelve una representación compacta de la mano para el prompt de AI."""
+    level_str = f"L{h.get('level','?')} {h.get('sb','?')}/{h.get('bb','?')}"
+    cards  = h.get('hero_cards', '??')
+    chips  = f"{h.get('hero_chips_start',0):,}" if h.get('hero_chips_start') else '?'
+    board  = h.get('board') or '(sin board)'
+    acts   = ' | '.join(h.get('hero_actions', []))[:120]
+
+    flags = []
+    if h.get('hero_allin'):         flags.append('ALL-IN')
+    if h.get('went_showdown'):      flags.append('SHOWDOWN')
+    if h.get('hero_won'):           flags.append('GANÓ')
+    flag_str = ' '.join(f'[{f}]' for f in flags) if flags else ''
+
+    return f"[{level_str}] Stack:{chips} Cards:[{cards}] {flag_str}\n  Acciones: {acts}\n  Board: {board}"
+
+
+@app.route('/api/tournament/analyze', methods=['POST'])
+@require_auth
+def analyze_tournament():
+    if not ANTHROPIC_API_KEY:
+        return jsonify({'error': 'ANTHROPIC_API_KEY no configurada.'}), 503
+
+    import requests as _requests
+
+    # ── 1. Leer archivo ────────────────────────────────────────────────────────
+    file = request.files.get('file')
+    if not file:
+        return jsonify({'error': 'No se recibió ningún archivo.'}), 400
+
+    filename = file.filename.lower()
+    try:
+        raw = file.read()
+        if filename.endswith('.zip'):
+            with zipfile.ZipFile(io.BytesIO(raw)) as z:
+                txt_files = [n for n in z.namelist()
+                             if n.lower().endswith('.txt') and not n.startswith('__')]
+                if not txt_files:
+                    return jsonify({'error': 'El ZIP no contiene ningún archivo .txt.'}), 400
+                content = z.read(txt_files[0]).decode('utf-8', errors='replace')
+        elif filename.endswith('.txt'):
+            content = raw.decode('utf-8', errors='replace')
+        else:
+            return jsonify({'error': 'Formato no soportado. Use .zip o .txt.'}), 400
+    except Exception as e:
+        return jsonify({'error': f'Error leyendo el archivo: {str(e)}'}), 400
+
+    # ── 2. Parsear manos ───────────────────────────────────────────────────────
+    try:
+        meta = _parse_hand_history(content)
+    except Exception as e:
+        return jsonify({'error': f'Error parseando el historial: {str(e)}'}), 400
+
+    # ── 3. Obtener perfil del jugador (si existe) ─────────────────────────────
+    player_profile = None
+    try:
+        row = get_db().execute(
+            "SELECT profile_html FROM player_profiles WHERE user_id=? ORDER BY id DESC LIMIT 1",
+            (g.user_id,)
+        ).fetchone()
+        if row:
+            # Extraer texto plano del HTML del perfil (quitar tags)
+            raw_profile = row['profile_html'] or ''
+            player_profile = re.sub(r'<[^>]+>', ' ', raw_profile)
+            player_profile = re.sub(r'\s+', ' ', player_profile).strip()[:3000]
+    except Exception:
+        pass
+
+    # ── 4. Construir prompt ────────────────────────────────────────────────────
+    nombre = g.user_name
+    prompt = _build_tournament_prompt(nombre, meta, player_profile)
+
+    # ── 5. Llamar a Claude ─────────────────────────────────────────────────────
+    try:
+        resp = _requests.post(
+            'https://api.anthropic.com/v1/messages',
+            headers={
+                'x-api-key': ANTHROPIC_API_KEY,
+                'anthropic-version': '2023-06-01',
+                'content-type': 'application/json',
+            },
+            json={
+                'model': 'claude-sonnet-4-6',
+                'max_tokens': 16000,
+                'messages': [{'role': 'user', 'content': prompt}]
+            },
+            timeout=300,
+            verify=False
+        )
+        resp.raise_for_status()
+        report_html = resp.json()['content'][0]['text']
+
+        return jsonify({
+            'report': report_html,
+            'meta': {
+                'tournament_name': meta['tournament_name'],
+                'buy_in':          meta['buy_in'],
+                'platform':        meta['platform'],
+                'total_hands':     meta['total_hands'],
+                'hero_hands':      meta['hero_hands_played'],
+                'date':            meta['date'],
+            }
+        })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': f'Error al generar análisis: {str(e)}'}), 500
+
+
+def _build_tournament_prompt(nombre, meta, player_profile):
+    """Construye el prompt para el análisis de torneo."""
+
+    # Formatear manos seleccionadas
+    hands_text = '\n\n'.join(
+        f"MANO {i+1}:\n{h['summary']}"
+        for i, h in enumerate(meta.get('selected_hands', [])[:40])
+    )
+    if not hands_text:
+        hands_text = '(No se encontraron manos del jugador Hero en el historial)'
+
+    # Estadísticas
+    total   = meta.get('total_hands', 0)
+    played  = meta.get('hero_hands_played', 0)
+    wins    = meta.get('hero_wins', 0)
+    allins  = meta.get('hero_allin_count', 0)
+    sd      = meta.get('showdown_hands', 0)
+    vpip    = round(played / max(total, 1) * 100, 1)
+    wtsd    = round(sd / max(played, 1) * 100, 1)
+
+    profile_section = ''
+    if player_profile:
+        profile_section = f"""
+PERFIL PSICOLÓGICO DEL JUGADOR (generado por IA con tests EVHAPO/MindEV):
+{player_profile[:2500]}
+"""
+    else:
+        profile_section = 'PERFIL PSICOLÓGICO: No disponible (el jugador aún no generó su perfil).'
+
+    start_chips = f"{meta.get('starting_chips', 0):,}" if meta.get('starting_chips') else 'N/D'
+    end_chips   = f"{meta.get('ending_chips',   0):,}" if meta.get('ending_chips')   else 'N/D'
+    lvl_first   = meta.get('level_first', 'N/D')
+    lvl_last    = meta.get('level_last',  'N/D')
+
+    return f"""Eres un coach de poker MTT de élite. Analiza el siguiente historial de torneo del jugador "{nombre}" y genera un REPORTE COMPLETO en HTML (sin etiquetas html/head/body).
+
+═══ DATOS DEL TORNEO ═══
+Plataforma: {meta.get('platform', 'N/D')}
+Torneo: {meta.get('tournament_name', 'N/D')}
+Buy-in: {meta.get('buy_in', 'N/D')}
+Fecha: {meta.get('date', 'N/D')}
+Nivel de entrada al historial: {lvl_first} | Nivel final: {lvl_last}
+Stack inicial (en historial): {start_chips} | Stack final: {end_chips}
+Manos totales del torneo: {total}
+Manos donde Hero recibió cartas: {played} (VPIP aprox: {vpip}%)
+Manos ganadas por Hero: {wins}
+All-ins de Hero: {allins}
+Showdowns de Hero: {sd} (W$SD aprox: {round(wins/max(sd,1)*100,0)}%)
+
+═══ MANOS SELECCIONADAS PARA ANÁLISIS ({len(meta.get('selected_hands',[])[:40])}) ═══
+(Ordenadas por relevancia: all-ins, showdowns y grandes decisiones primero)
+
+{hands_text}
+
+═══ {profile_section} ═══
+
+═══ INSTRUCCIONES DE SALIDA ═══
+Genera el reporte COMPLETO con TODAS las secciones siguientes. NO las omitas ni las acortes.
+
+ESTILOS HTML (usa SIEMPRE inline):
+- h2 → style="color:#d4af37;font-size:1.3rem;margin:24px 0 10px;border-bottom:1px solid rgba(212,175,55,0.25);padding-bottom:6px"
+- h3 → style="color:#4DB6AC;font-size:1rem;margin:14px 0 6px"
+- p  → style="color:#94a3b8;line-height:1.7;margin-bottom:10px"
+- span.badge-good → style="background:rgba(34,197,94,0.15);color:#22c55e;padding:2px 8px;border-radius:4px;font-size:0.8rem;font-weight:700"
+- span.badge-bad  → style="background:rgba(239,68,68,0.15);color:#ef4444;padding:2px 8px;border-radius:4px;font-size:0.8rem;font-weight:700"
+- span.badge-tip  → style="background:rgba(212,175,55,0.15);color:#d4af37;padding:2px 8px;border-radius:4px;font-size:0.8rem;font-weight:700"
+- div.card-blue   → style="background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2);border-radius:8px;padding:14px;margin-bottom:10px"
+- div.card-red    → style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:8px;padding:14px;margin-bottom:10px"
+- div.card-green  → style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);border-radius:8px;padding:14px;margin-bottom:10px"
+- div.card-gold   → style="background:rgba(212,175,55,0.08);border:1px solid rgba(212,175,55,0.2);border-radius:8px;padding:14px;margin-bottom:10px"
+
+━━━ SECCIÓN 1: RESUMEN EJECUTIVO DEL TORNEO ━━━
+Una tabla HTML estilizada con: Torneo, Plataforma, Buy-in, Fecha, Nivel inicio/fin, Stack inicio/fin, Manos jugadas, VPIP, All-ins, Showdowns.
+Luego 1 párrafo de síntesis del resultado global de {nombre} (¿llegó tarde o temprano? ¿cómo fue su stack journey? ¿fue élite o por debajo del promedio?).
+
+━━━ SECCIÓN 2: LAS 7 MEJORES DECISIONES ━━━
+Usa layout de 2 columnas HTML: left=Decisión (con example real de mano), right=Por qué fue correcta (análisis técnico).
+Cada decisión tiene: título h3 con badge-good, descripción de la mano real del historial, análisis de por qué fue +EV, impacto estimado.
+
+━━━ SECCIÓN 3: LAS 7 PEORES DECISIONES ━━━
+Mismo layout 2 columnas: left=Decisión con ejemplo real, right=La jugada correcta alternativa.
+Cada error: título h3 con badge-bad, descripción de la mano real, jugada alternativa óptima, costo estimado en chips/EV.
+
+━━━ SECCIÓN 4: 7 RECOMENDACIONES DE MEJORA ━━━
+Una lista numerada con ítems card-gold. Cada recomendación conecta directamente con uno de los 7 errores. Accionable y específica.
+
+━━━ SECCIÓN 5: CORRELACIÓN CON PERFIL DEL JUGADOR ━━━
+~200 palabras (suficientes para justificar y cerrar la idea).
+{"Correlaciona los errores del torneo con las debilidades del perfil psicológico/técnico. Con ejemplos: 'En la mano X, Hero hizo Y, lo cual es consistente con su perfil de Z...'. Conecta lo que pasó en la mesa con lo que revelan sus tests MindEV." if player_profile else "No hay perfil disponible. Explica cómo un perfil psicológico ayudaría a entender estos errores y recomienda completar los tests MindEV."}
+
+IMPORTANTE: Usa ejemplos REALES de las manos del historial (nivel, cartas, acciones reales). Sé directo, técnico y motivador. Completa TODAS las secciones hasta el final.
 """
 
 

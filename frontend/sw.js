@@ -1,9 +1,9 @@
 // ─── EVHAPO Service Worker ────────────────────────────────────────────────────
 // Versión: incrementar al hacer cambios importantes para forzar actualización
 
-const CACHE_NAME   = 'evhapo-v8';
-const STATIC_CACHE = 'evhapo-static-v7';
-const API_CACHE    = 'evhapo-api-v7';
+const CACHE_NAME   = 'evhapo-v9';
+const STATIC_CACHE = 'evhapo-static-v8';
+const API_CACHE    = 'evhapo-api-v8';
 
 // Archivos que se cachean al instalar (shell de la app)
 const SHELL_FILES = [
@@ -22,6 +22,7 @@ const SHELL_FILES = [
   '/js/pages/test.js',
   '/js/pages/results.js',
   '/js/pages/dashboard.js',
+  '/js/pages/tournament.js',
   '/js/app.js',
   '/icons/icon-192.svg',
   '/icons/icon-512.svg',
