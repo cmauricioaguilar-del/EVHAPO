@@ -1,6 +1,6 @@
 {
-  "name": "EVHAPO – Diagnóstico Poker",
-  "short_name": "EVHAPO",
+  "name": "MindEV-IA – Diagnóstico Poker",
+  "short_name": "MindEV-IA",
   "description": "Diagnóstico mental y técnico para jugadores de Texas Hold'em. Identifica tus brechas y mejora tu juego.",
   "start_url": "/",
   "scope": "/",

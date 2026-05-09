@@ -16,9 +16,16 @@ let _mpConfigLoaded  = false;
   if (result === 'success') {
     _handleMpReturn(pid, mpPid);
   } else if (result === 'pending') {
-    setTimeout(() => alert('⏳ Tu pago está pendiente de confirmación. Recibirás acceso cuando se acredite.'), 500);
+    setTimeout(() => {
+      alert('⏳ Tu pago está pendiente de confirmación. Recibirás acceso cuando se acredite.');
+      if (Api.isLoggedIn()) App.go('dashboard');
+    }, 500);
   } else {
-    setTimeout(() => alert('❌ El pago no fue completado. Puedes intentarlo de nuevo.'), 500);
+    // failure o cancelación — volver a la pantalla de pago
+    setTimeout(() => {
+      if (Api.isLoggedIn()) App.go('payment');
+      else App.go('landing');
+    }, 100);
   }
 })();
 
