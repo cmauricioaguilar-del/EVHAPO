@@ -22,7 +22,10 @@ CORS(app)
 
 # Config
 SECRET_KEY = os.environ.get('SECRET_KEY', 'evhapo-secret-key-2024-change-in-production')
-DB_PATH = os.path.join(os.path.dirname(__file__), 'evhapo.db')
+# En Railway se monta un volumen en /data; localmente usa el directorio del script
+_DATA_DIR = os.environ.get('DATA_DIR', os.path.dirname(__file__))
+os.makedirs(_DATA_DIR, exist_ok=True)
+DB_PATH = os.path.join(_DATA_DIR, 'evhapo.db')
 TEST_PRICE_USD = 9.90
 
 MERCADOPAGO_ACCESS_TOKEN = os.environ.get('MERCADOPAGO_ACCESS_TOKEN', '')
@@ -1202,8 +1205,9 @@ IMPORTANTE: Usa ejemplos REALES de las manos del historial (nivel, cartas, accio
 
 if __name__ == '__main__':
     init_db()
+    port = int(os.environ.get('PORT', 5000))
     print("=" * 60)
-    print("  EVHAPO - Diagnóstico Mental del Jugador de Poker")
-    print("  Servidor corriendo en: http://localhost:5000")
+    print("  MindEV - Diagnóstico Mental del Jugador de Poker")
+    print(f"  Servidor corriendo en: http://localhost:{port}")
     print("=" * 60)
-    app.run(debug=False, host='0.0.0.0', port=5000)
+    app.run(debug=False, host='0.0.0.0', port=port)
