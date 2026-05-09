@@ -20,6 +20,15 @@ function renderLanding() {
 
   const html = `
     <div class="hero">
+      <div style="display:flex;justify-content:center;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+        <span style="font-size:1.9rem" title="Chile">🇨🇱</span>
+        <span style="font-size:1.9rem" title="Argentina">🇦🇷</span>
+        <span style="font-size:1.9rem" title="Brasil">🇧🇷</span>
+        <span style="font-size:1.9rem" title="México">🇲🇽</span>
+        <span style="font-size:1.9rem" title="Colombia">🇨🇴</span>
+        <span style="font-size:1.9rem" title="Perú">🇵🇪</span>
+        <span style="font-size:1.9rem" title="Uruguay">🇺🇾</span>
+      </div>
       <div class="hero-suits">♠ ♥ ♦ ♣</div>
       <h1>Test de Evaluación de las<br><span>Fortalezas y Debilidades</span><br>del Jugador de Poker</h1>
       <p class="subtitle">El poker es mucho más que cartas y apuestas. Es un juego de habilidades mentales, estrategia y resistencia emocional. Descubre dónde estás y hasta dónde puedes llegar.</p>
