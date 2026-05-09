@@ -203,7 +203,7 @@ def build_logo_horizontal(scale=2):
     draw.rectangle([tx, ly, tx+total_w, ly+4*scale], fill=CYAN)
 
     # Tagline grande
-    draw.text((tx, ly+14*scale), 'Tu EV empieza en tu mente.', font=fi, fill=CYAN)
+    draw.text((tx, ly+14*scale), 'Tu EV+ empieza en tu mente.', font=fi, fill=CYAN)
 
     # Subtítulo grande
     draw.text((tx, ly+14*scale+60*scale), 'DIAGNÓSTICO MENTAL + TÉCNICO + IA', font=fs, fill=GOLD)
@@ -259,7 +259,7 @@ def build_logo_vertical(scale=2):
     lx = int(W*0.15)
     draw.rectangle([lx, ly, W-lx, ly+2*scale], fill=lerp(CYAN,BG,0.3))
 
-    tag = 'Tu EV empieza en tu mente.'
+    tag = 'Tu EV+ empieza en tu mente.'
     tw  = int(draw.textlength(tag, font=fi))
     draw.text(((W-tw)//2, ly+12*scale), tag, font=fi, fill=CYAN)
 
