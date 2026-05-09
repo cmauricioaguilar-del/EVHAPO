@@ -33,29 +33,35 @@ SMTP_PORT   = int(os.environ.get('SMTP_PORT', '587'))
 SMTP_USER   = os.environ.get('SMTP_USER', '')
 SMTP_PASS   = os.environ.get('SMTP_PASS', '')
 
-# Cargar .env SOLO si la variable no viene ya del entorno (del .bat)
-if not os.environ.get('ANTHROPIC_API_KEY'):
-    for _candidate in [
-        os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env'),
-        os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '.env'),
-    ]:
-        if os.path.exists(_candidate):
-            try:
-                with open(_candidate, encoding='utf-8') as _ef:
-                    for _line in _ef:
-                        _line = _line.strip()
-                        if _line and not _line.startswith('#') and '=' in _line:
-                            _k, _v = _line.split('=', 1)
-                            if _k.strip() == 'ANTHROPIC_API_KEY' and _v.strip():
-                                os.environ['ANTHROPIC_API_KEY'] = _v.strip()
-            except Exception:
-                pass
-            break
-
 ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY', '')
 
-# Log de arranque para diagnóstico
-print(f"[CONFIG] ANTHROPIC_API_KEY: {'OK (' + str(len(ANTHROPIC_API_KEY)) + ' chars)' if ANTHROPIC_API_KEY else 'NO ENCONTRADA — ejecuta iniciar_servidor.bat'}")
+def _get_api_key():
+    """Lee la API key en tiempo de ejecución — funciona aunque el servidor
+    haya arrancado sin la variable de entorno configurada."""
+    # 1. Variable de entorno (set por el .bat)
+    key = os.environ.get('ANTHROPIC_API_KEY', '')
+    if key:
+        return key
+    # 2. Módulo-level (si se cargó al inicio)
+    if ANTHROPIC_API_KEY:
+        return ANTHROPIC_API_KEY
+    # 3. Leer el .env en disco en tiempo real
+    _here = os.path.dirname(os.path.abspath(__file__))
+    for _p in [os.path.join(_here, '.env'), os.path.join(_here, '..', '.env')]:
+        try:
+            with open(_p, encoding='utf-8') as _f:
+                for _ln in _f:
+                    _ln = _ln.strip()
+                    if _ln.startswith('ANTHROPIC_API_KEY='):
+                        _v = _ln.split('=', 1)[1].strip().strip('"').strip("'")
+                        if _v:
+                            os.environ['ANTHROPIC_API_KEY'] = _v
+                            return _v
+        except Exception:
+            pass
+    return ''
+
+print(f"[CONFIG] API key: {'OK' if ANTHROPIC_API_KEY else 'se leerá desde .env en cada request'}")
 
 # ─── Database ────────────────────────────────────────────────────────────────
 
@@ -619,7 +625,7 @@ def get_profile():
 @app.route('/api/profile/generate', methods=['POST'])
 @require_auth
 def generate_profile():
-    _api_key = os.environ.get('ANTHROPIC_API_KEY') or ANTHROPIC_API_KEY
+    _api_key = _get_api_key()
     if not _api_key:
         return jsonify({'error': 'Servicio no disponible. Reinicia el servidor con iniciar_servidor.bat'}), 503
 
@@ -1007,7 +1013,7 @@ def _format_hand_compact(h):
 @app.route('/api/tournament/analyze', methods=['POST'])
 @require_auth
 def analyze_tournament():
-    _api_key = os.environ.get('ANTHROPIC_API_KEY') or ANTHROPIC_API_KEY
+    _api_key = _get_api_key()
     if not _api_key:
         return jsonify({'error': 'Servicio no disponible. Reinicia el servidor con iniciar_servidor.bat'}), 503
 
