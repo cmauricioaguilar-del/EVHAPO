@@ -31,13 +31,13 @@ function renderNavbar() {
   const langToggle = `
     <div style="display:flex;gap:4px;align-items:center;margin-right:8px">
       <button onclick="I18N.set('es')" title="Español"
-        style="display:flex;align-items:center;gap:5px;background:${!isPT ? 'var(--accent)' : 'transparent'};border:2px solid ${!isPT ? 'var(--accent)' : 'var(--border)'};border-radius:8px;padding:4px 8px;cursor:pointer;opacity:${!isPT ? '1' : '0.55'};transition:all 0.15s">
-        <img src="/icons/flags/es.svg" style="height:14px;width:auto;border-radius:2px;display:block">
+        style="display:flex;align-items:center;gap:5px;background:${!isPT ? 'var(--accent)' : 'transparent'};border:2px solid ${!isPT ? 'var(--accent)' : 'var(--border)'};border-radius:8px;padding:4px 8px;cursor:pointer;opacity:${!isPT ? '1' : '0.6'};transition:all 0.15s;line-height:1">
+        <span style="font-size:1rem;line-height:1">🇪🇸</span>
         <span style="font-size:0.72rem;font-weight:700;color:${!isPT ? '#000' : 'var(--text2)'}">ES</span>
       </button>
       <button onclick="I18N.set('pt')" title="Português"
-        style="display:flex;align-items:center;gap:5px;background:${isPT ? 'var(--accent)' : 'transparent'};border:2px solid ${isPT ? 'var(--accent)' : 'var(--border)'};border-radius:8px;padding:4px 8px;cursor:pointer;opacity:${isPT ? '1' : '0.55'};transition:all 0.15s">
-        <img src="/icons/flags/br.png" style="height:14px;width:auto;border-radius:2px;display:block">
+        style="display:flex;align-items:center;gap:5px;background:${isPT ? 'var(--accent)' : 'transparent'};border:2px solid ${isPT ? 'var(--accent)' : 'var(--border)'};border-radius:8px;padding:4px 8px;cursor:pointer;opacity:${isPT ? '1' : '0.6'};transition:all 0.15s;line-height:1">
+        <span style="font-size:1rem;line-height:1">🇧🇷</span>
         <span style="font-size:0.72rem;font-weight:700;color:${isPT ? '#000' : 'var(--text2)'}">PT</span>
       </button>
     </div>`;

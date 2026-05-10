@@ -1,9 +1,9 @@
 // ─── EVHAPO Service Worker ────────────────────────────────────────────────────
 // Versión: incrementar al hacer cambios importantes para forzar actualización
 
-const CACHE_NAME   = 'evhapo-v19';
-const STATIC_CACHE = 'evhapo-static-v18';
-const API_CACHE    = 'evhapo-api-v18';
+const CACHE_NAME   = 'evhapo-v20';
+const STATIC_CACHE = 'evhapo-static-v20';
+const API_CACHE    = 'evhapo-api-v20';
 
 // Archivos que se cachean al instalar (shell de la app)
 const SHELL_FILES = [
@@ -46,11 +46,18 @@ const SHELL_FILES = [
 ];
 
 // ─── Instalación: cachear shell ───────────────────────────────────────────────
+// Usa Promise.allSettled para que un archivo fallido NO bloquee toda la instalación
 self.addEventListener('install', event => {
   event.waitUntil(
-    caches.open(STATIC_CACHE).then(cache => {
+    caches.open(STATIC_CACHE).then(async cache => {
       console.log('[SW] Cacheando shell de la app...');
-      return cache.addAll(SHELL_FILES);
+      const results = await Promise.allSettled(
+        SHELL_FILES.map(url =>
+          cache.add(url).catch(err => console.warn('[SW] No se pudo cachear:', url, err.message))
+        )
+      );
+      const failed = results.filter(r => r.status === 'rejected').length;
+      if (failed) console.warn(`[SW] ${failed} archivo(s) no cacheado(s) — instalación continúa de todas formas`);
     }).then(() => self.skipWaiting())
   );
 });
