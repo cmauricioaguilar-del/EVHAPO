@@ -152,6 +152,13 @@ def init_db():
             error_msg TEXT,
             created_at TEXT DEFAULT CURRENT_TIMESTAMP
         );
+
+        CREATE TABLE IF NOT EXISTS referral_codes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            code TEXT UNIQUE NOT NULL,
+            notes TEXT DEFAULT '',
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
     """)
     db.commit()
     # Migración: agregar columnas nuevas si no existen (para DBs ya creadas)
@@ -166,6 +173,9 @@ def init_db():
     migrations = [
         "ALTER TABLE test_sessions ADD COLUMN test_type TEXT DEFAULT 'mental'",
         "ALTER TABLE payments ADD COLUMN test_type TEXT DEFAULT 'mental'",
+        "ALTER TABLE users ADD COLUMN sala_preferida TEXT DEFAULT ''",
+        "ALTER TABLE users ADD COLUMN referral_code TEXT DEFAULT ''",
+        "ALTER TABLE users ADD COLUMN referral_notified INTEGER DEFAULT 0",
     ]
     for sql in migrations:
         try:
@@ -225,6 +235,8 @@ def static_files(path):
 
 # ─── Auth routes ──────────────────────────────────────────────────────────────
 
+VALID_ROOMS = {'pokerstars', 'ggpoker', 'wpt global', 'acr', 'coolbet', '888 poker', 'coin poker', 'ninguna'}
+
 @app.route('/api/register', methods=['POST'])
 def register():
     data = request.json or {}
@@ -233,25 +245,39 @@ def register():
     email = (data.get('email') or '').strip().lower()
     password = data.get('password') or ''
     pais = (data.get('pais') or '').strip()
+    sala_preferida = (data.get('sala_preferida') or '').strip()
+    referral_code_raw = (data.get('referral_code') or '').strip()
 
     if not all([nombre, apellido, email, password]):
         return jsonify({'error': 'Todos los campos son obligatorios'}), 400
+    if not sala_preferida:
+        return jsonify({'error': 'Debes seleccionar una sala preferida'}), 400
+    if sala_preferida.lower() not in VALID_ROOMS:
+        return jsonify({'error': 'Sala preferida no válida'}), 400
     if len(password) < 6:
         return jsonify({'error': 'La contraseña debe tener al menos 6 caracteres'}), 400
 
     db = get_db()
+
+    # Validar código de referencia si fue ingresado
+    referral_code = ''
+    if referral_code_raw:
+        row = db.execute(
+            "SELECT code FROM referral_codes WHERE LOWER(code)=LOWER(?)", (referral_code_raw,)
+        ).fetchone()
+        if not row:
+            return jsonify({'error': 'Código de referencia no válido'}), 400
+        referral_code = row['code']  # guardar el código en su forma canónica
+
     existing = db.execute("SELECT id FROM users WHERE email=?", (email,)).fetchone()
     if existing:
         uid = existing['id']
-        # Verificar si ya tiene pago aprobado
         paid = db.execute(
             "SELECT id FROM payments WHERE user_id=? AND status='approved' LIMIT 1", (uid,)
         ).fetchone()
         if paid:
-            # Ya pagó → no puede re-registrarse, debe iniciar sesión
             return jsonify({'error': 'already_paid', 'message': 'Ya tienes una cuenta activa con este email. Inicia sesión para continuar.'}), 409
         else:
-            # No ha pagado → eliminar cuenta anterior y crear nueva
             db.execute('DELETE FROM tokens WHERE user_id=?', (uid,))
             db.execute('DELETE FROM test_sessions WHERE user_id=?', (uid,))
             db.execute('DELETE FROM payments WHERE user_id=?', (uid,))
@@ -261,8 +287,8 @@ def register():
             db.commit()
 
     db.execute(
-        "INSERT INTO users (nombre, apellido, email, password_hash, pais) VALUES (?,?,?,?,?)",
-        (nombre, apellido, email, hash_password(password), pais)
+        "INSERT INTO users (nombre, apellido, email, password_hash, pais, sala_preferida, referral_code) VALUES (?,?,?,?,?,?,?)",
+        (nombre, apellido, email, hash_password(password), pais, sala_preferida, referral_code)
     )
     db.commit()
     user_id = db.execute("SELECT id FROM users WHERE email=?", (email,)).fetchone()['id']
@@ -444,6 +470,7 @@ def mp_verify():
                 db.execute("UPDATE payments SET status='approved', external_id=? WHERE id=?",
                            (str(mp_payment_id), payment_id))
                 db.commit()
+                threading.Thread(target=_send_referral_notification, args=(g.user_id,), daemon=True).start()
                 session_id = db.execute(
                     "INSERT INTO test_sessions (user_id, payment_id, test_type) VALUES (?,?,?)",
                     (g.user_id, payment_id, pay['test_type'])
@@ -521,6 +548,7 @@ def stripe_verify():
             (session_id, payment_id)
         )
         db.commit()
+        threading.Thread(target=_send_referral_notification, args=(g.user_id,), daemon=True).start()
         return jsonify({'ok': True})
     except Exception as e:
         return jsonify({'ok': False, 'error': str(e)}), 500
@@ -538,6 +566,7 @@ def confirm_payment():
         return jsonify({'error': 'Pago no encontrado'}), 404
     db.execute("UPDATE payments SET status='approved' WHERE id=?", (payment_id,))
     db.commit()
+    threading.Thread(target=_send_referral_notification, args=(g.user_id,), daemon=True).start()
     return jsonify({'ok': True})
 
 @app.route('/api/test/new-session', methods=['POST'])
@@ -591,6 +620,7 @@ def mp_webhook():
                                 "INSERT INTO test_sessions (user_id, payment_id, test_type) VALUES (?,?,?)",
                                 (row['user_id'], ref, row['test_type'] or 'mental')
                             )
+                        threading.Thread(target=_send_referral_notification, args=(row['user_id'],), daemon=True).start()
                     db.commit()
                     db.close()
             except:
@@ -734,6 +764,56 @@ def admin_stats():
         'benchmark': benchmark
     })
 
+@app.route('/api/admin/referral-codes', methods=['GET'])
+@require_auth
+def list_referral_codes():
+    if not g.is_admin:
+        return jsonify({'error': 'Acceso denegado'}), 403
+    db = get_db()
+    rows = db.execute("SELECT id, code, notes, created_at FROM referral_codes ORDER BY created_at DESC").fetchall()
+    return jsonify({'codes': [dict(r) for r in rows]})
+
+@app.route('/api/admin/referral-codes', methods=['POST'])
+@require_auth
+def add_referral_code():
+    if not g.is_admin:
+        return jsonify({'error': 'Acceso denegado'}), 403
+    data = request.json or {}
+    code = (data.get('code') or '').strip()
+    notes = (data.get('notes') or '').strip()
+    if not code:
+        return jsonify({'error': 'El código no puede estar vacío'}), 400
+    db = get_db()
+    existing = db.execute("SELECT id FROM referral_codes WHERE LOWER(code)=LOWER(?)", (code,)).fetchone()
+    if existing:
+        return jsonify({'error': 'El código ya existe'}), 409
+    db.execute("INSERT INTO referral_codes (code, notes) VALUES (?,?)", (code, notes))
+    db.commit()
+    return jsonify({'ok': True, 'code': code}), 201
+
+@app.route('/api/admin/referral-codes/<code>', methods=['DELETE'])
+@require_auth
+def delete_referral_code(code):
+    if not g.is_admin:
+        return jsonify({'error': 'Acceso denegado'}), 403
+    db = get_db()
+    row = db.execute("SELECT id FROM referral_codes WHERE LOWER(code)=LOWER(?)", (code,)).fetchone()
+    if not row:
+        return jsonify({'error': 'Código no encontrado'}), 404
+    db.execute("DELETE FROM referral_codes WHERE id=?", (row['id'],))
+    db.commit()
+    return jsonify({'ok': True})
+
+@app.route('/api/referral/validate', methods=['POST'])
+def validate_referral_code():
+    data = request.json or {}
+    code = (data.get('code') or '').strip()
+    if not code:
+        return jsonify({'valid': False})
+    db = get_db()
+    row = db.execute("SELECT code FROM referral_codes WHERE LOWER(code)=LOWER(?)", (code,)).fetchone()
+    return jsonify({'valid': bool(row), 'canonical': row['code'] if row else None})
+
 @app.route('/api/password-reset', methods=['POST'])
 def password_reset():
     data  = request.json or {}
@@ -762,6 +842,77 @@ def password_reset():
     else:
         # Modo desarrollo: devuelve la clave en la respuesta
         return jsonify({'ok': True, 'message': f'[MODO DEV] Contraseña temporal: {temp_pw}  —  Configura SMTP_USER y SMTP_PASS para envío real por email.'})
+
+REFERRAL_NOTIFY_EMAIL = 'c.mauricio.aguilar@gmail.com'
+
+def _send_referral_notification(user_id, db=None):
+    """Envía email a Mauricio cuando un usuario referido completa su primer pago."""
+    own_db = False
+    try:
+        if db is None:
+            db = sqlite3.connect(DB_PATH)
+            db.row_factory = sqlite3.Row
+            own_db = True
+
+        user = db.execute(
+            "SELECT nombre, apellido, email, pais, referral_code, referral_notified FROM users WHERE id=?",
+            (user_id,)
+        ).fetchone()
+
+        if not user or not user['referral_code'] or user['referral_notified']:
+            return
+
+        # Marcar como notificado primero para evitar duplicados
+        db.execute("UPDATE users SET referral_notified=1 WHERE id=?", (user_id,))
+        db.commit()
+
+        code = user['referral_code']
+        nombre = user['nombre']
+        apellido = user['apellido']
+        email = user['email']
+        pais = user['pais']
+
+        if not SMTP_USER or not SMTP_PASS:
+            print(f"[REFERRAL][DEV] Nuevo usuario referido — email: {email}, código: {code}")
+            return
+
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = f"Nuevo usuario, referido por: {code}"
+        msg['From'] = SMTP_USER
+        msg['To'] = REFERRAL_NOTIFY_EMAIL
+
+        body = f"""
+        <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;background:#0a0e1a;color:#e2e8f0;padding:32px;border-radius:12px">
+          <div style="text-align:center;margin-bottom:24px">
+            <span style="font-size:3rem;color:#d4af37">♠</span>
+            <h1 style="color:#d4af37;margin:8px 0">MindEV – Nuevo Usuario</h1>
+          </div>
+          <div style="background:#1a2235;border-left:4px solid #d4af37;padding:16px;border-radius:8px;margin-bottom:20px">
+            <p style="margin:0;font-size:1.1rem">Referido por: <strong style="color:#d4af37">{code}</strong></p>
+          </div>
+          <table style="width:100%;border-collapse:collapse">
+            <tr><td style="padding:10px 8px;color:#94a3b8;width:40%">Nombre</td><td style="padding:10px 8px">{nombre}</td></tr>
+            <tr style="background:#1a2235"><td style="padding:10px 8px;color:#94a3b8">Apellido</td><td style="padding:10px 8px">{apellido}</td></tr>
+            <tr><td style="padding:10px 8px;color:#94a3b8">Email</td><td style="padding:10px 8px">{email}</td></tr>
+            <tr style="background:#1a2235"><td style="padding:10px 8px;color:#94a3b8">País</td><td style="padding:10px 8px">{pais}</td></tr>
+            <tr><td style="padding:10px 8px;color:#94a3b8">Código referencia</td><td style="padding:10px 8px;color:#d4af37;font-weight:bold">{code}</td></tr>
+          </table>
+        </div>
+        """
+        msg.attach(MIMEText(body, 'html'))
+
+        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+            server.starttls()
+            server.login(SMTP_USER, SMTP_PASS)
+            server.sendmail(SMTP_USER, REFERRAL_NOTIFY_EMAIL, msg.as_string())
+
+        print(f"[REFERRAL] Email enviado — usuario: {email}, código: {code}")
+    except Exception as e:
+        print(f"[REFERRAL] Error al enviar notificación: {e}")
+    finally:
+        if own_db and db:
+            db.close()
+
 
 def _send_reset_email(to_email, nombre, temp_pw):
     msg = MIMEMultipart('alternative')

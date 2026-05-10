@@ -9,13 +9,14 @@ const App = {
     if (_radarChart) { _radarChart.destroy(); _radarChart = null; }
 
     switch (page) {
-      case 'landing':  renderLanding(); break;
-      case 'login':    renderLogin(arg); break;
-      case 'register': renderRegister(); break;
-      case 'payment':  renderPayment(); break;
-      case 'test':     renderTest(); break;
-      case 'results':  renderResults(arg); break;
-      case 'dashboard': renderDashboard(); break;
+      case 'landing':           renderLanding(); break;
+      case 'login':             renderLogin(arg); break;
+      case 'register':          renderRegister(); break;
+      case 'payment':           renderPayment(); break;
+      case 'test':              renderTest(); break;
+      case 'results':           renderResults(arg); break;
+      case 'dashboard':         renderDashboard(); break;
+      case 'admin-referrals':   renderAdminReferrals(); break;
       default: renderLanding();
     }
 
