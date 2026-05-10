@@ -30,6 +30,10 @@ function renderDashboardContent(data, user) {
   const { history, benchmark } = data;
   const isPT = I18N.isPT();
 
+  // Resetear flags de carga para que los tabs siempre recarguen su contenido guardado
+  _profileAlreadyLoaded    = false;
+  _tournamentAlreadyLoaded = false;
+
   // Separar historial por tipo de test
   const mentalHistory    = history.filter(s => !s.test_type || s.test_type === 'mental');
   const technicalHistory = history.filter(s => s.test_type === 'technical');
@@ -426,7 +430,9 @@ function dashTab(tab) {
     if (btn) btn.classList.toggle('active', t === tab);
   });
   // Al abrir el tab de perfil, cargar el perfil guardado si existe
-  if (tab === 'profile') loadSavedProfile();
+  if (tab === 'profile')    loadSavedProfile();
+  // Al abrir el tab de torneo, cargar el último análisis guardado si existe
+  if (tab === 'tournament') loadLastTournament();
 
   // Dibujar radares de tabs individuales al hacerlos visibles
   // (cuando hasBoth=true, los radares solo se habían dibujado para el tab combinado)
@@ -450,7 +456,8 @@ function dashTab(tab) {
 
 // ─── Perfil IA ────────────────────────────────────────────────────────────────
 
-let _profileAlreadyLoaded = false;
+let _profileAlreadyLoaded  = false;
+let _tournamentAlreadyLoaded = false;
 
 // Scores globales para dibujar radares al cambiar de tab
 let _dashMentalSc  = null;
@@ -710,6 +717,66 @@ async function downloadProfilePDF(userName) {
     if (btn) { btn.disabled = false; btn.textContent = '📄 Descargar PDF'; }
   }
 }
+
+// ─── Último análisis de torneo ────────────────────────────────────────────────
+
+async function loadLastTournament() {
+  if (_tournamentAlreadyLoaded) return;
+  const resultEl = document.getElementById('tourn-result');
+  if (!resultEl) return;
+
+  try {
+    const res = await Api.get('/api/tournament/last');
+    if (!res.analysis || !res.analysis.report_html) return; // sin análisis guardado
+
+    _tournamentAlreadyLoaded = true;
+    const a   = res.analysis;
+    const isPT = I18N.isPT();
+    const dt  = new Date(a.created_at).toLocaleDateString(isPT ? 'pt-BR' : 'es-ES', { day:'numeric', month:'short', year:'numeric' });
+
+    // Ocultar zona de upload y mostrar el último análisis directamente
+    const uploadArea = document.getElementById('tourn-upload-area');
+    const fileInfo   = document.getElementById('tourn-file-info');
+    if (uploadArea) uploadArea.style.display = 'none';
+    if (fileInfo)   fileInfo.style.display   = 'none';
+
+    resultEl.style.display = 'block';
+    resultEl.innerHTML = `
+      <div class="alert alert-info" style="margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+        <span>📂 ${isPT ? 'Último análise gerado em' : 'Último análisis generado el'} <strong>${dt}</strong></span>
+        <button class="btn btn-secondary btn-sm" onclick="tournClearFile();loadLastTournament._shown=false;document.getElementById('tourn-upload-area').style.display='block'">
+          ${isPT ? '+ Analisar novo torneio' : '+ Analizar nuevo torneo'}
+        </button>
+      </div>
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-header">
+          <span class="card-icon">🏆</span>
+          <div>
+            <h2 style="margin:0">${a.tournament_name || (isPT ? 'Torneio' : 'Torneo')}</h2>
+            <div class="card-sub">${a.platform || ''} · ${(a.date || '').slice(0,10)} · Buy-in: ${a.buy_in || 'N/D'}</div>
+          </div>
+          <div style="margin-left:auto;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+            <span style="background:rgba(212,175,55,0.12);border:1px solid rgba(212,175,55,0.3);color:#d4af37;padding:6px 14px;border-radius:6px;font-size:0.82rem">
+              🃏 ${a.total_hands || 0} ${isPT ? 'mãos totais' : 'manos totales'} · ${a.hero_hands || 0} ${isPT ? 'jogadas' : 'jugadas'}
+            </span>
+            <button class="btn btn-primary btn-sm" onclick="tournDownloadPDF()">📄 ${isPT ? 'Baixar PDF' : 'Descargar PDF'}</button>
+          </div>
+        </div>
+        <div id="tourn-report-content">${a.report_html}</div>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap">
+        <button class="btn btn-secondary btn-sm" onclick="
+          _tournamentAlreadyLoaded=false;
+          document.getElementById('tourn-result').style.display='none';
+          document.getElementById('tourn-upload-area').style.display='block';
+        ">🔄 ${isPT ? 'Analisar outro torneio' : 'Analizar otro torneo'}</button>
+        <button class="btn btn-primary btn-sm" onclick="tournDownloadPDF()">📄 ${isPT ? 'Baixar PDF' : 'Descargar PDF'}</button>
+      </div>`;
+  } catch (e) {
+    // Sin análisis guardado — no mostrar error, el formulario de upload ya está visible
+  }
+}
+
 
 async function startNewTest(testType = 'mental') {
   if (!Api.isLoggedIn()) { App.go('login'); return; }

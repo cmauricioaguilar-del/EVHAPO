@@ -1319,6 +1319,32 @@ def tournament_job_status(job_id):
     return jsonify(result)
 
 
+@app.route('/api/tournament/last', methods=['GET'])
+@require_auth
+def tournament_last():
+    """Devuelve el análisis de torneo más reciente del usuario (con reporte completo)."""
+    db = get_db()
+    row = db.execute(
+        """SELECT * FROM tournament_analyses
+           WHERE user_id=? AND status='done'
+           ORDER BY id DESC LIMIT 1""",
+        (g.user_id,)
+    ).fetchone()
+    if not row:
+        return jsonify({'analysis': None})
+    return jsonify({'analysis': {
+        'id':              row['id'],
+        'tournament_name': row['tournament_name'],
+        'platform':        row['platform'],
+        'buy_in':          row['buy_in'],
+        'total_hands':     row['total_hands'],
+        'hero_hands':      row['hero_hands'],
+        'date':            row['date'],
+        'created_at':      row['created_at'],
+        'report_html':     row['report_html'],
+    }})
+
+
 @app.route('/api/tournament/history', methods=['GET'])
 @require_auth
 def tournament_history():
