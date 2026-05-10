@@ -30,14 +30,6 @@ function renderLanding() {
       <h1>Test de Evaluación de las<br><span>Fortalezas y Debilidades</span><br>del Jugador de Poker</h1>
       <p class="subtitle">El poker es mucho más que cartas y apuestas. Es un juego de habilidades mentales, estrategia y resistencia emocional. Descubre dónde estás y hasta dónde puedes llegar.</p>
 
-      <!-- Video reducido al 50% -->
-      <div class="hero-video" style="max-width:340px">
-        <video controls poster="">
-          <source src="assets/VIDEO PROMO.mp4" type="video/mp4" />
-          Tu navegador no soporta video HTML5.
-        </video>
-      </div>
-
       <div class="hero-cta">
         <button class="btn btn-primary btn-lg" onclick="App.go('register')">
           ♠ Comenzar mi diagnóstico — USD $9.90
