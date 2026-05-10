@@ -1,7 +1,7 @@
 // ─── EVHAPO Service Worker ────────────────────────────────────────────────────
 // Versión: incrementar al hacer cambios importantes para forzar actualización
 
-const CACHE_NAME   = 'evhapo-v22';
+const CACHE_NAME   = 'evhapo-v23';
 const STATIC_CACHE = 'evhapo-static-v20';
 const API_CACHE    = 'evhapo-api-v20';
 
@@ -30,6 +30,8 @@ const SHELL_FILES = [
   '/icons/icon-192.svg',
   '/icons/icon-512.svg',
   '/icons/mindev-logo.png',
+  '/icons/mindev-logo-es.svg',
+  '/icons/mindev-logo-pt.svg',
   '/icons/flags/es.svg',
   '/icons/flags/cl.png',
   '/icons/flags/ar.png',
