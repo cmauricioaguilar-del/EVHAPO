@@ -792,11 +792,13 @@ def generate_profile():
         inconsistencies      = data.get('inconsistencies', [])
         mental_session_id    = data.get('mental_session_id')
         technical_session_id = data.get('technical_session_id')
+        lang                 = data.get('lang', 'es')
         nombre = g.user_name
 
         prompt = _build_profile_prompt(
             nombre, mental_answers, technical_answers,
-            mental_scores, technical_scores, inconsistencies
+            mental_scores, technical_scores, inconsistencies,
+            lang=lang
         )
 
         # Llamada directa a la API de Anthropic usando requests (evita problemas de httpx en Windows)
@@ -838,7 +840,7 @@ def generate_profile():
 
 
 def _build_profile_prompt(nombre, mental_answers, technical_answers,
-                           mental_scores, technical_scores, inconsistencies):
+                           mental_scores, technical_scores, inconsistencies, lang='es'):
 
     def fmt_scores(scores):
         return ', '.join(f'{k}:{v}%' for k, v in scores.items())
@@ -864,7 +866,13 @@ def _build_profile_prompt(nombre, mental_answers, technical_answers,
     mental_avg = round(sum(mental_scores.values()) / max(len(mental_scores), 1), 1)
     tech_avg   = round(sum(technical_scores.values()) / max(len(technical_scores), 1), 1)
 
+    if lang == 'pt':
+        lang_instruction = "IMPORTANTE: Genera TODO el informe en PORTUGUÉS BRASILEÑO (PT-BR). Todos los títulos, análisis, diagnósticos, recomendaciones y textos deben estar íntegramente en portugués brasileño. No uses español en ninguna parte."
+    else:
+        lang_instruction = "IMPORTANTE: Genera todo el informe en ESPAÑOL."
+
     return f"""Eres coach de poker experto (MTT) y psicólogo deportivo. Genera un informe HTML completo para {nombre}. NO incluyas etiquetas html/head/body.
+{lang_instruction}
 
 SCORES — Mental (avg {mental_avg}%): {fmt_scores(mental_scores)}
 SCORES — Técnico (avg {tech_avg}%): {fmt_scores(technical_scores)}
@@ -1244,7 +1252,8 @@ def analyze_tournament():
 
     # ── 4. Construir prompt ────────────────────────────────────────────────────
     nombre = g.user_name
-    prompt = _build_tournament_prompt(nombre, meta, player_profile)
+    lang   = request.form.get('lang', 'es')
+    prompt = _build_tournament_prompt(nombre, meta, player_profile, lang=lang)
 
     # ── 5. Insertar job con status='processing' y lanzar hilo background ──────
     db = get_db()
@@ -1344,7 +1353,7 @@ def get_tournament_analysis(analysis_id):
     }})
 
 
-def _build_tournament_prompt(nombre, meta, player_profile):
+def _build_tournament_prompt(nombre, meta, player_profile, lang='es'):
     """Construye el prompt para el análisis de torneo."""
 
     # Formatear manos seleccionadas
@@ -1378,7 +1387,13 @@ PERFIL PSICOLÓGICO DEL JUGADOR (generado por IA con tests EVHAPO/MindEV):
     lvl_first   = meta.get('level_first', 'N/D')
     lvl_last    = meta.get('level_last',  'N/D')
 
+    if lang == 'pt':
+        lang_instruction = "IMPORTANTE: Genera TODO el reporte en PORTUGUÉS BRASILEÑO (PT-BR). Todos los títulos, análisis, secciones y textos deben estar íntegramente en portugués brasileño. No uses español en ninguna parte."
+    else:
+        lang_instruction = "IMPORTANTE: Genera todo el reporte en ESPAÑOL."
+
     return f"""Eres un coach de poker MTT de élite. Analiza el siguiente historial de torneo del jugador "{nombre}" y genera un REPORTE COMPLETO en HTML (sin etiquetas html/head/body).
+{lang_instruction}
 
 ═══ DATOS DEL TORNEO ═══
 Plataforma: {meta.get('platform', 'N/D')}

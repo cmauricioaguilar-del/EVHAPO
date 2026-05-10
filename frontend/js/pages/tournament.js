@@ -231,6 +231,7 @@ async function tournAnalyze() {
     const token = localStorage.getItem('evhapo_token');
     const form  = new FormData();
     form.append('file', _tournFile);
+    form.append('lang', I18N.lang);
 
     const res = await fetch('/api/tournament/analyze', {
       method:  'POST',

@@ -521,6 +521,7 @@ async function generateProfile(mentalSessionId, technicalSessionId) {
       inconsistencies,
       mental_session_id: mentalSessionId,
       technical_session_id: technicalSessionId,
+      lang: I18N.lang,
     });
 
     _profileAlreadyLoaded = true;
