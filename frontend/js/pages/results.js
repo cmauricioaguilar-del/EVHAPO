@@ -205,7 +205,7 @@ function drawRadarChart(catData, canvasId = 'radarChart', testLabel = '') {
       labels: catData.map(c => c.label),
       datasets: [
         {
-          label: `${testLabel || 'Tu nivel'} (%)`,
+          label: `${testLabel || (I18N && I18N.isPT() ? 'Seu nível' : 'Tu nivel')} (%)`,
           data: catData.map(c => c.pct),
           backgroundColor: bgColor,
           borderColor: accentColor,
@@ -218,7 +218,7 @@ function drawRadarChart(catData, canvasId = 'radarChart', testLabel = '') {
           pointHoverRadius: 7,
         },
         {
-          label: 'Objetivo élite (80%)',
+          label: (I18N && I18N.isPT()) ? 'Meta elite (80%)' : 'Objetivo élite (80%)',
           data: catData.map(() => 80),
           backgroundColor: 'rgba(59,130,246,0.04)',
           borderColor: 'rgba(59,130,246,0.35)',

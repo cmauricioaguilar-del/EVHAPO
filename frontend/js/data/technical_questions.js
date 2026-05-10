@@ -614,9 +614,10 @@ function getTechnicalOverallScore(scores) {
 }
 
 function getTechnicalLevel(pct) {
-  if (pct >= 85) return { label: 'PROFESIONAL',  cls: 'level-profesional',  desc: '¡Conocimiento técnico de élite! Estás al nivel de jugadores de alto rendimiento.' };
-  if (pct >= 70) return { label: 'AVANZADO',      cls: 'level-avanzado',     desc: 'Sólido conocimiento técnico con pequeñas áreas de mejora para llegar al nivel profesional.' };
-  if (pct >= 50) return { label: 'INTERMEDIO',    cls: 'level-intermedio',   desc: 'Base técnica correcta con oportunidades importantes de profundización.' };
-  if (pct >= 30) return { label: 'BAJO',           cls: 'level-bajo',         desc: 'Conocimientos básicos presentes, pero con brechas técnicas significativas a trabajar.' };
-  return          { label: 'PRINCIPIANTE', cls: 'level-principiante', desc: 'Gran recorrido de aprendizaje por delante. ¡Este diagnóstico es el punto de partida!' };
+  const isPT = (typeof I18N !== 'undefined') && I18N.isPT();
+  if (pct >= 85) return { label: isPT ? 'PROFISSIONAL'  : 'PROFESIONAL',  cls: 'level-profesional',  desc: isPT ? 'Conhecimento técnico de elite! Você está no nível de jogadores de alto desempenho.'                           : '¡Conocimiento técnico de élite! Estás al nivel de jugadores de alto rendimiento.' };
+  if (pct >= 70) return { label: isPT ? 'AVANÇADO'      : 'AVANZADO',     cls: 'level-avanzado',     desc: isPT ? 'Sólido conhecimento técnico com pequenas áreas de melhoria para chegar ao nível profissional.'              : 'Sólido conocimiento técnico con pequeñas áreas de mejora para llegar al nivel profesional.' };
+  if (pct >= 50) return { label: isPT ? 'INTERMEDIÁRIO' : 'INTERMEDIO',   cls: 'level-intermedio',   desc: isPT ? 'Base técnica correta com oportunidades importantes de aprofundamento.'                                      : 'Base técnica correcta con oportunidades importantes de profundización.' };
+  if (pct >= 30) return { label: isPT ? 'BAIXO'         : 'BAJO',         cls: 'level-bajo',         desc: isPT ? 'Conhecimentos básicos presentes, mas com lacunas técnicas significativas a trabalhar.'                      : 'Conocimientos básicos presentes, pero con brechas técnicas significativas a trabajar.' };
+  return           { label: isPT ? 'INICIANTE'     : 'PRINCIPIANTE', cls: 'level-principiante', desc: isPT ? 'Grande caminhada de aprendizado pela frente. Este diagnóstico é o ponto de partida!'                       : 'Gran recorrido de aprendizaje por delante. ¡Este diagnóstico es el punto de partida!' };
 }

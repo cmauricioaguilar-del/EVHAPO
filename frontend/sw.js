@@ -1,7 +1,7 @@
 // ─── EVHAPO Service Worker ────────────────────────────────────────────────────
 // Versión: incrementar al hacer cambios importantes para forzar actualización
 
-const CACHE_NAME   = 'evhapo-v21';
+const CACHE_NAME   = 'evhapo-v22';
 const STATIC_CACHE = 'evhapo-static-v20';
 const API_CACHE    = 'evhapo-api-v20';
 

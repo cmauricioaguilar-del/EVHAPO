@@ -23,7 +23,7 @@ function renderLanding() {
       <span style="font-size:1.5rem">${c.icon}</span>
       <div>
         <div style="font-weight:700;font-size:0.9rem">${c.label}</div>
-        <div style="font-size:0.8rem;color:var(--text2)">${c.questions.length} preguntas</div>
+        <div style="font-size:0.8rem;color:var(--text2)">${c.questions.length} ${isPT ? 'perguntas' : 'preguntas'}</div>
       </div>
     </div>`;
 
@@ -54,7 +54,7 @@ function renderLanding() {
 
       <!-- Botón de instalación PWA (solo aparece cuando el navegador lo permite) -->
       <button id="pwa-install-btn" class="btn btn-outline btn-sm" style="display:none;margin-top:12px" onclick="installPWA()">
-        📲 Instalar App en mi dispositivo
+        📲 ${isPT ? 'Instalar App no meu dispositivo' : 'Instalar App en mi dispositivo'}
       </button>
 
       <div class="chip gold" style="margin-top:8px">${isPT
@@ -80,19 +80,23 @@ function renderLanding() {
         <!-- Métodos de pago y países -->
         <div style="margin-top:24px;padding:20px;background:rgba(0,0,0,0.2);border-radius:12px;border:1px solid rgba(212,175,55,0.2)">
           <div style="font-size:0.85rem;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:1px;margin-bottom:14px">
-            💳 Métodos de pago aceptados
+            💳 ${isPT ? 'Métodos de pagamento aceitos' : 'Métodos de pago aceptados'}
           </div>
           <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap;justify-content:center">
             <span style="background:rgba(0,102,255,0.15);border:1px solid rgba(0,102,255,0.3);border-radius:8px;padding:6px 14px;font-size:0.85rem;color:#4a9eff">
               💙 Mercado Pago
             </span>
             <span style="background:rgba(212,175,55,0.1);border:1px solid rgba(212,175,55,0.2);border-radius:8px;padding:6px 14px;font-size:0.85rem;color:var(--text2)">
-              💳 Débito · Crédito · Transferencia
+              💳 ${isPT ? 'Débito · Crédito · Transferência' : 'Débito · Crédito · Transferencia'}
+            </span>
+            <span style="background:rgba(99,91,255,0.1);border:1px solid rgba(99,91,255,0.3);border-radius:8px;padding:6px 14px;font-size:0.85rem;color:#a78bfa">
+              💳 Stripe · Visa · Mastercard · Amex
             </span>
           </div>
           <div style="font-size:0.82rem;color:var(--text2);line-height:1.6;margin-bottom:10px">
-            Usuarios de <strong style="color:var(--text1)">Chile, Argentina, Brasil, México, Colombia, Perú y Uruguay</strong>
-            pueden pagar con su tarjeta local en moneda local. MercadoPago convierte automáticamente.
+            ${isPT
+              ? `Usuários do <strong style="color:var(--text1)">Chile, Argentina, Brasil, México, Colômbia, Peru e Uruguai</strong> podem pagar com cartão local em moeda local via Mercado Pago. Resto do mundo via Stripe.`
+              : `Usuarios de <strong style="color:var(--text1)">Chile, Argentina, Brasil, México, Colombia, Perú y Uruguay</strong> pueden pagar con tarjeta local en moneda local vía Mercado Pago. Resto del mundo vía Stripe.`}
           </div>
           <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center">
             ${[['cl','Chile'],['ar','Argentina'],['br','Brasil'],['mx','México'],['co','Colombia'],['pe','Perú'],['uy','Uruguay']].map(([code,name]) =>

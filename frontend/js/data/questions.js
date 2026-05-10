@@ -360,8 +360,9 @@ function getOverallScore(scores) {
 }
 
 function getLevel(pct) {
-  if (pct >= 85) return { label: 'ÉLITE', cls: 'level-elite', desc: 'Mentalidad de jugador de alto rendimiento. ¡Estás al más alto nivel!' };
-  if (pct >= 70) return { label: 'AVANZADO', cls: 'level-avanzado', desc: 'Fortalezas sólidas con pequeñas áreas de mejora para llegar a la élite.' };
-  if (pct >= 50) return { label: 'INTERMEDIO', cls: 'level-intermedio', desc: 'Base sólida con oportunidades de mejora significativas.' };
-  return { label: 'EN DESARROLLO', cls: 'level-basico', desc: 'Gran potencial de crecimiento. ¡Este diagnóstico es el primer paso!' };
+  const isPT = (typeof I18N !== 'undefined') && I18N.isPT();
+  if (pct >= 85) return { label: isPT ? 'ÉLITE'             : 'ÉLITE',          cls: 'level-elite',      desc: isPT ? 'Mentalidade de jogador de alto desempenho. Você está no mais alto nível!'          : 'Mentalidad de jugador de alto rendimiento. ¡Estás al más alto nivel!' };
+  if (pct >= 70) return { label: isPT ? 'AVANÇADO'          : 'AVANZADO',       cls: 'level-avanzado',   desc: isPT ? 'Forças sólidas com pequenas áreas de melhoria para chegar à elite.'               : 'Fortalezas sólidas con pequeñas áreas de mejora para llegar a la élite.' };
+  if (pct >= 50) return { label: isPT ? 'INTERMEDIÁRIO'     : 'INTERMEDIO',     cls: 'level-intermedio', desc: isPT ? 'Base sólida com oportunidades de melhoria significativas.'                        : 'Base sólida con oportunidades de mejora significativas.' };
+  return           { label: isPT ? 'EM DESENVOLVIMENTO' : 'EN DESARROLLO',  cls: 'level-basico',     desc: isPT ? 'Grande potencial de crescimento. Este diagnóstico é o primeiro passo!'           : 'Gran potencial de crecimiento. ¡Este diagnóstico es el primer paso!' };
 }
