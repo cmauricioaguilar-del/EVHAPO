@@ -456,21 +456,74 @@ def mp_verify():
     return jsonify({'ok': False, 'status': pay['status']})
 
 def _create_stripe_payment(payment_id):
+    """Crea una sesión de Stripe Checkout (hosted page, igual que MercadoPago)."""
     try:
         import stripe
         stripe.api_key = STRIPE_SECRET_KEY
-        intent = stripe.PaymentIntent.create(
-            amount=990,  # $9.90 USD in cents
-            currency='usd',
-            metadata={'payment_id': payment_id}
+        session = stripe.checkout.Session.create(
+            payment_method_types=['card'],
+            line_items=[{
+                'price_data': {
+                    'currency': 'usd',
+                    'unit_amount': 990,  # $9.90 USD en centavos
+                    'product_data': {
+                        'name': 'EVHAPO – Acceso completo',
+                        'description': 'Test Mental + Técnico · Acceso permanente',
+                    },
+                },
+                'quantity': 1,
+            }],
+            mode='payment',
+            # {CHECKOUT_SESSION_ID} es una variable de plantilla que Stripe reemplaza automáticamente
+            success_url=f"{BASE_URL}/?stripe_result=success&session_id={{CHECKOUT_SESSION_ID}}&pid={payment_id}",
+            cancel_url=f"{BASE_URL}/?stripe_result=cancel",
+            metadata={'payment_id': str(payment_id)},
         )
         return jsonify({
             'mode': 'stripe',
-            'client_secret': intent.client_secret,
-            'payment_id': payment_id
+            'checkout_url': session.url,
+            'payment_id': payment_id,
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/payment/stripe-verify', methods=['POST'])
+@require_auth
+def stripe_verify():
+    """Verifica el pago de Stripe y activa el acceso del usuario."""
+    data       = request.json or {}
+    session_id = data.get('session_id', '')
+    payment_id = data.get('payment_id')
+
+    if not session_id:
+        return jsonify({'ok': False, 'error': 'Missing session_id'}), 400
+
+    try:
+        import stripe
+        stripe.api_key = STRIPE_SECRET_KEY
+        cs = stripe.checkout.Session.retrieve(session_id)
+
+        if cs.payment_status != 'paid':
+            return jsonify({'ok': False, 'status': cs.payment_status})
+
+        db = get_db()
+        pay = db.execute(
+            "SELECT * FROM payments WHERE id=? AND user_id=?",
+            (payment_id, g.user_id)
+        ).fetchone()
+
+        if not pay:
+            return jsonify({'ok': False, 'error': 'Payment record not found'}), 404
+
+        db.execute(
+            "UPDATE payments SET status='approved', external_id=? WHERE id=?",
+            (session_id, payment_id)
+        )
+        db.commit()
+        return jsonify({'ok': True})
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 500
 
 @app.route('/api/payment/confirm', methods=['POST'])
 @require_auth

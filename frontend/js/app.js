@@ -77,10 +77,33 @@ function doLogout() {
 
 // Boot
 window.addEventListener('load', async () => {
-  const params   = new URLSearchParams(window.location.search);
-  const mpResult = params.get('mp_result');
-  const mpPid    = params.get('pid');
-  const mpPayId  = params.get('payment_id');
+  const params        = new URLSearchParams(window.location.search);
+  const mpResult      = params.get('mp_result');
+  const mpPid         = params.get('pid');
+  const mpPayId       = params.get('payment_id');
+  const stripeResult  = params.get('stripe_result');
+  const stripeSession = params.get('session_id');
+  const stripePid     = params.get('pid');   // mismo nombre que MP
+
+  // ── Retorno desde Stripe ───────────────────────────────────────────────────
+  if (stripeResult) {
+    history.replaceState(null, '', '/');
+    if (!Api.isLoggedIn()) { App.go('landing'); return; }
+
+    if (stripeResult === 'success') {
+      try {
+        const res = await Api.post('/api/payment/stripe-verify', {
+          session_id:  stripeSession,
+          payment_id:  parseInt(stripePid),
+        });
+        App.go(res.ok ? 'dashboard' : 'payment');
+      } catch { App.go('payment'); }
+    } else {
+      // cancel → volver a pagar
+      App.go('payment');
+    }
+    return;
+  }
 
   // ── Retorno desde MercadoPago ──────────────────────────────────────────────
   if (mpResult) {

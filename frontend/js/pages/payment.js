@@ -59,6 +59,12 @@ async function renderPayment() {
             : '💙 Serás redirigido a <strong>Mercado Pago</strong> para completar el pago de forma segura. Aceptamos débito, crédito y transferencia bancaria.'}
         </div>
 
+        <div id="stripe-info" class="alert alert-info" style="margin-bottom:16px;${!isLatam ? '' : 'display:none'}">
+          ${isPT
+            ? '💳 Você será redirecionado para o checkout seguro do <strong>Stripe</strong>. Aceitamos Visa, Mastercard, Amex e Apple/Google Pay.'
+            : '💳 Serás redirigido al checkout seguro de <strong>Stripe</strong>. Aceptamos Visa, Mastercard, Amex y Apple/Google Pay.'}
+        </div>
+
         <div id="demo-note" class="alert alert-warning" style="margin-bottom:16px;display:none">
           🎮 <strong>${isPT ? 'Modo Demo:' : 'Modo Demo:'}</strong> ${isPT ? 'O teste será habilitado sem custo real.' : 'El test se habilitará sin cargo real.'}
         </div>
@@ -79,8 +85,9 @@ function selectMethod(method) {
   ['demo','mercadopago','stripe'].forEach(m => {
     document.getElementById(`method-${m}`)?.classList.toggle('selected', m === method);
   });
-  document.getElementById('mp-info').style.display   = method === 'mercadopago' ? 'block' : 'none';
-  document.getElementById('demo-note').style.display = method === 'demo' ? 'block' : 'none';
+  document.getElementById('mp-info').style.display     = method === 'mercadopago' ? 'block' : 'none';
+  document.getElementById('stripe-info').style.display = method === 'stripe'      ? 'block' : 'none';
+  document.getElementById('demo-note').style.display   = method === 'demo'        ? 'block' : 'none';
 }
 
 async function doPayment() {
@@ -109,10 +116,9 @@ async function doPayment() {
       return;
     }
 
-    if (result.mode === 'stripe' && result.client_secret) {
-      errEl.innerHTML = `<div class="alert alert-info">${isPT ? 'Integração Stripe em configuração. Use o Mercado Pago por enquanto.' : 'Integración Stripe en configuración. Usa Mercado Pago por ahora.'}</div>`;
-      btn.disabled = false;
-      btn.textContent = `♠ ${isPT ? 'Pagar e começar o teste' : 'Pagar y comenzar el test'}`;
+    if (result.mode === 'stripe' && result.checkout_url) {
+      // Redirect al checkout hosted de Stripe (igual que MercadoPago con init_point)
+      window.location.href = result.checkout_url;
       return;
     }
 
