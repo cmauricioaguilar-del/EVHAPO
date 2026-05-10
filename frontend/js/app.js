@@ -28,16 +28,20 @@ function renderNavbar() {
   const initials = user ? (user.nombre || 'U')[0].toUpperCase() : '';
   const isPT = I18N.isPT();
 
+  // Banderas CSS puras — sin archivos externos, siempre disponibles
+  const flagES = `<span style="display:inline-block;flex-shrink:0;width:22px;height:15px;border-radius:2px;background:linear-gradient(to bottom,#c60b1e 25%,#ffc400 25%,#ffc400 75%,#c60b1e 75%)"></span>`;
+  const flagBR = `<span style="display:inline-block;flex-shrink:0;width:22px;height:15px;border-radius:2px;background:#009c3b;position:relative;overflow:hidden"><span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:14px;height:10px;background:#FFDF00;clip-path:polygon(50% 0%,100% 50%,50% 100%,0% 50%)"></span></span>`;
+
   const langToggle = `
     <div style="display:flex;gap:4px;align-items:center;margin-right:8px">
       <button onclick="I18N.set('es')" title="Español"
         style="display:flex;align-items:center;gap:5px;background:${!isPT ? 'var(--accent)' : 'transparent'};border:2px solid ${!isPT ? 'var(--accent)' : 'var(--border)'};border-radius:8px;padding:4px 8px;cursor:pointer;opacity:${!isPT ? '1' : '0.6'};transition:all 0.15s">
-        <img src="/icons/flags/es.svg" alt="ES" style="height:15px;width:22px;object-fit:cover;border-radius:2px;display:block">
+        ${flagES}
         <span style="font-size:0.72rem;font-weight:700;color:${!isPT ? '#000' : 'var(--text2)'}">ES</span>
       </button>
       <button onclick="I18N.set('pt')" title="Português"
         style="display:flex;align-items:center;gap:5px;background:${isPT ? 'var(--accent)' : 'transparent'};border:2px solid ${isPT ? 'var(--accent)' : 'var(--border)'};border-radius:8px;padding:4px 8px;cursor:pointer;opacity:${isPT ? '1' : '0.6'};transition:all 0.15s">
-        <img src="/icons/flags/br.png" alt="PT" style="height:15px;width:22px;object-fit:cover;border-radius:2px;display:block">
+        ${flagBR}
         <span style="font-size:0.72rem;font-weight:700;color:${isPT ? '#000' : 'var(--text2)'}">PT</span>
       </button>
     </div>`;
