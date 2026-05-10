@@ -9,7 +9,13 @@ const I18N = {
   set(l) {
     this._lang = l;
     localStorage.setItem('mindev_lang', l);
-    location.reload();
+    // Re-renderiza la página actual en el mismo DOM (sin recarga = sin parpadeo de banderas).
+    // App._lastArg preserva el argumento del último App.go() (ej: datos de resultados).
+    if (typeof App !== 'undefined' && App.current) {
+      App.go(App.current, App._lastArg);
+    } else {
+      location.reload(); // fallback solo si App aún no existe
+    }
   },
 
   isPT() { return this._lang === 'pt'; },

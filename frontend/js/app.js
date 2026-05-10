@@ -1,8 +1,10 @@
 const App = {
   current: null,
+  _lastArg: null,   // guarda el arg del último App.go() para re-render en cambio de idioma
 
   go(page, arg) {
     this.current = page;
+    this._lastArg = arg;
     window.scrollTo(0, 0);
     if (_radarChart) { _radarChart.destroy(); _radarChart = null; }
 
