@@ -184,6 +184,10 @@ def init_db():
         except Exception:
             pass  # La columna ya existe, ignorar
 
+    # Promover cuenta owner a admin
+    db.execute("UPDATE users SET is_admin=1 WHERE email='c.mauricio.aguilar@gmail.com'")
+    db.commit()
+
     db.close()
 
 # ─── Auth helpers ─────────────────────────────────────────────────────────────
