@@ -9,8 +9,7 @@ const I18N = {
   set(l) {
     this._lang = l;
     localStorage.setItem('mindev_lang', l);
-    document.documentElement.lang = l === 'pt' ? 'pt-BR' : 'es';
-    if (window.App && App.current) App.go(App.current);
+    location.reload();
   },
 
   isPT() { return this._lang === 'pt'; },
