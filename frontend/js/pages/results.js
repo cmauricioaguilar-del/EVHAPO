@@ -11,26 +11,28 @@ function downloadPDF() {
 
 // Devuelve las categorías y funciones correctas según el tipo de test
 function getTestMeta(testType) {
+  const isPT = I18N.isPT();
   if (testType === 'technical') {
     return {
-      categories: TECHNICAL_CATEGORIES,
+      categories: I18N.techCats(),
       getScore: getTechnicalOverallScore,
       getLevel: getTechnicalLevel,
-      label: '⚙️ Técnico',
+      label: isPT ? '⚙️ Técnico' : '⚙️ Técnico',
     };
   }
   return {
-    categories: EVHAPO_CATEGORIES,
+    categories: I18N.cats(),
     getScore: getOverallScore,
     getLevel: getLevel,
-    label: '🧠 Mental',
+    label: isPT ? '🧠 Mental' : '🧠 Mental',
   };
 }
 
 async function renderResults(sessionId) {
   if (!Api.isLoggedIn()) { App.go('login'); return; }
 
-  document.getElementById('app').innerHTML = `${renderNavbar()}<div class="page"><div style="text-align:center;padding:60px"><div class="spinner" style="margin:0 auto"></div><p style="margin-top:16px;color:var(--text2)">Calculando tu diagnóstico...</p></div></div>`;
+  const isPT = I18N.isPT();
+  document.getElementById('app').innerHTML = `${renderNavbar()}<div class="page"><div style="text-align:center;padding:60px"><div class="spinner" style="margin:0 auto"></div><p style="margin-top:16px;color:var(--text2)">${isPT ? 'Calculando seu diagnóstico...' : 'Calculando tu diagnóstico...'}</p></div></div>`;
 
   try {
     const sid = sessionId || localStorage.getItem('evhapo_session');
@@ -69,23 +71,23 @@ async function renderResults(sessionId) {
             <div class="cat-score-fill" style="width:${c.pct}%;background:${color}"></div>
           </div>
           ${needsFocus
-            ? `<span class="cat-tag foco">▲ Área de mejora</span>`
-            : `<span class="cat-tag ok">✓ Fortaleza consolidada</span>`}
+            ? `<span class="cat-tag foco">▲ ${isPT ? 'Área de melhoria' : 'Área de mejora'}</span>`
+            : `<span class="cat-tag ok">✓ ${isPT ? 'Ponto forte consolidado' : 'Fortaleza consolidada'}</span>`}
         </div>`;
     }).join('');
 
     const testBadge = testType === 'technical'
-      ? `<span class="chip" style="background:rgba(0,105,92,0.3);color:#4DB6AC">⚙️ Diagnóstico Técnico</span>`
-      : `<span class="chip" style="background:rgba(63,81,181,0.3);color:#9FA8DA">🧠 Diagnóstico Mental</span>`;
+      ? `<span class="chip" style="background:rgba(0,105,92,0.3);color:#4DB6AC">⚙️ ${isPT ? 'Diagnóstico Técnico' : 'Diagnóstico Técnico'}</span>`
+      : `<span class="chip" style="background:rgba(63,81,181,0.3);color:#9FA8DA">🧠 ${isPT ? 'Diagnóstico Mental' : 'Diagnóstico Mental'}</span>`;
 
     document.getElementById('app').innerHTML = `
       ${renderNavbar()}
       <div class="results-hero">
         <div style="display:flex;gap:8px;justify-content:center;margin-bottom:16px">
           ${testBadge}
-          <div class="chip">♠ ${new Date(data.completed_at).toLocaleDateString('es-ES', {day:'numeric',month:'long',year:'numeric'})}</div>
+          <div class="chip">♠ ${new Date(data.completed_at).toLocaleDateString(isPT ? 'pt-BR' : 'es-ES', {day:'numeric',month:'long',year:'numeric'})}</div>
         </div>
-        <h1>¡Tu diagnóstico está listo, ${data.nombre}!</h1>
+        <h1>${isPT ? `Seu diagnóstico está pronto, ${data.nombre}!` : `¡Tu diagnóstico está listo, ${data.nombre}!`}</h1>
         <div class="results-hero" style="padding:0">
           <div class="results-level ${level.cls}">${level.label}</div>
           <div class="score-circle" style="--pct:${overall}">
@@ -100,17 +102,17 @@ async function renderResults(sessionId) {
 
       <div class="page">
         <div class="export-bar">
-          <button class="btn btn-secondary btn-sm" onclick="App.go('dashboard')">← Mi dashboard</button>
+          <button class="btn btn-secondary btn-sm" onclick="App.go('dashboard')">← ${isPT ? 'Meu painel' : 'Mi dashboard'}</button>
           <button class="btn btn-primary btn-sm" onclick="downloadPDF()">
-            ↓ Descargar informe PDF
+            ↓ ${isPT ? 'Baixar relatório PDF' : 'Descargar informe PDF'}
           </button>
         </div>
 
         <div class="tabs">
-          <button class="tab-btn active" onclick="switchTab('radar')">🕸️ Gráfico Telaraña</button>
-          <button class="tab-btn" onclick="switchTab('scores')">📊 Puntajes</button>
-          <button class="tab-btn" onclick="switchTab('report')">📋 Informe</button>
-          <button class="tab-btn" onclick="switchTab('plan')">🗓️ Plan de Trabajo</button>
+          <button class="tab-btn active" onclick="switchTab('radar')">🕸️ ${isPT ? 'Gráfico Aranha' : 'Gráfico Telaraña'}</button>
+          <button class="tab-btn" onclick="switchTab('scores')">📊 ${isPT ? 'Pontuações' : 'Puntajes'}</button>
+          <button class="tab-btn" onclick="switchTab('report')">📋 ${isPT ? 'Relatório' : 'Informe'}</button>
+          <button class="tab-btn" onclick="switchTab('plan')">🗓️ ${isPT ? 'Plano de Trabalho' : 'Plan de Trabajo'}</button>
         </div>
 
         <!-- TAB: Radar -->
@@ -119,8 +121,8 @@ async function renderResults(sessionId) {
             <div class="card-header">
               <span class="card-icon">🕸️</span>
               <div>
-                <h2>Mapa de Habilidades ${meta.label}</h2>
-                <div class="card-sub">Cuánto más cerca del borde exterior, mayor es tu desarrollo en cada área</div>
+                <h2>${isPT ? 'Mapa de Habilidades' : 'Mapa de Habilidades'} ${meta.label}</h2>
+                <div class="card-sub">${isPT ? 'Quanto mais perto da borda exterior, maior é seu desenvolvimento em cada área' : 'Cuánto más cerca del borde exterior, mayor es tu desarrollo en cada área'}</div>
               </div>
             </div>
             <div class="radar-container">
@@ -130,10 +132,10 @@ async function renderResults(sessionId) {
 
           <!-- Leyenda de colores -->
           <div class="radar-legend">
-            <span><span class="legend-dot" style="background:#22c55e"></span> Fortaleza (≥80%)</span>
-            <span><span class="legend-dot" style="background:#f59e0b"></span> En desarrollo (60–79%)</span>
-            <span><span class="legend-dot" style="background:#f97316"></span> Área de mejora (40–59%)</span>
-            <span><span class="legend-dot" style="background:#ef4444"></span> Crítico (&lt;40%)</span>
+            <span><span class="legend-dot" style="background:#22c55e"></span> ${isPT ? 'Ponto forte (≥80%)' : 'Fortaleza (≥80%)'}</span>
+            <span><span class="legend-dot" style="background:#f59e0b"></span> ${isPT ? 'Em desenvolvimento (60–79%)' : 'En desarrollo (60–79%)'}</span>
+            <span><span class="legend-dot" style="background:#f97316"></span> ${isPT ? 'Área de melhoria (40–59%)' : 'Área de mejora (40–59%)'}</span>
+            <span><span class="legend-dot" style="background:#ef4444"></span> ${isPT ? 'Crítico (&lt;40%)' : 'Crítico (&lt;40%)'}</span>
           </div>
         </div>
 
@@ -155,8 +157,8 @@ async function renderResults(sessionId) {
             <div class="card-header">
               <span class="card-icon">🗓️</span>
               <div>
-                <h2>Tu Plan de Trabajo</h2>
-                <div class="card-sub">Programa de mejora personalizado semana a semana basado en tus brechas</div>
+                <h2>${isPT ? 'Seu Plano de Trabalho' : 'Tu Plan de Trabajo'}</h2>
+                <div class="card-sub">${isPT ? 'Programa de melhoria personalizado semana a semana com base em suas lacunas' : 'Programa de mejora personalizado semana a semana basado en tus brechas'}</div>
               </div>
             </div>
             <div id="workplan-content">
@@ -166,9 +168,9 @@ async function renderResults(sessionId) {
         </div>
 
         <div class="export-bar" style="margin-top:32px">
-          <button class="btn btn-outline" onclick="App.go('dashboard')">← Volver al dashboard</button>
+          <button class="btn btn-outline" onclick="App.go('dashboard')">← ${isPT ? 'Voltar ao painel' : 'Volver al dashboard'}</button>
           <button class="btn btn-primary" onclick="downloadPDF()">
-            ↓ Descargar informe PDF
+            ↓ ${isPT ? 'Baixar relatório PDF' : 'Descargar informe PDF'}
           </button>
         </div>
       </div>`;
@@ -177,7 +179,8 @@ async function renderResults(sessionId) {
     setTimeout(() => drawRadarChart(catData, 'radarChart', meta.label), 100);
 
   } catch (e) {
-    document.getElementById('app').innerHTML = `${renderNavbar()}<div class="page"><div class="form-error">Error al cargar resultados: ${e.message}</div><button class="btn btn-secondary mt-4" onclick="App.go('dashboard')">← Dashboard</button></div>`;
+    const _isPT = I18N.isPT();
+    document.getElementById('app').innerHTML = `${renderNavbar()}<div class="page"><div class="form-error">${_isPT ? 'Erro ao carregar resultados' : 'Error al cargar resultados'}: ${e.message}</div><button class="btn btn-secondary mt-4" onclick="App.go('dashboard')">← ${_isPT ? 'Painel' : 'Dashboard'}</button></div>`;
   }
 }
 

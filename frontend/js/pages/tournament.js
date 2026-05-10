@@ -2,14 +2,15 @@
 // Tab del dashboard para subir historial de manos y obtener análisis IA
 
 function renderTournamentTab() {
+  const isPT = I18N.isPT();
   return `
     <div id="dtab-tournament" style="display:none">
       <div class="card" style="margin-bottom:20px">
         <div class="card-header">
           <span class="card-icon">🏆</span>
           <div>
-            <h2>Análisis de Torneo</h2>
-            <div class="card-sub">Sube tu historial de manos y la IA analizará tus mejores y peores decisiones</div>
+            <h2>${isPT ? 'Análise de Torneio' : 'Análisis de Torneo'}</h2>
+            <div class="card-sub">${isPT ? 'Envie seu histórico de mãos e a IA analisará suas melhores e piores decisões' : 'Sube tu historial de manos y la IA analizará tus mejores y peores decisiones'}</div>
           </div>
         </div>
 
@@ -28,9 +29,9 @@ function renderTournamentTab() {
           ondrop="tournDrop(event)"
           onclick="document.getElementById('tourn-file-input').click()">
           <div style="font-size:3rem;margin-bottom:12px">📂</div>
-          <div style="font-weight:700;color:#e2e8f0;margin-bottom:6px">Arrastra tu archivo aquí o haz clic para seleccionar</div>
-          <div style="color:#64748b;font-size:0.85rem">Formatos: <strong style="color:#94a3b8">.zip</strong> (exportación completa) o <strong style="color:#94a3b8">.txt</strong> (historial de manos)</div>
-          <div style="color:#64748b;font-size:0.78rem;margin-top:6px">Máximo 10 MB · Un solo archivo por análisis</div>
+          <div style="font-weight:700;color:#e2e8f0;margin-bottom:6px">${isPT ? 'Arraste seu arquivo aqui ou clique para selecionar' : 'Arrastra tu archivo aquí o haz clic para seleccionar'}</div>
+          <div style="color:#64748b;font-size:0.85rem">${isPT ? 'Formatos:' : 'Formatos:'} <strong style="color:#94a3b8">.zip</strong> ${isPT ? '(exportação completa) ou' : '(exportación completa) o'} <strong style="color:#94a3b8">.txt</strong> ${isPT ? '(histórico de mãos)' : '(historial de manos)'}</div>
+          <div style="color:#64748b;font-size:0.78rem;margin-top:6px">${isPT ? 'Máximo 10 MB · Um arquivo por análise' : 'Máximo 10 MB · Un solo archivo por análisis'}</div>
           <input type="file" id="tourn-file-input" accept=".zip,.txt" style="display:none" onchange="tournFileSelected(this)">
         </div>
 
@@ -42,24 +43,24 @@ function renderTournamentTab() {
               <div id="tourn-file-name" style="font-weight:700;color:#22c55e"></div>
               <div id="tourn-file-size" style="font-size:0.8rem;color:#64748b"></div>
             </div>
-            <button class="btn btn-secondary btn-sm" onclick="tournClearFile()" style="padding:6px 12px">✕ Quitar</button>
+            <button class="btn btn-secondary btn-sm" onclick="tournClearFile()" style="padding:6px 12px">✕ ${isPT ? 'Remover' : 'Quitar'}</button>
           </div>
         </div>
 
         <!-- Instrucciones -->
         <div style="margin-top:16px;padding:14px;background:rgba(59,130,246,0.06);border-radius:8px;border:1px solid rgba(59,130,246,0.15)">
           <div style="font-size:0.82rem;color:#94a3b8;line-height:1.7">
-            <strong style="color:#3b82f6">¿Cómo exportar el historial?</strong><br>
-            🟢 <strong>GGPoker</strong>: Lobby → Mi cuenta → Historial de manos → Exportar por torneo (.zip)<br>
-            🟣 <strong>PokerStars</strong>: Lobby → Solicitar historial de manos → Exportar .txt<br>
-            🔵 <strong>ACR / 888 / WPT</strong>: Mi cuenta → Historial → Exportar (.txt o .zip)
+            <strong style="color:#3b82f6">${isPT ? 'Como exportar o histórico?' : '¿Cómo exportar el historial?'}</strong><br>
+            🟢 <strong>GGPoker</strong>: ${isPT ? 'Lobby → Minha conta → Histórico de mãos → Exportar por torneio (.zip)' : 'Lobby → Mi cuenta → Historial de manos → Exportar por torneo (.zip)'}<br>
+            🟣 <strong>PokerStars</strong>: ${isPT ? 'Lobby → Solicitar histórico de mãos → Exportar .txt' : 'Lobby → Solicitar historial de manos → Exportar .txt'}<br>
+            🔵 <strong>ACR / 888 / WPT</strong>: ${isPT ? 'Minha conta → Histórico → Exportar (.txt ou .zip)' : 'Mi cuenta → Historial → Exportar (.txt o .zip)'}
           </div>
         </div>
 
         <!-- Botón analizar -->
         <div style="margin-top:20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
           <button id="tourn-analyze-btn" class="btn btn-primary" onclick="tournAnalyze()" disabled style="opacity:0.5">
-            🤖 Analizar torneo con IA
+            🤖 ${isPT ? 'Analisar torneio com IA' : 'Analizar torneo con IA'}
           </button>
         </div>
       </div>
@@ -91,13 +92,14 @@ function tournFileSelected(input) {
   if (input.files[0]) _tournSetFile(input.files[0]);
 }
 function _tournSetFile(file) {
+  const _isPT = I18N.isPT();
   const ext = file.name.split('.').pop().toLowerCase();
   if (!['zip','txt'].includes(ext)) {
-    alert('Solo se aceptan archivos .zip o .txt');
+    alert(_isPT ? 'Apenas arquivos .zip ou .txt são aceitos.' : 'Solo se aceptan archivos .zip o .txt');
     return;
   }
   if (file.size > 10 * 1024 * 1024) {
-    alert('El archivo supera el límite de 10 MB.');
+    alert(_isPT ? 'O arquivo excede o limite de 10 MB.' : 'El archivo supera el límite de 10 MB.');
     return;
   }
   _tournFile = file;
@@ -126,19 +128,20 @@ let _tournSeconds   = 0;
 
 function _tournShowResult(data) {
   const resultEl = document.getElementById('tourn-result');
+  const isPT = I18N.isPT();
   resultEl.innerHTML = `
     <div class="card" style="margin-bottom:20px">
       <div class="card-header">
         <span class="card-icon">🏆</span>
         <div>
-          <h2 style="margin:0">${data.meta?.tournament_name || 'Torneo'}</h2>
+          <h2 style="margin:0">${data.meta?.tournament_name || (isPT ? 'Torneio' : 'Torneo')}</h2>
           <div class="card-sub">${data.meta?.platform || ''} · ${data.meta?.date?.slice(0,10) || ''} · Buy-in: ${data.meta?.buy_in || 'N/D'}</div>
         </div>
         <div style="margin-left:auto;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
           <span style="background:rgba(212,175,55,0.12);border:1px solid rgba(212,175,55,0.3);color:#d4af37;padding:6px 14px;border-radius:6px;font-size:0.82rem">
-            🃏 ${data.meta?.total_hands || 0} manos totales · ${data.meta?.hero_hands || 0} jugadas
+            🃏 ${data.meta?.total_hands || 0} ${isPT ? 'mãos totais' : 'manos totales'} · ${data.meta?.hero_hands || 0} ${isPT ? 'jogadas' : 'jugadas'}
           </span>
-          <button class="btn btn-primary btn-sm" onclick="tournDownloadPDF()">📄 Descargar PDF</button>
+          <button class="btn btn-primary btn-sm" onclick="tournDownloadPDF()">📄 ${isPT ? 'Baixar PDF' : 'Descargar PDF'}</button>
         </div>
       </div>
       <div id="tourn-report-content">
@@ -146,32 +149,35 @@ function _tournShowResult(data) {
       </div>
     </div>
     <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap">
-      <button class="btn btn-secondary btn-sm" onclick="tournClearFile()">🔄 Analizar otro torneo</button>
-      <button class="btn btn-primary btn-sm"   onclick="tournDownloadPDF()">📄 Descargar PDF</button>
+      <button class="btn btn-secondary btn-sm" onclick="tournClearFile()">🔄 ${isPT ? 'Analisar outro torneio' : 'Analizar otro torneo'}</button>
+      <button class="btn btn-primary btn-sm"   onclick="tournDownloadPDF()">📄 ${isPT ? 'Baixar PDF' : 'Descargar PDF'}</button>
     </div>`;
 }
 
 function _tournShowError(msg) {
   const resultEl = document.getElementById('tourn-result');
+  const isPT = I18N.isPT();
   resultEl.innerHTML = `
     <div class="form-error" style="margin:0">
       ❌ ${msg}
-      <div style="margin-top:8px;font-size:0.85rem;color:#94a3b8">Verifica que el archivo contenga manos de torneo válidas y vuelve a intentarlo.</div>
+      <div style="margin-top:8px;font-size:0.85rem;color:#94a3b8">${isPT ? 'Verifique se o arquivo contém mãos de torneio válidas e tente novamente.' : 'Verifica que el archivo contenga manos de torneo válidas y vuelve a intentarlo.'}</div>
     </div>`;
 }
 
 function _tournStopPolling() {
   if (_tournPollTimer) { clearInterval(_tournPollTimer); _tournPollTimer = null; }
   const btn = document.getElementById('tourn-analyze-btn');
-  if (btn) { btn.disabled = false; btn.textContent = '🤖 Analizar torneo con IA'; btn.style.opacity = '1'; }
+  const _isPT = I18N.isPT();
+  if (btn) { btn.disabled = false; btn.textContent = `🤖 ${_isPT ? 'Analisar torneio com IA' : 'Analizar torneo con IA'}`; btn.style.opacity = '1'; }
 }
 
 async function _tournPoll(jobId, meta) {
   _tournSeconds += 4;
   const elapsed = _tournSeconds;
+  const _isPT = I18N.isPT();
   // Actualizar texto del spinner con tiempo transcurrido
   const p = document.querySelector('#tourn-result .spinner-msg');
-  if (p) p.textContent = `La IA está analizando tu torneo… (${elapsed}s)`;
+  if (p) p.textContent = `${_isPT ? 'A IA está analisando seu torneio…' : 'La IA está analizando tu torneo…'} (${elapsed}s)`;
 
   try {
     const token = localStorage.getItem('evhapo_token');
@@ -201,20 +207,23 @@ async function tournAnalyze() {
   const btn = document.getElementById('tourn-analyze-btn');
   const resultEl = document.getElementById('tourn-result');
 
+  const _isPT2 = I18N.isPT();
   btn.disabled = true;
   btn.style.opacity = '0.6';
-  btn.textContent = '⏳ Enviando archivo...';
+  btn.textContent = `⏳ ${_isPT2 ? 'Enviando arquivo...' : 'Enviando archivo...'}`;
 
   resultEl.style.display = 'block';
   resultEl.innerHTML = `
     <div class="card" style="text-align:center;padding:48px 20px">
       <div class="spinner" style="margin:0 auto 20px"></div>
-      <p class="spinner-msg" style="color:#94a3b8;font-size:1rem;margin-bottom:8px">Subiendo archivo y preparando análisis…</p>
-      <p style="color:#64748b;font-size:0.85rem">La IA leerá cada mano y evaluará tus decisiones. Esto puede tardar 1-3 minutos.</p>
+      <p class="spinner-msg" style="color:#94a3b8;font-size:1rem;margin-bottom:8px">${_isPT2 ? 'Enviando arquivo e preparando análise…' : 'Subiendo archivo y preparando análisis…'}</p>
+      <p style="color:#64748b;font-size:0.85rem">${_isPT2 ? 'A IA lerá cada mão e avaliará suas decisões. Isso pode levar 1-3 minutos.' : 'La IA leerá cada mano y evaluará tus decisiones. Esto puede tardar 1-3 minutos.'}</p>
       <div style="margin-top:16px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
-        ${['📂 Leyendo archivo','🃏 Parseando manos','🤖 Analizando con IA','📊 Generando reporte'].map(s =>
-          `<span style="font-size:0.8rem;color:#64748b;padding:4px 10px;background:#1a2235;border-radius:20px">${s}</span>`
-        ).join('')}
+        ${(
+          _isPT2
+            ? ['📂 Lendo arquivo','🃏 Processando mãos','🤖 Analisando com IA','📊 Gerando relatório']
+            : ['📂 Leyendo archivo','🃏 Parseando manos','🤖 Analizando con IA','📊 Generando reporte']
+        ).map(s => `<span style="font-size:0.8rem;color:#64748b;padding:4px 10px;background:#1a2235;border-radius:20px">${s}</span>`).join('')}
       </div>
     </div>`;
 
@@ -237,12 +246,12 @@ async function tournAnalyze() {
     const data = await res.json();
     const jobId = data.job_id;
 
-    btn.textContent = '⏳ Analizando...';
+    btn.textContent = `⏳ ${_isPT2 ? 'Analisando...' : 'Analizando...'}`;
     _tournSeconds = 0;
 
     // Actualizar spinner con meta del torneo
     const spinnerMsg = document.querySelector('#tourn-result .spinner-msg');
-    if (spinnerMsg) spinnerMsg.textContent = `Analizando ${data.meta?.tournament_name || 'torneo'}…`;
+    if (spinnerMsg) spinnerMsg.textContent = `${_isPT2 ? 'Analisando' : 'Analizando'} ${data.meta?.tournament_name || (_isPT2 ? 'torneio' : 'torneo')}…`;
 
     // Iniciar polling cada 4 segundos
     if (_tournPollTimer) clearInterval(_tournPollTimer);

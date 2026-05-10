@@ -1,17 +1,18 @@
 async function renderDashboard() {
   if (!Api.isLoggedIn()) { App.go('login'); return; }
   const user = Api.currentUser();
+  const isPT = I18N.isPT();
 
   document.getElementById('app').innerHTML = `${renderNavbar()}
     <div class="page-wide">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;flex-wrap:wrap;gap:12px">
         <div>
-          <h1 style="font-size:1.8rem;font-weight:800">Mi Dashboard</h1>
-          <p class="text-muted">Bienvenido/a, <strong>${user.nombre}</strong>. Tu centro de diagnóstico y mejora.</p>
+          <h1 style="font-size:1.8rem;font-weight:800">${isPT ? 'Meu Painel' : 'Mi Dashboard'}</h1>
+          <p class="text-muted">${isPT ? 'Bem-vindo/a,' : 'Bienvenido/a,'} <strong>${user.nombre}</strong>. ${isPT ? 'Seu centro de diagnóstico e melhoria.' : 'Tu centro de diagnóstico y mejora.'}</p>
         </div>
         <div style="display:flex;gap:10px;flex-wrap:wrap">
-          <button class="btn btn-secondary" onclick="startNewTest('mental')">🧠 Test Mental</button>
-          <button class="btn btn-primary"   onclick="startNewTest('technical')">⚙️ Test Técnico</button>
+          <button class="btn btn-secondary" onclick="startNewTest('mental')">🧠 ${isPT ? 'Teste Mental' : 'Test Mental'}</button>
+          <button class="btn btn-primary"   onclick="startNewTest('technical')">⚙️ ${isPT ? 'Teste Técnico' : 'Test Técnico'}</button>
         </div>
       </div>
       <div id="dashboard-content"><div style="text-align:center;padding:60px"><div class="spinner" style="margin:0 auto"></div></div></div>
@@ -27,6 +28,7 @@ async function renderDashboard() {
 
 function renderDashboardContent(data, user) {
   const { history, benchmark } = data;
+  const isPT = I18N.isPT();
 
   // Separar historial por tipo de test
   const mentalHistory    = history.filter(s => !s.test_type || s.test_type === 'mental');
@@ -52,19 +54,19 @@ function renderDashboardContent(data, user) {
   html += `<div class="dashboard-grid">
     <div class="stat-card">
       <div class="stat-val">${history.length}</div>
-      <div class="stat-label">Tests totales</div>
+      <div class="stat-label">${isPT ? 'Testes totais' : 'Tests totales'}</div>
     </div>
     <div class="stat-card">
       <div class="stat-val" style="color:${mentalOv !== null ? (mentalOv >= 80 ? 'var(--green)' : mentalOv >= 60 ? 'var(--accent)' : 'var(--red)') : 'var(--text2)'}">
         ${mentalOv !== null ? mentalOv + '%' : '—'}
       </div>
-      <div class="stat-label">🧠 Nivel Mental</div>
+      <div class="stat-label">🧠 ${isPT ? 'Nível Mental' : 'Nivel Mental'}</div>
     </div>
     <div class="stat-card">
       <div class="stat-val" style="color:${techOv !== null ? (techOv >= 80 ? 'var(--green)' : techOv >= 60 ? 'var(--accent)' : 'var(--red)') : 'var(--text2)'}">
         ${techOv !== null ? techOv + '%' : '—'}
       </div>
-      <div class="stat-label">⚙️ Nivel Técnico</div>
+      <div class="stat-label">⚙️ ${isPT ? 'Nível Técnico' : 'Nivel Técnico'}</div>
     </div>
     <div class="stat-card">
       ${(() => {
@@ -76,7 +78,7 @@ function renderDashboardContent(data, user) {
           : 'var(--text2)';
         return `<div class="stat-val" style="color:${color}">${combinado !== null ? combinado + '%' : '—'}</div>`;
       })()}
-      <div class="stat-label">Índice combinado</div>
+      <div class="stat-label">${isPT ? 'Índice combinado' : 'Índice combinado'}</div>
     </div>
   </div>`;
 
@@ -84,11 +86,11 @@ function renderDashboardContent(data, user) {
     html += `
       <div class="empty-state">
         <span class="empty-icon">♠</span>
-        <h2>Aún no tienes diagnósticos</h2>
-        <p>Completa tu primer test para ver tu mapa de habilidades y plan de mejora.</p>
+        <h2>${isPT ? 'Ainda não tem diagnósticos' : 'Aún no tienes diagnósticos'}</h2>
+        <p>${isPT ? 'Complete seu primeiro teste para ver seu mapa de habilidades e plano de melhoria.' : 'Completa tu primer test para ver tu mapa de habilidades y plan de mejora.'}</p>
         <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:20px">
-          <button class="btn btn-secondary" onclick="startNewTest('mental')">🧠 Comenzar Test Mental</button>
-          <button class="btn btn-primary"   onclick="startNewTest('technical')">⚙️ Comenzar Test Técnico</button>
+          <button class="btn btn-secondary" onclick="startNewTest('mental')">🧠 ${isPT ? 'Começar Teste Mental' : 'Comenzar Test Mental'}</button>
+          <button class="btn btn-primary"   onclick="startNewTest('technical')">⚙️ ${isPT ? 'Começar Teste Técnico' : 'Comenzar Test Técnico'}</button>
         </div>
       </div>`;
     document.getElementById('dashboard-content').innerHTML = html;
@@ -99,12 +101,12 @@ function renderDashboardContent(data, user) {
   const hasBoth = mentalSc && techSc;
   _dashHasBoth  = !!hasBoth;
   html += `<div class="tabs">
-    ${hasBoth ? `<button class="tab-btn active" onclick="dashTab('combined')">🔀 Vista Combinada</button>` : ''}
-    <button class="tab-btn ${!hasBoth ? 'active' : ''}" onclick="dashTab('mental')">🧠 Mental ${mentalSc ? '' : '<span style=\'font-size:0.7rem;color:var(--text3)\'>— pendiente</span>'}</button>
-    <button class="tab-btn" onclick="dashTab('technical')">⚙️ Técnico ${techSc ? '' : '<span style=\'font-size:0.7rem;color:var(--text3)\'>— pendiente</span>'}</button>
-    <button class="tab-btn" onclick="dashTab('profile')">🧬 Mi Perfil</button>
-    <button class="tab-btn" onclick="dashTab('tournament')">🏆 Torneo</button>
-    <button class="tab-btn" onclick="dashTab('history')">📅 Historial</button>
+    ${hasBoth ? `<button class="tab-btn active" onclick="dashTab('combined')">🔀 ${isPT ? 'Vista Combinada' : 'Vista Combinada'}</button>` : ''}
+    <button class="tab-btn ${!hasBoth ? 'active' : ''}" onclick="dashTab('mental')">🧠 Mental ${mentalSc ? '' : `<span style='font-size:0.7rem;color:var(--text3)'>— ${isPT ? 'pendente' : 'pendiente'}</span>`}</button>
+    <button class="tab-btn" onclick="dashTab('technical')">⚙️ ${isPT ? 'Técnico' : 'Técnico'} ${techSc ? '' : `<span style='font-size:0.7rem;color:var(--text3)'>— ${isPT ? 'pendente' : 'pendiente'}</span>`}</button>
+    <button class="tab-btn" onclick="dashTab('profile')">🧬 ${isPT ? 'Meu Perfil' : 'Mi Perfil'}</button>
+    <button class="tab-btn" onclick="dashTab('tournament')">🏆 ${isPT ? 'Torneio' : 'Torneo'}</button>
+    <button class="tab-btn" onclick="dashTab('history')">📅 ${isPT ? 'Histórico' : 'Historial'}</button>
     <button class="tab-btn" onclick="dashTab('benchmark')">🏅 Benchmark</button>
   </div>`;
 
@@ -132,20 +134,20 @@ function renderDashboardContent(data, user) {
       </div>`;
 
     // Plan combinado (top 3 brechas de cada test)
-    const mentalGaps = EVHAPO_CATEGORIES.map(c => ({ ...c, pct: mentalSc[c.key] || 0 }))
+    const mentalGaps = I18N.cats().map(c => ({ ...c, pct: mentalSc[c.key] || 0 }))
       .filter(c => c.pct < 80).sort((a, b) => a.pct - b.pct).slice(0, 3);
-    const techGaps   = TECHNICAL_CATEGORIES.map(c => ({ ...c, pct: techSc[c.key] || 0 }))
+    const techGaps   = I18N.techCats().map(c => ({ ...c, pct: techSc[c.key] || 0 }))
       .filter(c => c.pct < 80).sort((a, b) => a.pct - b.pct).slice(0, 3);
 
     html += `
       <div class="card">
         <div class="card-header">
           <span class="card-icon">🗓️</span>
-          <div><h2>Plan de Mejora Combinado</h2><div class="card-sub">Tus principales brechas de ambos diagnósticos</div></div>
+          <div><h2>${isPT ? 'Plano de Melhoria Combinado' : 'Plan de Mejora Combinado'}</h2><div class="card-sub">${isPT ? 'Suas principais lacunas de ambos os diagnósticos' : 'Tus principales brechas de ambos diagnósticos'}</div></div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px">
           <div>
-            <div style="font-size:0.8rem;font-weight:700;color:var(--accent);margin-bottom:12px;text-transform:uppercase">🧠 Brechas Mentales</div>
+            <div style="font-size:0.8rem;font-weight:700;color:var(--accent);margin-bottom:12px;text-transform:uppercase">🧠 ${isPT ? 'Lacunas Mentais' : 'Brechas Mentales'}</div>
             ${mentalGaps.length ? mentalGaps.map(c => `
               <div class="mini-gap" style="border-left:3px solid ${c.color}">
                 <div style="display:flex;justify-content:space-between;margin-bottom:4px">
@@ -155,10 +157,10 @@ function renderDashboardContent(data, user) {
                 <div class="cat-score-bar" style="height:6px">
                   <div class="cat-score-fill" style="width:${c.pct}%;background:${c.color}"></div>
                 </div>
-              </div>`).join('') : '<p class="text-muted" style="font-size:0.875rem">¡Todas las áreas mentales en élite!</p>'}
+              </div>`).join('') : `<p class="text-muted" style="font-size:0.875rem">${isPT ? '🏆 Todas as áreas mentais no nível elite!' : '¡Todas las áreas mentales en élite!'}</p>`}
           </div>
           <div>
-            <div style="font-size:0.8rem;font-weight:700;color:#4DB6AC;margin-bottom:12px;text-transform:uppercase">⚙️ Brechas Técnicas</div>
+            <div style="font-size:0.8rem;font-weight:700;color:#4DB6AC;margin-bottom:12px;text-transform:uppercase">⚙️ ${isPT ? 'Lacunas Técnicas' : 'Brechas Técnicas'}</div>
             ${techGaps.length ? techGaps.map(c => `
               <div class="mini-gap" style="border-left:3px solid ${c.color}">
                 <div style="display:flex;justify-content:space-between;margin-bottom:4px">
@@ -168,12 +170,12 @@ function renderDashboardContent(data, user) {
                 <div class="cat-score-bar" style="height:6px">
                   <div class="cat-score-fill" style="width:${c.pct}%;background:${c.color}"></div>
                 </div>
-              </div>`).join('') : '<p class="text-muted" style="font-size:0.875rem">¡Todas las áreas técnicas en élite!</p>'}
+              </div>`).join('') : `<p class="text-muted" style="font-size:0.875rem">${isPT ? '🏆 Todas as áreas técnicas no nível elite!' : '¡Todas las áreas técnicas en élite!'}</p>`}
           </div>
         </div>
         <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:20px">
-          <button class="btn btn-secondary btn-sm" onclick="App.go('results', ${latestMental.id})">Ver informe mental →</button>
-          <button class="btn btn-primary btn-sm"   onclick="App.go('results', ${latestTechnical.id})">Ver informe técnico →</button>
+          <button class="btn btn-secondary btn-sm" onclick="App.go('results', ${latestMental.id})">${isPT ? 'Ver relatório mental →' : 'Ver informe mental →'}</button>
+          <button class="btn btn-primary btn-sm"   onclick="App.go('results', ${latestTechnical.id})">${isPT ? 'Ver relatório técnico →' : 'Ver informe técnico →'}</button>
         </div>
       </div>`;
     html += `</div>`;
@@ -182,15 +184,15 @@ function renderDashboardContent(data, user) {
   // ─── TAB: Mental ─────────────────────────────────────────────────────────
   html += `<div id="dtab-mental" ${hasBoth ? 'style="display:none"' : ''}>`;
   if (mentalSc) {
-    const mentalCatData = EVHAPO_CATEGORIES.map(c => ({ ...c, pct: mentalSc[c.key] || 0 }));
+    const mentalCatData = I18N.cats().map(c => ({ ...c, pct: mentalSc[c.key] || 0 }));
     html += renderTestTab(mentalCatData, mentalOv, mentalLvl, latestMental.id, 'dash-radar-mental-solo', user, 'mental');
   } else {
     html += `
       <div class="empty-state">
         <span class="empty-icon">🧠</span>
-        <h2>Test Mental pendiente</h2>
-        <p>Completa el diagnóstico mental para ver tus habilidades psicológicas como jugador.</p>
-        <button class="btn btn-secondary mt-4" onclick="startNewTest('mental')">Comenzar Test Mental →</button>
+        <h2>${isPT ? 'Teste Mental pendente' : 'Test Mental pendiente'}</h2>
+        <p>${isPT ? 'Complete o diagnóstico mental para ver suas habilidades psicológicas como jogador.' : 'Completa el diagnóstico mental para ver tus habilidades psicológicas como jugador.'}</p>
+        <button class="btn btn-secondary mt-4" onclick="startNewTest('mental')">${isPT ? 'Começar Teste Mental →' : 'Comenzar Test Mental →'}</button>
       </div>`;
   }
   html += `</div>`;
@@ -198,15 +200,15 @@ function renderDashboardContent(data, user) {
   // ─── TAB: Técnico ─────────────────────────────────────────────────────────
   html += `<div id="dtab-technical" style="display:none">`;
   if (techSc) {
-    const techCatData = TECHNICAL_CATEGORIES.map(c => ({ ...c, pct: techSc[c.key] || 0 }));
+    const techCatData = I18N.techCats().map(c => ({ ...c, pct: techSc[c.key] || 0 }));
     html += renderTestTab(techCatData, techOv, techLvl, latestTechnical.id, 'dash-radar-tech-solo', user, 'technical');
   } else {
     html += `
       <div class="empty-state">
         <span class="empty-icon">⚙️</span>
-        <h2>Test Técnico pendiente</h2>
-        <p>Completa el diagnóstico técnico para medir tus conocimientos de Texas Hold'em.</p>
-        <button class="btn btn-primary mt-4" onclick="startNewTest('technical')">Comenzar Test Técnico →</button>
+        <h2>${isPT ? 'Teste Técnico pendente' : 'Test Técnico pendiente'}</h2>
+        <p>${isPT ? 'Complete o diagnóstico técnico para medir seus conhecimentos de Texas Hold\'em.' : 'Completa el diagnóstico técnico para medir tus conocimientos de Texas Hold\'em.'}</p>
+        <button class="btn btn-primary mt-4" onclick="startNewTest('technical')">${isPT ? 'Começar Teste Técnico →' : 'Comenzar Test Técnico →'}</button>
       </div>`;
   }
   html += `</div>`;
@@ -219,32 +221,32 @@ function renderDashboardContent(data, user) {
       <div class="card-header">
         <span class="card-icon">🧬</span>
         <div>
-          <h2>Mi Perfil como Jugador</h2>
-          <div class="card-sub">Análisis integral generado por Inteligencia Artificial · Correlación mental + técnico</div>
+          <h2>${isPT ? 'Meu Perfil como Jogador' : 'Mi Perfil como Jugador'}</h2>
+          <div class="card-sub">${isPT ? 'Análise integral gerada por Inteligência Artificial · Correlação mental + técnico' : 'Análisis integral generado por Inteligencia Artificial · Correlación mental + técnico'}</div>
         </div>
       </div>
 
       ${!hasAnyTest ? `
         <div class="empty-state" style="padding:40px 20px">
           <span class="empty-icon">🧬</span>
-          <h2>Completa al menos un test</h2>
-          <p>Necesitas completar el Test Mental o el Test Técnico para generar tu perfil.</p>
+          <h2>${isPT ? 'Complete pelo menos um teste' : 'Completa al menos un test'}</h2>
+          <p>${isPT ? 'Você precisa completar o Teste Mental ou o Teste Técnico para gerar seu perfil.' : 'Necesitas completar el Test Mental o el Test Técnico para generar tu perfil.'}</p>
         </div>
       ` : `
         <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px">
           <button class="btn btn-primary" id="profile-gen-btn" onclick="generateProfile(${latestMental ? latestMental.id : 'null'}, ${latestTechnical ? latestTechnical.id : 'null'})">
-            ✨ Generar mi perfil con IA
+            ✨ ${isPT ? 'Gerar meu perfil com IA' : 'Generar mi perfil con IA'}
           </button>
           <div style="color:var(--text2);font-size:0.85rem;align-self:center">
-            ${hasBoth ? '🟢 Test mental + técnico disponibles' : mentalSc ? '🟡 Solo test mental disponible' : '🟡 Solo test técnico disponible'}<br>
-            <span style="font-size:0.75rem">El análisis tarda ~15 segundos · Se guarda automáticamente</span>
+            ${hasBoth ? `🟢 ${isPT ? 'Teste mental + técnico disponíveis' : 'Test mental + técnico disponibles'}` : mentalSc ? `🟡 ${isPT ? 'Apenas teste mental disponível' : 'Solo test mental disponible'}` : `🟡 ${isPT ? 'Apenas teste técnico disponível' : 'Solo test técnico disponible'}`}<br>
+            <span style="font-size:0.75rem">${isPT ? 'A análise leva ~15 segundos · É salva automaticamente' : 'El análisis tarda ~15 segundos · Se guarda automáticamente'}</span>
           </div>
         </div>
         <div id="profile-content">
           <div style="text-align:center;padding:40px;color:var(--text2)">
             <div style="font-size:3rem;margin-bottom:12px">🧬</div>
-            <p>Hacé clic en <strong>"Generar mi perfil con IA"</strong> para obtener tu análisis personalizado.</p>
-            <p style="font-size:0.85rem;margin-top:8px">La IA analiza todas tus respuestas, encuentra correlaciones e incoherencias, y genera un informe con diagnóstico y plan de trabajo.</p>
+            <p>${isPT ? 'Clique em <strong>"Gerar meu perfil com IA"</strong> para obter sua análise personalizada.' : 'Hacé clic en <strong>"Generar mi perfil con IA"</strong> para obtener tu análisis personalizado.'}</p>
+            <p style="font-size:0.85rem;margin-top:8px">${isPT ? 'A IA analisa todas as suas respostas, encontra correlações e inconsistências, e gera um relatório com diagnóstico e plano de trabalho.' : 'La IA analiza todas tus respuestas, encuentra correlaciones e incoherencias, y genera un informe con diagnóstico y plan de trabajo.'}</p>
           </div>
         </div>
       `}
@@ -261,8 +263,8 @@ function renderDashboardContent(data, user) {
     const tt  = s.test_type || 'mental';
     const ov  = tt === 'technical' ? getTechnicalOverallScore(sc) : getOverallScore(sc);
     const lv  = tt === 'technical' ? getTechnicalLevel(ov) : getLevel(ov);
-    const dt  = new Date(s.completed_at).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
-    const badge = tt === 'technical' ? '⚙️ Técnico' : '🧠 Mental';
+    const dt  = new Date(s.completed_at).toLocaleDateString(isPT ? 'pt-BR' : 'es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
+    const badge = tt === 'technical' ? `⚙️ ${isPT ? 'Técnico' : 'Técnico'}` : `🧠 Mental`;
     return `
       <div class="history-item" onclick="App.go('results', ${s.id})">
         <div>
@@ -270,7 +272,7 @@ function renderDashboardContent(data, user) {
           <div class="history-date">${badge} · ${lv.label}</div>
         </div>
         <div class="history-score">${ov}%</div>
-        <button class="btn btn-secondary btn-sm">Ver →</button>
+        <button class="btn btn-secondary btn-sm">${isPT ? 'Ver →' : 'Ver →'}</button>
       </div>`;
   }).join('');
   html += `</div>`;
@@ -298,15 +300,15 @@ function renderDashboardContent(data, user) {
             <div style="margin-bottom:18px">
               <div style="display:flex;justify-content:space-between;font-size:0.875rem;font-weight:600;margin-bottom:6px">
                 <span>${c.icon} ${c.label}</span>
-                <span style="color:${diff >= 0 ? 'var(--green)' : 'var(--red)'}">${diff >= 0 ? '+' : ''}${diff.toFixed(1)} vs promedio</span>
+                <span style="color:${diff >= 0 ? 'var(--green)' : 'var(--red)'}">${diff >= 0 ? '+' : ''}${diff.toFixed(1)} vs ${isPT ? 'média' : 'promedio'}</span>
               </div>
               <div class="benchmark-bar">
-                <div class="benchmark-label" style="font-size:0.8rem;color:var(--blue)">Tú</div>
+                <div class="benchmark-label" style="font-size:0.8rem;color:var(--blue)">${isPT ? 'Você' : 'Tú'}</div>
                 <div class="benchmark-track"><div class="benchmark-fill user" style="width:${myPct}%"></div></div>
                 <div class="benchmark-pct" style="color:var(--blue)">${myPct}%</div>
               </div>
               <div class="benchmark-bar">
-                <div class="benchmark-label" style="font-size:0.8rem;color:${accentColor}">Promedio</div>
+                <div class="benchmark-label" style="font-size:0.8rem;color:${accentColor}">${isPT ? 'Média' : 'Promedio'}</div>
                 <div class="benchmark-track"><div class="benchmark-fill" style="width:${avgPct}%;background:${accentColor}"></div></div>
                 <div class="benchmark-pct" style="color:${accentColor}">${avgPct}%</div>
               </div>
@@ -317,23 +319,23 @@ function renderDashboardContent(data, user) {
 
   if (hasBenchData && (mentalSc || techSc)) {
     html += renderBenchCard(
-      'Benchmark Global 🧠 Mental',
-      'Tu nivel vs. promedio de la comunidad MindEV',
-      '🏅', EVHAPO_CATEGORIES, mentalSc, 'var(--accent)'
+      isPT ? 'Benchmark Global 🧠 Mental' : 'Benchmark Global 🧠 Mental',
+      isPT ? 'Seu nível vs. média da comunidade MindEV' : 'Tu nivel vs. promedio de la comunidad MindEV',
+      '🏅', I18N.cats(), mentalSc, 'var(--accent)'
     );
     html += renderBenchCard(
-      'Benchmark Global ⚙️ Técnico',
-      'Tu conocimiento de Texas Hold\'em vs. promedio de la comunidad MindEV',
-      '🏅', TECHNICAL_CATEGORIES, techSc, '#4db6ac'
+      isPT ? 'Benchmark Global ⚙️ Técnico' : 'Benchmark Global ⚙️ Técnico',
+      isPT ? 'Seu conhecimento de Texas Hold\'em vs. média da comunidade MindEV' : 'Tu conocimiento de Texas Hold\'em vs. promedio de la comunidad MindEV',
+      '🏅', I18N.techCats(), techSc, '#4db6ac'
     );
     if (!mentalSc) {
-      html += '<div class="alert alert-info" style="margin-bottom:12px">Completa el test mental para ver tu benchmark mental.</div>';
+      html += `<div class="alert alert-info" style="margin-bottom:12px">${isPT ? 'Complete o teste mental para ver seu benchmark mental.' : 'Completa el test mental para ver tu benchmark mental.'}</div>`;
     }
     if (!techSc) {
-      html += '<div class="alert alert-info">Completa el test técnico para ver tu benchmark técnico.</div>';
+      html += `<div class="alert alert-info">${isPT ? 'Complete o teste técnico para ver seu benchmark técnico.' : 'Completa el test técnico para ver tu benchmark técnico.'}</div>`;
     }
   } else {
-    html += '<div class="alert alert-info">El benchmark estará disponible cuando más jugadores completen el diagnóstico.</div>';
+    html += `<div class="alert alert-info">${isPT ? 'O benchmark estará disponível quando mais jogadores completarem o diagnóstico.' : 'El benchmark estará disponible cuando más jugadores completen el diagnóstico.'}</div>`;
   }
   html += `</div>`;
 
@@ -342,11 +344,11 @@ function renderDashboardContent(data, user) {
   // ─── Dibujar radares ──────────────────────────────────────────────────────
   setTimeout(() => {
     if (hasBoth && mentalSc) {
-      drawDashRadar('dash-radar-mental', EVHAPO_CATEGORIES, mentalSc, 'rgba(212,175,55,0.9)', 'rgba(212,175,55,0.12)');
-      drawDashRadar('dash-radar-tech',   TECHNICAL_CATEGORIES, techSc,  'rgba(77,182,172,0.9)', 'rgba(77,182,172,0.12)');
+      drawDashRadar('dash-radar-mental', I18N.cats(),     mentalSc, 'rgba(212,175,55,0.9)', 'rgba(212,175,55,0.12)');
+      drawDashRadar('dash-radar-tech',   I18N.techCats(), techSc,   'rgba(77,182,172,0.9)', 'rgba(77,182,172,0.12)');
     }
-    if (!hasBoth && mentalSc)  drawDashRadar('dash-radar-mental-solo', EVHAPO_CATEGORIES, mentalSc, 'rgba(212,175,55,0.9)', 'rgba(212,175,55,0.12)');
-    if (!hasBoth && techSc)    drawDashRadar('dash-radar-tech-solo',   TECHNICAL_CATEGORIES, techSc, 'rgba(77,182,172,0.9)', 'rgba(77,182,172,0.12)');
+    if (!hasBoth && mentalSc)  drawDashRadar('dash-radar-mental-solo', I18N.cats(),     mentalSc, 'rgba(212,175,55,0.9)', 'rgba(212,175,55,0.12)');
+    if (!hasBoth && techSc)    drawDashRadar('dash-radar-tech-solo',   I18N.techCats(), techSc,   'rgba(77,182,172,0.9)', 'rgba(77,182,172,0.12)');
   }, 150);
 }
 
@@ -430,17 +432,17 @@ function dashTab(tab) {
   // (cuando hasBoth=true, los radares solo se habían dibujado para el tab combinado)
   setTimeout(() => {
     if (tab === 'mental' && _dashMentalSc) {
-      drawDashRadar('dash-radar-mental-solo', EVHAPO_CATEGORIES, _dashMentalSc,
+      drawDashRadar('dash-radar-mental-solo', I18N.cats(), _dashMentalSc,
         'rgba(212,175,55,0.9)', 'rgba(212,175,55,0.12)');
     }
     if (tab === 'technical' && _dashTechSc) {
-      drawDashRadar('dash-radar-tech-solo', TECHNICAL_CATEGORIES, _dashTechSc,
+      drawDashRadar('dash-radar-tech-solo', I18N.techCats(), _dashTechSc,
         'rgba(77,182,172,0.9)', 'rgba(77,182,172,0.12)');
     }
     if (tab === 'combined') {
-      if (_dashMentalSc) drawDashRadar('dash-radar-mental', EVHAPO_CATEGORIES, _dashMentalSc,
+      if (_dashMentalSc) drawDashRadar('dash-radar-mental', I18N.cats(),     _dashMentalSc,
         'rgba(212,175,55,0.9)', 'rgba(212,175,55,0.12)');
-      if (_dashTechSc)   drawDashRadar('dash-radar-tech',   TECHNICAL_CATEGORIES, _dashTechSc,
+      if (_dashTechSc)   drawDashRadar('dash-radar-tech',   I18N.techCats(), _dashTechSc,
         'rgba(77,182,172,0.9)', 'rgba(77,182,172,0.12)');
     }
   }, 100);
@@ -487,14 +489,15 @@ async function generateProfile(mentalSessionId, technicalSessionId) {
   const contentEl = document.getElementById('profile-content');
   if (!btn || !contentEl) return;
 
+  const _isPT = I18N.isPT();
   btn.disabled = true;
-  btn.textContent = '⏳ Analizando tu perfil...';
+  btn.textContent = _isPT ? '⏳ Analisando seu perfil...' : '⏳ Analizando tu perfil...';
 
   contentEl.innerHTML = `
     <div style="text-align:center;padding:48px 20px">
       <div class="spinner" style="margin:0 auto 20px"></div>
-      <p style="color:var(--text2);font-size:1rem">La IA está analizando tus respuestas y correlaciones...</p>
-      <p style="color:var(--text3);font-size:0.85rem;margin-top:8px">Este proceso tarda entre 15 y 30 segundos.</p>
+      <p style="color:var(--text2);font-size:1rem">${_isPT ? 'A IA está analisando suas respostas e correlações...' : 'La IA está analizando tus respuestas y correlaciones...'}</p>
+      <p style="color:var(--text3);font-size:0.85rem;margin-top:8px">${_isPT ? 'Este processo leva entre 15 e 30 segundos.' : 'Este proceso tarda entre 15 y 30 segundos.'}</p>
     </div>`;
 
   try {
@@ -504,8 +507,8 @@ async function generateProfile(mentalSessionId, technicalSessionId) {
       technicalSessionId ? Api.get(`/api/test/results/${technicalSessionId}`).catch(() => null) : Promise.resolve(null),
     ]);
 
-    const mentalAnswers   = mentalData  ? _enrichAnswers(mentalData.answers_json  || mentalData.answers  || {}, EVHAPO_CATEGORIES) : [];
-    const techAnswers     = techData    ? _enrichAnswers(techData.answers_json    || techData.answers    || {}, TECHNICAL_CATEGORIES) : [];
+    const mentalAnswers   = mentalData  ? _enrichAnswers(mentalData.answers_json  || mentalData.answers  || {}, I18N.cats()) : [];
+    const techAnswers     = techData    ? _enrichAnswers(techData.answers_json    || techData.answers    || {}, I18N.techCats()) : [];
     const mentalScores    = mentalData  ? (mentalData.scores || {}) : {};
     const techScores      = techData    ? (techData.scores   || {}) : {};
     const inconsistencies = _detectInconsistencies(mentalScores, techScores);
@@ -522,23 +525,23 @@ async function generateProfile(mentalSessionId, technicalSessionId) {
 
     _profileAlreadyLoaded = true;
     const _u  = Api.currentUser();
-    const _nombre = _u ? _u.nombre : 'Jugador';
-    const now = new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
+    const _nombre = _u ? _u.nombre : (_isPT ? 'Jogador' : 'Jugador');
+    const now = new Date().toLocaleDateString(_isPT ? 'pt-BR' : 'es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
     contentEl.innerHTML = `
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px">
         <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:rgba(34,197,94,0.08);border-radius:8px;border:1px solid rgba(34,197,94,0.2);flex:1;min-width:220px">
           <span style="font-size:1.2rem">✅</span>
-          <span style="font-size:0.85rem;color:var(--text2)">Perfil generado el <strong>${now}</strong>.</span>
+          <span style="font-size:0.85rem;color:var(--text2)">${_isPT ? 'Perfil gerado em' : 'Perfil generado el'} <strong>${now}</strong>.</span>
         </div>
-        <button class="btn btn-secondary btn-sm" onclick="downloadProfilePDF('${_nombre.replace(/'/g,"\\'")}')">📄 Descargar PDF</button>
+        <button class="btn btn-secondary btn-sm" onclick="downloadProfilePDF('${_nombre.replace(/'/g,"\\'")}')">📄 ${_isPT ? 'Baixar PDF' : 'Descargar PDF'}</button>
       </div>
       <div id="profile-ia-output">${res.profile}</div>`;
 
   } catch (e) {
-    contentEl.innerHTML = `<div class="form-error" style="margin:16px 0">Error al generar el perfil: ${e.message}</div>`;
+    contentEl.innerHTML = `<div class="form-error" style="margin:16px 0">${_isPT ? 'Erro ao gerar o perfil' : 'Error al generar el perfil'}: ${e.message}</div>`;
   } finally {
     btn.disabled = false;
-    btn.textContent = '✨ Regenerar perfil';
+    btn.textContent = `✨ ${_isPT ? 'Regenerar perfil' : 'Regenerar perfil'}`;
   }
 }
 

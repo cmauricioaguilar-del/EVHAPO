@@ -26,16 +26,25 @@ const App = {
 function renderNavbar() {
   const user = Api.currentUser();
   const initials = user ? (user.nombre || 'U')[0].toUpperCase() : '';
+  const isPT = I18N.isPT();
+
+  const langToggle = `
+    <div style="display:flex;gap:4px;align-items:center;margin-right:8px">
+      <button onclick="I18N.set('es')" style="background:${!isPT ? 'var(--accent)' : 'transparent'};color:${!isPT ? '#000' : 'var(--text2)'};border:1px solid var(--border);border-radius:6px;padding:3px 8px;font-size:0.75rem;font-weight:700;cursor:pointer">ES</button>
+      <button onclick="I18N.set('pt')" style="background:${isPT ? 'var(--accent)' : 'transparent'};color:${isPT ? '#000' : 'var(--text2)'};border:1px solid var(--border);border-radius:6px;padding:3px 8px;font-size:0.75rem;font-weight:700;cursor:pointer">PT</button>
+    </div>`;
 
   const rightSide = user
     ? `<div class="nav-user">
-        <button class="nav-btn" onclick="App.go('dashboard')">📊 Mi Dashboard</button>
+        ${langToggle}
+        <button class="nav-btn" onclick="App.go('dashboard')">📊 ${isPT ? 'Meu Painel' : 'Mi Dashboard'}</button>
         <div class="nav-avatar" title="${user.nombre}" onclick="App.go('dashboard')">${initials}</div>
-        <button class="nav-btn" onclick="doLogout()">Salir</button>
+        <button class="nav-btn" onclick="doLogout()">${isPT ? 'Sair' : 'Salir'}</button>
       </div>`
     : `<div class="nav-links">
-        <button class="nav-btn" onclick="App.go('login')">Iniciar sesión</button>
-        <button class="nav-btn primary" onclick="App.go('register')">Comenzar →</button>
+        ${langToggle}
+        <button class="nav-btn" onclick="App.go('login')">${isPT ? 'Entrar' : 'Iniciar sesión'}</button>
+        <button class="nav-btn primary" onclick="App.go('register')">${isPT ? 'Começar →' : 'Comenzar →'}</button>
       </div>`;
 
   return `

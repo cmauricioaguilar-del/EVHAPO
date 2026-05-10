@@ -1,11 +1,12 @@
 function renderLogin(msg) {
+  const isPT = I18N.isPT();
   const html = `
     <div class="auth-container">
       <div class="auth-card">
         <div style="text-align:center;margin-bottom:24px">
           <div style="font-size:2.5rem;color:var(--accent)">♠</div>
-          <h1>Iniciar Sesión</h1>
-          <p class="auth-sub">Accede a tus resultados y diagnósticos</p>
+          <h1>${isPT ? 'Entrar' : 'Iniciar Sesión'}</h1>
+          <p class="auth-sub">${isPT ? 'Acesse seus resultados e diagnósticos' : 'Accede a tus resultados y diagnósticos'}</p>
         </div>
         ${msg ? `<div class="alert alert-info">${msg}</div>` : ''}
         <div id="login-error"></div>
@@ -14,37 +15,35 @@ function renderLogin(msg) {
           <input type="email" id="login-email" placeholder="tu@email.com" autocomplete="email" />
         </div>
         <div class="form-group">
-          <label>Contraseña</label>
+          <label>${isPT ? 'Senha' : 'Contraseña'}</label>
           <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password" />
         </div>
-        <!-- CAPTCHA -->
         <div class="captcha-box" id="login-captcha-box" onclick="toggleCaptcha('login')">
           <div class="captcha-left">
             <div class="captcha-checkbox" id="login-captcha-check"></div>
-            <span class="captcha-label">No soy un robot</span>
+            <span class="captcha-label">${isPT ? 'Não sou um robô' : 'No soy un robot'}</span>
           </div>
           <div class="captcha-right">
             <span class="captcha-logo">🛡️</span>
             <span class="captcha-brand">reCAPTCHA</span>
-            <span class="captcha-links">Privacidad · Términos</span>
+            <span class="captcha-links">${isPT ? 'Privacidade · Termos' : 'Privacidad · Términos'}</span>
           </div>
         </div>
-
         <button class="btn btn-primary btn-block" id="login-btn" onclick="doLogin()">
-          Entrar →
+          ${isPT ? 'Entrar →' : 'Entrar →'}
         </button>
         <div style="text-align:center;margin-top:12px">
           <button class="auth-link" onclick="renderForgotPassword()" style="font-size:0.85rem;color:var(--text2)">
-            ¿Olvidaste tu contraseña?
+            ${isPT ? 'Esqueceu sua senha?' : '¿Olvidaste tu contraseña?'}
           </button>
         </div>
-        <div class="auth-divider">o</div>
+        <div class="auth-divider">${isPT ? 'ou' : 'o'}</div>
         <p style="text-align:center;font-size:0.9rem;color:var(--text2)">
-          ¿No tienes cuenta?
-          <button class="auth-link" onclick="App.go('register')">Regístrate aquí</button>
+          ${isPT ? 'Não tem conta?' : '¿No tienes cuenta?'}
+          <button class="auth-link" onclick="App.go('register')">${isPT ? 'Cadastre-se aqui' : 'Regístrate aquí'}</button>
         </p>
         <p style="text-align:center;font-size:0.875rem;margin-top:12px;color:var(--text3)">
-          <button class="auth-link" onclick="App.go('landing')" style="color:var(--text3);font-size:0.875rem">← Volver al inicio</button>
+          <button class="auth-link" onclick="App.go('landing')" style="color:var(--text3);font-size:0.875rem">← ${isPT ? 'Voltar ao início' : 'Volver al inicio'}</button>
         </p>
       </div>
     </div>`;

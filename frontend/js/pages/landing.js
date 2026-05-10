@@ -1,5 +1,14 @@
 function renderLanding() {
-  const features = [
+  const isPT = I18N.isPT();
+
+  const features = isPT ? [
+    { icon: '🎯', title: 'Diagnóstico Profundo', desc: '94 perguntas em 10 dimensões-chave da mentalidade do jogador de elite' },
+    { icon: '📡', title: 'Gráfico Radar', desc: 'Visualize seus pontos fortes e fracos em um mapa visual intuitivo' },
+    { icon: '📋', title: 'Relatório Personalizado', desc: 'Análise detalhada de lacunas com recomendações específicas para você' },
+    { icon: '🗓️', title: 'Plano de Trabalho', desc: 'Programa de melhoria semana a semana, das áreas mais críticas' },
+    { icon: '📊', title: 'Benchmark Global', desc: 'Compare seus resultados com a média da comunidade MindEV' },
+    { icon: '🔐', title: 'Painel Pessoal', desc: 'Acesse seus resultados e acompanhamento a qualquer momento' },
+  ] : [
     { icon: '🎯', title: 'Diagnóstico Profundo', desc: '94 preguntas en 10 dimensiones clave de la mentalidad del jugador de élite' },
     { icon: '📡', title: 'Gráfico Radar', desc: 'Visualiza tus fortalezas y debilidades en un mapa visual intuitivo' },
     { icon: '📋', title: 'Informe Personalizado', desc: 'Análisis detallado de brechas con recomendaciones específicas para ti' },
@@ -27,15 +36,19 @@ function renderLanding() {
         ).join('')}
       </div>
       <div class="hero-suits">♠ ♥ ♦ ♣</div>
-      <h1>Test de Evaluación de las<br><span>Fortalezas y Debilidades</span><br>del Jugador de Poker</h1>
-      <p class="subtitle">El poker es mucho más que cartas y apuestas. Es un juego de habilidades mentales, estrategia y resistencia emocional. Descubre dónde estás y hasta dónde puedes llegar.</p>
+      <h1>${isPT
+        ? 'Teste de Avaliação das<br><span>Forças e Fraquezas</span><br>do Jogador de Poker'
+        : 'Test de Evaluación de las<br><span>Fortalezas y Debilidades</span><br>del Jugador de Poker'}</h1>
+      <p class="subtitle">${isPT
+        ? 'O poker é muito mais do que cartas e apostas. É um jogo de habilidades mentais, estratégia e resistência emocional. Descubra onde você está e até onde pode chegar.'
+        : 'El poker es mucho más que cartas y apuestas. Es un juego de habilidades mentales, estrategia y resistencia emocional. Descubre dónde estás y hasta dónde puedes llegar.'}</p>
 
       <div class="hero-cta">
         <button class="btn btn-primary btn-lg" onclick="App.go('register')">
-          ♠ Comenzar mi diagnóstico — USD $9.90
+          ♠ ${isPT ? 'Começar meu diagnóstico — USD $9.90' : 'Comenzar mi diagnóstico — USD $9.90'}
         </button>
         <button class="btn btn-secondary btn-lg" onclick="App.go('login')">
-          Ya tengo cuenta
+          ${isPT ? 'Já tenho conta' : 'Ya tengo cuenta'}
         </button>
       </div>
 
@@ -44,7 +57,9 @@ function renderLanding() {
         📲 Instalar App en mi dispositivo
       </button>
 
-      <div class="chip gold" style="margin-top:8px">✓ Disponible en Android y PC · ✓ Informe PDF descargable · ✓ 100% en español</div>
+      <div class="chip gold" style="margin-top:8px">${isPT
+        ? '✓ Disponível em Android e PC · ✓ Relatório PDF para download · ✓ 100% em português'
+        : '✓ Disponible en Android y PC · ✓ Informe PDF descargable · ✓ 100% en español'}</div>
     </div>
 
     <div class="page">
@@ -60,7 +75,7 @@ function renderLanding() {
 
       <div class="price-banner">
         <div class="price">USD $9.90</div>
-        <div class="price-sub">Pago único · Acceso permanente a tus resultados y futuras comparaciones</div>
+        <div class="price-sub">${isPT ? 'Pagamento único · Acesso permanente aos seus resultados e comparações futuras' : 'Pago único · Acceso permanente a tus resultados y futuras comparaciones'}</div>
 
         <!-- Métodos de pago y países -->
         <div style="margin-top:24px;padding:20px;background:rgba(0,0,0,0.2);border-radius:12px;border:1px solid rgba(212,175,55,0.2)">
@@ -89,8 +104,8 @@ function renderLanding() {
         </div>
 
         <div style="margin-top:20px; display:flex; gap:12px; justify-content:center; flex-wrap:wrap">
-          <button class="btn btn-primary" onclick="App.go('register')">Comenzar ahora →</button>
-          <button class="btn btn-outline" onclick="App.go('login')">Iniciar sesión</button>
+          <button class="btn btn-primary" onclick="App.go('register')">${isPT ? 'Começar agora →' : 'Comenzar ahora →'}</button>
+          <button class="btn btn-outline" onclick="App.go('login')">${isPT ? 'Entrar' : 'Iniciar sesión'}</button>
         </div>
       </div>
 
@@ -103,9 +118,9 @@ function renderLanding() {
             <span style="font-size:1.8rem">🧠</span>
             <img src="/icons/mindev-logo.png" alt="MindEV" class="section-logo">
           </div>
-          <p style="font-size:0.85rem;color:var(--text2);margin-bottom:16px">Test Mental — Habilidades psicológicas del jugador</p>
+          <p style="font-size:0.85rem;color:var(--text2);margin-bottom:16px">${isPT ? 'Teste Mental — Habilidades psicológicas do jogador' : 'Test Mental — Habilidades psicológicas del jugador'}</p>
           <div style="display:grid;gap:8px">
-            ${EVHAPO_CATEGORIES.map(c => catRow(c, 'rgba(212,175,55,0.25)')).join('')}
+            ${I18N.cats().map(c => catRow(c, 'rgba(212,175,55,0.25)')).join('')}
           </div>
         </div>
 
@@ -115,9 +130,9 @@ function renderLanding() {
             <span style="font-size:1.8rem">⚙️</span>
             <img src="/icons/mindev-logo.png" alt="MindEV" class="section-logo">
           </div>
-          <p style="font-size:0.85rem;color:var(--text2);margin-bottom:16px">Test Técnico — Conocimiento de Texas Hold'em</p>
+          <p style="font-size:0.85rem;color:var(--text2);margin-bottom:16px">${isPT ? 'Teste Técnico — Conhecimento de Texas Hold\'em' : 'Test Técnico — Conocimiento de Texas Hold\'em'}</p>
           <div style="display:grid;gap:8px">
-            ${TECHNICAL_CATEGORIES.map(c => catRow(c, 'rgba(77,182,172,0.25)')).join('')}
+            ${I18N.techCats().map(c => catRow(c, 'rgba(77,182,172,0.25)')).join('')}
           </div>
         </div>
 
@@ -127,7 +142,9 @@ function renderLanding() {
         <div style="text-align:center;padding:12px">
           <div style="font-size:3rem;margin-bottom:12px">♠</div>
           <blockquote style="font-size:1.1rem;font-style:italic;color:var(--text2);max-width:600px;margin:0 auto">
-            "Si estás aquí es porque comprendes la IMPORTANCIA DE LOS ASPECTOS TÉCNICOS Y MENTALES y sabes que el póker es mucho más que cartas y apuestas. Este es tu coach personal. Disfruta tu proceso de crecimiento como jugador de póker y te deseamos éxito en tu sueño de convertirte en un jugador de élite."
+            ${isPT
+              ? '"Se você está aqui é porque compreende a IMPORTÂNCIA DOS ASPECTOS TÉCNICOS E MENTAIS e sabe que o poker é muito mais do que cartas e apostas. Este é o seu coach pessoal. Aproveite seu processo de crescimento como jogador de poker e desejamos sucesso no seu sonho de se tornar um jogador de elite."'
+              : '"Si estás aquí es porque comprendes la IMPORTANCIA DE LOS ASPECTOS TÉCNICOS Y MENTALES y sabes que el póker es mucho más que cartas y apuestas. Este es tu coach personal. Disfruta tu proceso de crecimiento como jugador de póker y te deseamos éxito en tu sueño de convertirte en un jugador de élite."'}
           </blockquote>
           <div style="margin-top:16px;display:flex;align-items:center;justify-content:center;gap:8px">
             <span style="color:var(--accent);font-weight:700">—</span>

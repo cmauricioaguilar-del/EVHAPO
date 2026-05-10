@@ -17,56 +17,58 @@ async function renderPayment() {
   };
   const localPrice = priceMap[pais] || 'USD $9.90';
 
+  const isPT = I18N.isPT();
   document.getElementById('app').innerHTML = `${renderNavbar()}
     <div class="auth-container">
       <div class="auth-card" style="max-width:540px">
         <div style="text-align:center;margin-bottom:24px">
           <div style="font-size:2.5rem;color:var(--accent)">♠</div>
-          <h1>Acceder al Diagnóstico</h1>
-          <p class="auth-sub">Hola ${user.nombre}. Un último paso para comenzar.</p>
+          <h1>${isPT ? 'Acessar o Diagnóstico' : 'Acceder al Diagnóstico'}</h1>
+          <p class="auth-sub">${isPT ? `Olá ${user.nombre}. Um último passo para começar.` : `Hola ${user.nombre}. Un último paso para comenzar.`}</p>
         </div>
 
         <div class="price-banner" style="padding:20px;margin-bottom:20px">
           <div class="price">${localPrice}</div>
-          <div class="price-sub">Pago único · Acceso permanente · Test Mental + Técnico</div>
+          <div class="price-sub">${isPT ? 'Pagamento único · Acesso permanente · Teste Mental + Técnico' : 'Pago único · Acceso permanente · Test Mental + Técnico'}</div>
         </div>
 
         <div id="pay-error"></div>
 
-        <h3 style="font-size:0.9rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px">Método de pago</h3>
+        <h3 style="font-size:0.9rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px">${isPT ? 'Método de pagamento' : 'Método de pago'}</h3>
         <div class="payment-methods">
           <div class="method-card ${isLatam ? 'selected' : ''}" id="method-mercadopago" onclick="selectMethod('mercadopago')">
             <span class="method-icon">💙</span>
             <h3>Mercado Pago</h3>
-            <p>Débito · Crédito · Transferencia</p>
+            <p>${isPT ? 'Débito · Crédito · Transferência' : 'Débito · Crédito · Transferencia'}</p>
           </div>
           <div class="method-card ${!isLatam ? 'selected' : ''}" id="method-stripe" onclick="selectMethod('stripe')">
             <span class="method-icon">💳</span>
-            <h3>Tarjeta Internacional</h3>
+            <h3>${isPT ? 'Cartão Internacional' : 'Tarjeta Internacional'}</h3>
             <p>Visa, Mastercard, Amex</p>
           </div>
           <div class="method-card" id="method-demo" onclick="selectMethod('demo')">
             <span class="method-icon">🎮</span>
             <h3>Demo</h3>
-            <p>Sin costo real</p>
+            <p>${isPT ? 'Sem custo real' : 'Sin costo real'}</p>
           </div>
         </div>
 
         <div id="mp-info" class="alert alert-info" style="margin-bottom:16px;${isLatam ? '' : 'display:none'}">
-          💙 Serás redirigido a <strong>Mercado Pago</strong> para completar el pago de forma segura.
-          Aceptamos débito, crédito y transferencia bancaria.
+          ${isPT
+            ? '💙 Você será redirecionado para o <strong>Mercado Pago</strong> para concluir o pagamento com segurança. Aceitamos débito, crédito e transferência bancária.'
+            : '💙 Serás redirigido a <strong>Mercado Pago</strong> para completar el pago de forma segura. Aceptamos débito, crédito y transferencia bancaria.'}
         </div>
 
         <div id="demo-note" class="alert alert-warning" style="margin-bottom:16px;display:none">
-          🎮 <strong>Modo Demo:</strong> El test se habilitará sin cargo real.
+          🎮 <strong>${isPT ? 'Modo Demo:' : 'Modo Demo:'}</strong> ${isPT ? 'O teste será habilitado sem custo real.' : 'El test se habilitará sin cargo real.'}
         </div>
 
         <button class="btn btn-primary btn-block btn-lg" id="pay-btn" onclick="doPayment()">
-          ♠ Pagar y comenzar el test
+          ♠ ${isPT ? 'Pagar e começar o teste' : 'Pagar y comenzar el test'}
         </button>
 
         <p style="text-align:center;margin-top:16px;font-size:0.8rem;color:var(--text3)">
-          🔒 Pago seguro · Soporte: evhapo@tiburock.cl
+          🔒 ${isPT ? 'Pagamento seguro · Suporte: evhapo@tiburock.cl' : 'Pago seguro · Soporte: evhapo@tiburock.cl'}
         </p>
       </div>
     </div>`;
@@ -86,9 +88,10 @@ async function doPayment() {
   const errEl   = document.getElementById('pay-error');
   const pais = (JSON.parse(localStorage.getItem('evhapo_user') || '{}').pais || 'CL').toUpperCase();
 
+  const isPT = I18N.isPT();
   errEl.innerHTML = '';
   btn.disabled = true;
-  btn.textContent = 'Procesando...';
+  btn.textContent = isPT ? 'Processando...' : 'Procesando...';
 
   try {
     const result = await Api.post('/api/payment/create', {
@@ -97,28 +100,26 @@ async function doPayment() {
     });
 
     if (result.mode === 'demo') {
-      // Demo: pago aprobado → ir al dashboard
       App.go('dashboard');
       return;
     }
 
     if (result.mode === 'mercadopago' && result.init_point) {
-      // Redirigir a MercadoPago
       window.location.href = result.init_point;
       return;
     }
 
     if (result.mode === 'stripe' && result.client_secret) {
-      errEl.innerHTML = `<div class="alert alert-info">Integración Stripe en configuración. Usa Mercado Pago por ahora.</div>`;
+      errEl.innerHTML = `<div class="alert alert-info">${isPT ? 'Integração Stripe em configuração. Use o Mercado Pago por enquanto.' : 'Integración Stripe en configuración. Usa Mercado Pago por ahora.'}</div>`;
       btn.disabled = false;
-      btn.textContent = '♠ Pagar y comenzar el test';
+      btn.textContent = `♠ ${isPT ? 'Pagar e começar o teste' : 'Pagar y comenzar el test'}`;
       return;
     }
 
-    throw new Error(result.error || 'Respuesta inesperada del servidor');
+    throw new Error(result.error || (isPT ? 'Resposta inesperada do servidor' : 'Respuesta inesperada del servidor'));
   } catch (e) {
     errEl.innerHTML = `<div class="form-error">${e.message}</div>`;
     btn.disabled = false;
-    btn.textContent = '♠ Pagar y comenzar el test';
+    btn.textContent = `♠ ${isPT ? 'Pagar e começar o teste' : 'Pagar y comenzar el test'}`;
   }
 }

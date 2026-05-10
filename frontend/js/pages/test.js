@@ -3,11 +3,11 @@ let _testState = {
   answers: {},
   sessionId: null,
   testType: 'mental',
-  categories: EVHAPO_CATEGORIES,
+  categories: null,
 };
 
 function renderTest() {
-  if (!Api.isLoggedIn()) { App.go('login', 'Inicia sesión para continuar'); return; }
+  if (!Api.isLoggedIn()) { App.go('login', I18N.isPT() ? 'Entre para continuar' : 'Inicia sesión para continuar'); return; }
   const sid = localStorage.getItem('evhapo_session');
   if (!sid) { App.go('payment'); return; }
   const testType = localStorage.getItem('evhapo_test_type') || 'mental';
@@ -15,7 +15,7 @@ function renderTest() {
   _testState.catIdx = 0;
   _testState.answers = {};
   _testState.testType = testType;
-  _testState.categories = testType === 'technical' ? TECHNICAL_CATEGORIES : EVHAPO_CATEGORIES;
+  _testState.categories = I18N.catsForType(testType);
   renderTestSection();
 }
 
@@ -26,11 +26,12 @@ function renderTestSection() {
   const answeredSoFar = Object.keys(answers).length;
   const pct = Math.round((answeredSoFar / totalQ) * 100);
 
+  const isPT = I18N.isPT();
   let questionsHtml = cat.questions.map((q, qi) => {
     const ans = answers[q.id];
     return `
       <div class="question-card ${ans ? 'answered' : ''}" id="qcard-${q.id}">
-        <div class="question-num">Pregunta ${qi + 1} de ${cat.questions.length}</div>
+        <div class="question-num">${isPT ? 'Pergunta' : 'Pregunta'} ${qi + 1} ${isPT ? 'de' : 'de'} ${cat.questions.length}</div>
         <div class="question-text">${q.text}</div>
         <div class="options-grid">
           ${q.options.map(opt => `
@@ -55,14 +56,14 @@ function renderTestSection() {
         <img src="/icons/mindev-logo.png" alt="MindEV" class="nav-logo">
       </div>
       <div style="color:var(--text2);font-size:0.875rem">
-        ${answeredSoFar} de ${totalQ} preguntas respondidas
+        ${answeredSoFar} ${isPT ? 'de' : 'de'} ${totalQ} ${isPT ? 'perguntas respondidas' : 'preguntas respondidas'}
       </div>
     </div>
 
     <div class="test-header">
       <div class="test-meta">
         <div class="test-category">${cat.icon} ${cat.label}</div>
-        <div class="test-counter">Sección ${catIdx + 1} de ${_testState.categories.length} · ${catAnswered}/${catTotal} respondidas</div>
+        <div class="test-counter">${isPT ? 'Seção' : 'Sección'} ${catIdx + 1} ${isPT ? 'de' : 'de'} ${_testState.categories.length} · ${catAnswered}/${catTotal} ${isPT ? 'respondidas' : 'respondidas'}</div>
       </div>
       <div class="progress-bar">
         <div class="progress-fill" style="width:${pct}%"></div>
@@ -83,14 +84,14 @@ function renderTestSection() {
     <div class="test-nav">
       <div>
         ${catIdx > 0
-          ? `<button class="btn btn-secondary" onclick="navSection(-1)">← Anterior</button>`
-          : `<button class="btn btn-secondary" onclick="App.go('landing')">← Salir</button>`}
+          ? `<button class="btn btn-secondary" onclick="navSection(-1)">← ${isPT ? 'Anterior' : 'Anterior'}</button>`
+          : `<button class="btn btn-secondary" onclick="App.go('landing')">← ${isPT ? 'Sair' : 'Salir'}</button>`}
       </div>
       <div>
-        <button class="btn btn-outline" onclick="confirmDashboard()" style="margin-right:8px">🏠 Mi Dashboard</button>
+        <button class="btn btn-outline" onclick="confirmDashboard()" style="margin-right:8px">🏠 ${isPT ? 'Meu Painel' : 'Mi Dashboard'}</button>
         ${isLast
-          ? `<button class="btn btn-primary" id="submit-btn" onclick="submitTest()">✓ Ver mis resultados</button>`
-          : `<button class="btn btn-primary" onclick="navSection(1)">Siguiente sección →</button>`}
+          ? `<button class="btn btn-primary" id="submit-btn" onclick="submitTest()">✓ ${isPT ? 'Ver meus resultados' : 'Ver mis resultados'}</button>`
+          : `<button class="btn btn-primary" onclick="navSection(1)">${isPT ? 'Próxima seção →' : 'Siguiente sección →'}</button>`}
       </div>
     </div>`;
 }
@@ -112,10 +113,11 @@ function selectAnswer(qid, value, btn) {
   const cat = _testState.categories[_testState.catIdx];
   const catAnswered = cat.questions.filter(q => _testState.answers[q.id] !== undefined).length;
   const counter = document.querySelector('.test-counter');
-  if (counter) counter.textContent = `Sección ${_testState.catIdx + 1} de ${_testState.categories.length} · ${catAnswered}/${cat.questions.length} respondidas`;
+  const _isPT = I18N.isPT();
+  if (counter) counter.textContent = `${_isPT ? 'Seção' : 'Sección'} ${_testState.catIdx + 1} ${_isPT ? 'de' : 'de'} ${_testState.categories.length} · ${catAnswered}/${cat.questions.length} ${_isPT ? 'respondidas' : 'respondidas'}`;
 
   const navbar = document.querySelector('.navbar div:last-child');
-  if (navbar) navbar.textContent = `${answeredSoFar} de ${totalQ} preguntas respondidas`;
+  if (navbar) navbar.textContent = `${answeredSoFar} ${_isPT ? 'de' : 'de'} ${totalQ} ${_isPT ? 'perguntas respondidas' : 'preguntas respondidas'}`;
 }
 
 function navSection(dir) {
@@ -124,8 +126,9 @@ function navSection(dir) {
 
   if (dir > 0 && unanswered.length > 0) {
     const w = document.getElementById('unanswered-warn');
+    const _isPT2 = I18N.isPT();
     if (w) {
-      w.innerHTML = `<div class="unanswered-warning">⚠️ Por favor responde todas las preguntas de esta sección antes de continuar. Faltan ${unanswered.length} respuesta(s).</div>`;
+      w.innerHTML = `<div class="unanswered-warning">⚠️ ${_isPT2 ? `Por favor responda todas as perguntas desta seção antes de continuar. Faltam ${unanswered.length} resposta(s).` : `Por favor responde todas las preguntas de esta sección antes de continuar. Faltan ${unanswered.length} respuesta(s).`}</div>`;
       // Highlight unanswered
       unanswered.forEach(q => {
         const card = document.getElementById(`qcard-${q.id}`);
@@ -143,8 +146,12 @@ function navSection(dir) {
 function confirmDashboard() {
   const answered = Object.keys(_testState.answers).length;
   const total = _testState.categories.reduce((s, c) => s + c.questions.length, 0);
+  const _isPT3 = I18N.isPT();
   if (answered > 0 && answered < total) {
-    if (!confirm(`¿Salir al dashboard? Perderás tu progreso (${answered} de ${total} preguntas respondidas).`)) return;
+    const msg = _isPT3
+      ? `Sair para o painel? Você perderá seu progresso (${answered} de ${total} perguntas respondidas).`
+      : `¿Salir al dashboard? Perderás tu progreso (${answered} de ${total} preguntas respondidas).`;
+    if (!confirm(msg)) return;
   }
   App.go('dashboard');
 }
@@ -162,15 +169,17 @@ async function submitTest() {
         renderTestSection();
         setTimeout(() => {
           const w = document.getElementById('unanswered-warn');
-          if (w) w.innerHTML = `<div class="unanswered-warning">⚠️ Faltan ${unanswered.length} preguntas por responder en el test completo.</div>`;
+          const _isPT4 = I18N.isPT();
+          if (w) w.innerHTML = `<div class="unanswered-warning">⚠️ ${_isPT4 ? `Faltam ${unanswered.length} perguntas por responder no teste completo.` : `Faltan ${unanswered.length} preguntas por responder en el test completo.`}</div>`;
         }, 100);
         return;
       }
     }
   }
 
+  const _isPT5 = I18N.isPT();
   const btn = document.getElementById('submit-btn');
-  if (btn) { btn.disabled = true; btn.textContent = 'Calculando resultados...'; }
+  if (btn) { btn.disabled = true; btn.textContent = _isPT5 ? 'Calculando resultados...' : 'Calculando resultados...'; }
 
   try {
     const result = await Api.submitTest(_testState.sessionId, _testState.answers);
@@ -178,7 +187,7 @@ async function submitTest() {
     localStorage.setItem('evhapo_session', _testState.sessionId);
     App.go('results', _testState.sessionId);
   } catch (e) {
-    alert('Error al enviar: ' + e.message);
-    if (btn) { btn.disabled = false; btn.textContent = '✓ Ver mis resultados'; }
+    alert((_isPT5 ? 'Erro ao enviar: ' : 'Error al enviar: ') + e.message);
+    if (btn) { btn.disabled = false; btn.textContent = `✓ ${_isPT5 ? 'Ver meus resultados' : 'Ver mis resultados'}`; }
   }
 }
