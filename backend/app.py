@@ -1013,73 +1013,83 @@ def _send_referral_notification(user_id, db=None):
 
 def _smtp_send(to_addr, subject, html_body):
     """
-    Envía un email HTML intentando múltiples estrategias SMTP.
-    Fuerza IPv4 para evitar el error 'Network is unreachable' en Railway (IPv6 no disponible).
-    Lanza excepción con detalle si todos los intentos fallan.
+    Envía un email HTML.
+    Prioridad 1: Resend API (HTTPS/443 — funciona en Railway sin restricciones)
+    Prioridad 2: SMTP directo (fallback para entornos sin bloqueo de puertos)
     """
-    import ssl, socket
+    import requests as _req
 
+    resend_key  = os.environ.get('RESEND_API_KEY', '')
     smtp_user   = os.environ.get('SMTP_USER', '') or SMTP_USER
     smtp_pass   = os.environ.get('SMTP_PASS', '') or SMTP_PASS
     smtp_server = os.environ.get('SMTP_SERVER', 'smtp.gmail.com')
+    email_from  = os.environ.get('EMAIL_FROM', '') or smtp_user or 'noreply@mindev-ia.cl'
 
+    # ── Intento 1: Resend API (recomendado en Railway) ────────────────────────
+    if resend_key:
+        try:
+            resp = _req.post(
+                'https://api.resend.com/emails',
+                headers={
+                    'Authorization': f'Bearer {resend_key}',
+                    'Content-Type': 'application/json',
+                },
+                json={
+                    'from': f'MindEV <{email_from}>',
+                    'to': [to_addr],
+                    'subject': subject,
+                    'html': html_body,
+                },
+                timeout=30,
+                verify=False
+            )
+            if resp.status_code in (200, 201):
+                print(f"[EMAIL] Enviado via Resend a {to_addr}")
+                return
+            raise Exception(f"Resend HTTP {resp.status_code}: {resp.text[:200]}")
+        except Exception as e:
+            print(f"[EMAIL] Resend falló: {e}")
+            raise  # Si RESEND_API_KEY está configurada y falla, reportar el error
+
+    # ── Intento 2: SMTP (fallback) ─────────────────────────────────────────────
     if not smtp_user or not smtp_pass:
-        raise Exception('SMTP_USER o SMTP_PASS no configurados')
+        raise Exception(
+            'No hay método de email configurado. '
+            'Agrega RESEND_API_KEY en Railway (recomendado) o configura SMTP_USER/SMTP_PASS.'
+        )
 
+    import ssl, socket
     msg = MIMEMultipart('alternative')
     msg['Subject'] = subject
     msg['From']    = smtp_user
     msg['To']      = to_addr
     msg.attach(MIMEText(html_body, 'html'))
     raw = msg.as_string()
-
     errors = []
 
-    # — Intento 1: IPv4 forzado, puerto 587 STARTTLS —
-    try:
-        infos = socket.getaddrinfo(smtp_server, 587, socket.AF_INET, socket.SOCK_STREAM)
-        ipv4 = infos[0][4][0]
-        with smtplib.SMTP(ipv4, 587, timeout=25) as s:
-            s._host = smtp_server   # para validación TLS del certificado
-            s.ehlo()
-            s.starttls()
-            s.ehlo()
-            s.login(smtp_user, smtp_pass)
-            s.sendmail(smtp_user, to_addr, raw)
-        print(f"[SMTP] Enviado a {to_addr} via IPv4/587")
-        return
-    except Exception as e:
-        errors.append(f"IPv4/587: {e}")
+    for port, use_ssl in [(587, False), (465, True)]:
+        try:
+            infos = socket.getaddrinfo(smtp_server, port, socket.AF_INET, socket.SOCK_STREAM)
+            ipv4 = infos[0][4][0]
+            if use_ssl:
+                ctx = ssl.create_default_context()
+                ctx.check_hostname = False
+                ctx.verify_mode = ssl.CERT_NONE
+                with smtplib.SMTP_SSL(ipv4, port, context=ctx, timeout=25) as s:
+                    s.login(smtp_user, smtp_pass)
+                    s.sendmail(smtp_user, to_addr, raw)
+            else:
+                with smtplib.SMTP(ipv4, port, timeout=25) as s:
+                    s._host = smtp_server
+                    s.ehlo(); s.starttls(); s.ehlo()
+                    s.login(smtp_user, smtp_pass)
+                    s.sendmail(smtp_user, to_addr, raw)
+            print(f"[EMAIL] Enviado via SMTP IPv4/{port} a {to_addr}")
+            return
+        except Exception as e:
+            errors.append(f"SMTP/{port}: {e}")
 
-    # — Intento 2: IPv4 forzado, puerto 465 SSL —
-    try:
-        infos = socket.getaddrinfo(smtp_server, 465, socket.AF_INET, socket.SOCK_STREAM)
-        ipv4 = infos[0][4][0]
-        ctx = ssl.create_default_context()
-        ctx.check_hostname = False
-        ctx.verify_mode = ssl.CERT_NONE
-        with smtplib.SMTP_SSL(ipv4, 465, context=ctx, timeout=25) as s:
-            s.login(smtp_user, smtp_pass)
-            s.sendmail(smtp_user, to_addr, raw)
-        print(f"[SMTP] Enviado a {to_addr} via IPv4/465-SSL")
-        return
-    except Exception as e:
-        errors.append(f"IPv4/465: {e}")
-
-    # — Intento 3: hostname directo, puerto 587 —
-    try:
-        with smtplib.SMTP(smtp_server, 587, timeout=25) as s:
-            s.ehlo()
-            s.starttls()
-            s.ehlo()
-            s.login(smtp_user, smtp_pass)
-            s.sendmail(smtp_user, to_addr, raw)
-        print(f"[SMTP] Enviado a {to_addr} via hostname/587")
-        return
-    except Exception as e:
-        errors.append(f"hostname/587: {e}")
-
-    raise Exception("Todos los intentos SMTP fallaron — " + " | ".join(errors))
+    raise Exception("Todos los métodos de email fallaron — " + " | ".join(errors))
 
 
 def _send_reset_email(to_email, nombre, temp_pw):
