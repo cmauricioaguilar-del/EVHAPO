@@ -169,6 +169,82 @@ function renderLanding() {
             <img src="/icons/mindev-logo.png" alt="MindEV" class="quote-logo">
           </div>
         </div>
+      <!-- ── Testimonios ───────────────────────────────────────────────── -->
+      <div style="margin-top:40px">
+        <div style="text-align:center;margin-bottom:24px">
+          <h2 style="font-size:1.3rem;font-weight:800;margin:0 0 6px">
+            ${isPT ? 'O que dizem nossos jogadores' : 'Lo que dicen nuestros jugadores'}
+          </h2>
+          <p style="color:var(--text3);font-size:0.85rem;margin:0">
+            ${isPT ? 'Resultados reais de jogadores reais' : 'Resultados reales de jugadores reales'}
+          </p>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px">
+
+          ${[
+            {
+              name: 'Rodrigo M.',
+              country: 'cl', flag: 'Chile',
+              room: 'GGPoker',
+              stars: 5,
+              textES: '"Llevaba 2 años jugando sin saber exactamente qué fallaba. El diagnóstico me mostró que mi problema era el tilt, no las cartas. En 30 días mejoré mi ITM un 18%."',
+              textPT: '"Jogava há 2 anos sem saber o que falhava. O diagnóstico mostrou que meu problema era o tilt, não as cartas. Em 30 dias melhorei meu ITM em 18%."',
+            },
+            {
+              name: 'Gustavo A.',
+              country: 'br', flag: 'Brasil',
+              room: 'PokerStars',
+              stars: 5,
+              textES: '"El plan de estudio de 4 semanas es brutal. Concreto, sin relleno. Por primera vez tengo una rutina clara de mejora y puedo ver mi evolución semana a semana."',
+              textPT: '"O plano de estudo de 4 semanas é incrível. Concreto, sem enrolação. Pela primeira vez tenho uma rotina clara de melhora e consigo ver minha evolução semana a semana."',
+            },
+            {
+              name: 'Sebastián T.',
+              country: 'ar', flag: 'Argentina',
+              room: 'WPT Global',
+              stars: 5,
+              textES: '"El análisis de manos con IA me abrió los ojos en spots que repetía todo el tiempo. Vale diez veces lo que cuesta."',
+              textPT: '"A análise de mãos com IA me abriu os olhos em spots que eu repetia o tempo todo. Vale dez vezes o que custa."',
+            },
+          ].map(t => `
+            <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px 22px;display:flex;flex-direction:column;gap:12px">
+              <!-- Estrellas -->
+              <div style="color:#fbbf24;font-size:0.85rem;letter-spacing:2px">${'★'.repeat(t.stars)}</div>
+              <!-- Texto -->
+              <p style="margin:0;color:var(--text2);font-size:0.88rem;line-height:1.6;font-style:italic;flex:1">
+                ${isPT ? t.textPT : t.textES}
+              </p>
+              <!-- Autor -->
+              <div style="display:flex;align-items:center;gap:10px;border-top:1px solid var(--border);padding-top:12px">
+                <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-weight:800;font-size:0.9rem;color:#000;flex-shrink:0">
+                  ${t.name[0]}
+                </div>
+                <div>
+                  <div style="font-weight:700;font-size:0.88rem">${t.name}</div>
+                  <div style="display:flex;align-items:center;gap:5px;margin-top:2px">
+                    <img src="/icons/flags/${t.country}.png" alt="${t.flag}" style="height:11px;border-radius:1px">
+                    <span style="color:var(--text3);font-size:0.75rem">${t.flag} · ${t.room}</span>
+                  </div>
+                </div>
+              </div>
+            </div>`
+          ).join('')}
+
+        </div>
+
+        <!-- CTA final -->
+        <div style="text-align:center;margin-top:32px">
+          <button class="btn btn-primary btn-lg" onclick="App.go('register')">
+            ♠ ${isPT ? 'Quero meu diagnóstico — USD $9.90' : 'Quiero mi diagnóstico — USD $9.90'}
+          </button>
+          <p style="margin:10px 0 0;color:var(--text3);font-size:0.78rem">
+            ${isPT ? 'Pagamento único · Acesso permanente' : 'Pago único · Acceso permanente'}
+          </p>
+        </div>
+      </div>
+      <!-- ── /Testimonios ───────────────────────────────────────────────── -->
+
       </div>
     </div>
   `;
