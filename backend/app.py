@@ -293,6 +293,18 @@ def require_auth(f):
 def index():
     return send_from_directory('../frontend', 'index.html')
 
+@app.route('/terms')
+def terms_page():
+    return send_from_directory('../frontend', 'terms.html')
+
+@app.route('/privacy')
+def privacy_page():
+    return send_from_directory('../frontend', 'privacy.html')
+
+@app.route('/refund')
+def refund_page():
+    return send_from_directory('../frontend', 'refund.html')
+
 @app.route('/<path:path>')
 def static_files(path):
     return send_from_directory('../frontend', path)
