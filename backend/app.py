@@ -2343,6 +2343,15 @@ def _build_profile_prompt(nombre, mental_answers, technical_answers,
     return f"""Eres coach de poker experto (MTT) y psicólogo deportivo. Genera un informe HTML completo para {nombre}. NO incluyas etiquetas html/head/body.
 {lang_instruction}
 
+TERMINOLOGÍA POKER OBLIGATORIA — Usa SIEMPRE los términos originales en inglés. NUNCA los traduzcas al español ni al portugués:
+- "board" → SIEMPRE "board" (NUNCA "tablero", "mesa", "tabuleiro"). Ej: "en el board", "el board vino", "texture del board".
+- "call" → SIEMPRE "call" (NUNCA "llama", "paga", "iguala", "pagar").
+- "raise" → SIEMPRE "raise" (NUNCA "sube", "aumenta", "subida").
+- "fold" → SIEMPRE "fold" (NUNCA "se retira", "tira", "descarta").
+- "check" → SIEMPRE "check" (NUNCA "pasa").
+- "bet" → SIEMPRE "bet" (NUNCA "apuesta").
+- Mantener en inglés siempre: "all-in", "bluff", "stack", "pot", "flop", "turn", "river", "pre-flop", "3-bet", "c-bet", "range", "equity", "EV", "ITM", "ROI", "hand", "spot".
+
 SCORES — Mental (avg {mental_avg}%): {fmt_scores(mental_scores)}
 SCORES — Técnico (avg {tech_avg}%): {fmt_scores(technical_scores)}
 INCOHERENCIAS: {fmt_inconsistencies(inconsistencies)}
@@ -2891,12 +2900,13 @@ PERFIL DEL JUGADOR SEGÚN RESPUESTAS DEL TEST MENTAL (generado por IA con tests 
 {lang_instruction}
 
 TERMINOLOGÍA POKER OBLIGATORIA: Usa siempre los términos originales en inglés para acciones de poker. NUNCA los traduzcas:
+- "board" → SIEMPRE "board" (NUNCA "tablero", "mesa", "tabuleiro"). Ej: "en el board", "el board vino", "texture del board".
 - "call" → SIEMPRE "call" (NUNCA "llama", "paga", "iguala"). Úsalo como verbo: "hace call", "dio call", "hacer call".
 - "raise" → SIEMPRE "raise" (NUNCA "sube", "aumenta"). Ej: "hizo raise", "hacer raise".
 - "fold" → SIEMPRE "fold" (NUNCA "se retira", "tira"). Ej: "hizo fold", "hacer fold".
 - "check" → SIEMPRE "check" (NUNCA "pasa"). Ej: "hizo check".
 - "bet" → SIEMPRE "bet" (NUNCA "apuesta"). Ej: "hizo bet", "betting".
-- "all-in", "bluff", "stack", "pot", "flop", "turn", "river", "pre-flop", "3-bet", "c-bet" → mantener en inglés siempre.
+- "all-in", "bluff", "stack", "pot", "flop", "turn", "river", "pre-flop", "3-bet", "c-bet", "range", "equity", "EV", "hand", "spot" → mantener en inglés siempre.
 
 ═══ DATOS DEL TORNEO ═══
 Plataforma: {meta.get('platform', 'N/D')}
@@ -3017,6 +3027,10 @@ Write ONLY clean HTML with this exact dark-theme styling (no <html>/<head>/<body
 - Resources section: <div style="background:#0f172a;border-radius:8px;padding:12px;margin-top:12px">
 - Resources title: <div style="color:#60a5fa;font-size:0.8rem;font-weight:700;margin-bottom:6px">📚 RECURSOS</div>
 - Milestone: <div style="background:#1e3a2f;border-left:3px solid #4ade80;padding:10px 14px;border-radius:0 6px 6px 0;margin-top:12px;font-size:0.85rem;color:#4ade80">
+
+POKER TERMINOLOGY: Always use the original English terms. NEVER translate them:
+- "board" → always "board" (NEVER "tablero", "mesa", "tabuleiro")
+- "call", "raise", "fold", "check", "bet", "all-in", "bluff", "stack", "pot", "flop", "turn", "river", "pre-flop", "3-bet", "c-bet", "range", "equity", "EV" → keep in English always.
 
 Be specific — use the player's actual weak areas. No generic advice. Total output: ~800-1000 words of HTML."""
 
