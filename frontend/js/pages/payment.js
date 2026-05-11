@@ -8,7 +8,7 @@ async function renderPayment() {
 
   const pais    = (JSON.parse(localStorage.getItem('evhapo_user') || '{}').pais || 'CL').toUpperCase();
   const isLatam = ['CL','AR','MX','CO','PE','UY','BR'].includes(pais);
-  _selectedMethod = isLatam ? 'mercadopago' : 'stripe';
+  _selectedMethod = 'mercadopago'; // Stripe temporalmente desactivado
 
   const priceMap = {
     CL: { unique: '$9.500 CLP', sub: '$4.750 CLP' },
@@ -97,29 +97,10 @@ async function renderPayment() {
 
         <div id="pay-error"></div>
 
-        <h3 style="font-size:0.9rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px">${isPT ? 'Método de pagamento' : 'Método de pago'}</h3>
-        <div class="payment-methods">
-          <div class="method-card ${isLatam ? 'selected' : ''}" id="method-mercadopago" onclick="selectMethod('mercadopago')">
-            <span class="method-icon">💙</span>
-            <h3>Mercado Pago</h3>
-            <p>${isPT ? 'Débito · Crédito · Transferência' : 'Débito · Crédito · Transferencia'}</p>
-          </div>
-          <div class="method-card ${!isLatam ? 'selected' : ''}" id="method-stripe" onclick="selectMethod('stripe')">
-            <span class="method-icon">💳</span>
-            <h3>${isPT ? 'Cartão Internacional' : 'Tarjeta Internacional'}</h3>
-            <p>Visa, Mastercard, Amex</p>
-          </div>
-        </div>
-
-        <div id="mp-info" class="alert alert-info" style="margin-bottom:16px;${isLatam ? '' : 'display:none'}">
+        <div id="mp-info" class="alert alert-info" style="margin-bottom:16px;">
           ${isPT
-            ? '💙 Você será redirecionado para o <strong>Mercado Pago</strong> para concluir o pagamento com segurança.'
-            : '💙 Serás redirigido a <strong>Mercado Pago</strong> para completar el pago de forma segura.'}
-        </div>
-        <div id="stripe-info" class="alert alert-info" style="margin-bottom:16px;${!isLatam ? '' : 'display:none'}">
-          ${isPT
-            ? '💳 Você será redirecionado para o checkout seguro do <strong>Stripe</strong>.'
-            : '💳 Serás redirigido al checkout seguro de <strong>Stripe</strong>.'}
+            ? '💙 Você será redirecionado para o <strong>Mercado Pago</strong> para concluir o pagamento com segurança. Aceitamos Visa, Mastercard, débito e transferência.'
+            : '💙 Serás redirigido a <strong>Mercado Pago</strong> para completar el pago de forma segura. Aceptamos Visa, Mastercard, débito y transferencia.'}
         </div>
 
         <button class="btn btn-primary btn-block btn-lg" id="pay-btn" onclick="doPayment()">
