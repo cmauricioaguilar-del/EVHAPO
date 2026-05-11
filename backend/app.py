@@ -388,7 +388,7 @@ def create_payment():
 
     if method == 'mercadopago' and MERCADOPAGO_ACCESS_TOKEN:
         return _create_mercadopago_payment(payment_id, local_amount, currency, test_type)
-    elif method == 'stripe' and STRIPE_SECRET_KEY:
+    elif method == 'stripe' and (STRIPE_SECRET_KEY or os.environ.get('STRIPE_SECRET_KEY')):
         return _create_stripe_payment(payment_id)
     else:
         # Demo mode
@@ -490,7 +490,7 @@ def _create_stripe_payment(payment_id):
     """Crea una sesión de Stripe Checkout (hosted page, igual que MercadoPago)."""
     try:
         import stripe
-        stripe.api_key = STRIPE_SECRET_KEY
+        stripe.api_key = os.environ.get('STRIPE_SECRET_KEY') or STRIPE_SECRET_KEY
         session = stripe.checkout.Session.create(
             payment_method_types=['card'],
             line_items=[{
@@ -532,7 +532,7 @@ def stripe_verify():
 
     try:
         import stripe
-        stripe.api_key = STRIPE_SECRET_KEY
+        stripe.api_key = os.environ.get('STRIPE_SECRET_KEY') or STRIPE_SECRET_KEY
         cs = stripe.checkout.Session.retrieve(session_id)
 
         if cs.payment_status != 'paid':
