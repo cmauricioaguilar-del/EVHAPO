@@ -11,7 +11,7 @@ async function renderDashboard() {
           <p class="text-muted">${isPT ? 'Bem-vindo/a,' : 'Bienvenido/a,'} <strong>${user.nombre}</strong>. ${isPT ? 'Seu centro de diagnóstico e melhoria.' : 'Tu centro de diagnóstico y mejora.'}</p>
         </div>
         <div style="display:flex;gap:10px;flex-wrap:wrap">
-          <button class="btn btn-secondary" onclick="showGuide()" style="border-color:#d4af37;color:#d4af37">📖 ${isPT ? 'Guia' : 'Guía'}</button>
+          <button class="btn btn-secondary" onclick="showGuide()" style="border-color:#ef4444;color:#ef4444;font-weight:700;border-width:2px">📖 ${isPT ? 'Como usar MindEV' : 'Cómo usar MindEV'}</button>
           <button class="btn btn-secondary" onclick="App.go('study-plan')" style="border-color:#818cf8;color:#818cf8">📚 Plan</button>
           <button class="btn btn-secondary" onclick="App.go('sessions')" style="border-color:#4DB6AC;color:#4DB6AC">🃏 Sesiones</button>
           <button class="btn btn-secondary" onclick="App.go('bankroll')" style="border-color:#4ade80;color:#4ade80">💰 Bankroll</button>
