@@ -127,7 +127,7 @@ async function renderPayment() {
         </button>
 
         <p style="text-align:center;margin-top:16px;font-size:0.8rem;color:var(--text3)">
-          🔒 ${isPT ? 'Pagamento seguro · Suporte: evhapo@tiburock.cl' : 'Pago seguro · Soporte: evhapo@tiburock.cl'}
+          🔒 ${isPT ? 'Pagamento 100% seguro' : 'Pago 100% seguro'}
         </p>
       </div>
     </div>`;

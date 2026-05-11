@@ -2387,8 +2387,7 @@ def _send_coupon_sample_email(force=False):
             </a>
           </div>
           <p style="text-align:center;margin-top:24px;color:#475569;font-size:0.8rem">
-            MindEV – Diagnóstico Mental y Técnico para Poker<br>
-            <a href="mailto:evhapo@tiburock.cl" style="color:#64748b">evhapo@tiburock.cl</a>
+            MindEV – Diagnóstico Mental y Técnico para Poker
           </p>
         </div>
         """
