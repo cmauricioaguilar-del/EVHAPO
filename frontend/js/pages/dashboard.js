@@ -493,6 +493,22 @@ async function loadSavedProfile() {
   }
 }
 
+function _showProfileResult(contentEl, profileHtml, isPT) {
+  _profileAlreadyLoaded = true;
+  const _u = Api.currentUser();
+  const _nombre = _u ? _u.nombre : (isPT ? 'Jogador' : 'Jugador');
+  const now = new Date().toLocaleDateString(isPT ? 'pt-BR' : 'es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
+  contentEl.innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px">
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:rgba(34,197,94,0.08);border-radius:8px;border:1px solid rgba(34,197,94,0.2);flex:1;min-width:220px">
+        <span style="font-size:1.2rem">✅</span>
+        <span style="font-size:0.85rem;color:var(--text2)">${isPT ? 'Perfil gerado em' : 'Perfil generado el'} <strong>${now}</strong>.</span>
+      </div>
+      <button class="btn btn-secondary btn-sm" onclick="downloadProfilePDF('${_nombre.replace(/'/g,"\\'")}')">📄 ${isPT ? 'Baixar PDF' : 'Descargar PDF'}</button>
+    </div>
+    <div id="profile-ia-output">${profileHtml}</div>`;
+}
+
 async function generateProfile(mentalSessionId, technicalSessionId) {
   const btn = document.getElementById('profile-gen-btn');
   const contentEl = document.getElementById('profile-content');
@@ -506,15 +522,10 @@ async function generateProfile(mentalSessionId, technicalSessionId) {
     <div style="text-align:center;padding:48px 20px">
       <div class="spinner" style="margin:0 auto 20px"></div>
       <p style="color:var(--text2);font-size:1rem">${_isPT ? 'A IA está analisando suas respostas e correlações...' : 'La IA está analizando tus respuestas y correlaciones...'}</p>
-      <div style="margin-top:16px;background:rgba(212,175,55,0.1);border:1px solid rgba(212,175,55,0.3);border-radius:8px;padding:12px 16px;max-width:400px;margin-left:auto;margin-right:auto">
-        <p style="color:var(--accent);font-size:0.85rem;margin:0">
-          ⚠️ ${_isPT ? 'Este processo pode demorar. <strong>Não feche nem recarregue a página</strong> até o perfil aparecer.' : 'Este proceso puede tardar varios minutos. <strong>No cierres ni recargues la página</strong> hasta que aparezca el perfil.'}
-        </p>
-      </div>
+      <p style="color:var(--text3);font-size:0.85rem;margin-top:8px">${_isPT ? 'Isso pode demorar alguns minutos. Pode fechar esta aba — o resultado ficará salvo.' : 'Esto puede tomar varios minutos. Puedes cerrar esta pestaña — el resultado quedará guardado.'}</p>
     </div>`;
 
   try {
-    // Obtener sesiones con respuestas completas
     const [mentalData, techData] = await Promise.all([
       mentalSessionId ? Api.get(`/api/test/results/${mentalSessionId}`).catch(() => null) : Promise.resolve(null),
       technicalSessionId ? Api.get(`/api/test/results/${technicalSessionId}`).catch(() => null) : Promise.resolve(null),
@@ -526,6 +537,7 @@ async function generateProfile(mentalSessionId, technicalSessionId) {
     const techScores      = techData    ? (techData.scores   || {}) : {};
     const inconsistencies = _detectInconsistencies(mentalScores, techScores);
 
+    // Inicia el job en background — el servidor responde inmediatamente con job_id
     const res = await Api.post('/api/profile/generate', {
       mental_answers: mentalAnswers,
       technical_answers: techAnswers,
@@ -537,29 +549,32 @@ async function generateProfile(mentalSessionId, technicalSessionId) {
       lang: I18N.lang,
     });
 
-    _profileAlreadyLoaded = true;
-    const _u  = Api.currentUser();
-    const _nombre = _u ? _u.nombre : (_isPT ? 'Jogador' : 'Jugador');
-    const now = new Date().toLocaleDateString(_isPT ? 'pt-BR' : 'es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
-    contentEl.innerHTML = `
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px">
-        <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:rgba(34,197,94,0.08);border-radius:8px;border:1px solid rgba(34,197,94,0.2);flex:1;min-width:220px">
-          <span style="font-size:1.2rem">✅</span>
-          <span style="font-size:0.85rem;color:var(--text2)">${_isPT ? 'Perfil gerado em' : 'Perfil generado el'} <strong>${now}</strong>.</span>
-        </div>
-        <button class="btn btn-secondary btn-sm" onclick="downloadProfilePDF('${_nombre.replace(/'/g,"\\'")}')">📄 ${_isPT ? 'Baixar PDF' : 'Descargar PDF'}</button>
-      </div>
-      <div id="profile-ia-output">${res.profile}</div>`;
+    const jobId = res.job_id;
+
+    // Polling cada 4 segundos hasta que termine
+    const poll = async () => {
+      try {
+        const st = await Api.get(`/api/profile/status/${jobId}`);
+        if (st.status === 'done') {
+          _showProfileResult(contentEl, st.profile, _isPT);
+          btn.disabled = false;
+          btn.textContent = `✨ ${_isPT ? 'Regenerar perfil' : 'Regenerar perfil'}`;
+        } else if (st.status === 'error') {
+          contentEl.innerHTML = `<div class="form-error" style="margin:16px 0">${_isPT ? 'Erro ao gerar o perfil' : 'Error al generar el perfil'}: ${st.error}</div>`;
+          btn.disabled = false;
+          btn.textContent = `✨ ${_isPT ? 'Regenerar perfil' : 'Regenerar perfil'}`;
+        } else {
+          setTimeout(poll, 4000);
+        }
+      } catch (pollErr) {
+        setTimeout(poll, 5000);
+      }
+    };
+    setTimeout(poll, 4000);
+    return; // no ejecutar el finally con re-enable del botón aún
 
   } catch (e) {
-    const isTimeout = e.message && (e.message.includes('524') || e.message.includes('timeout') || e.message.includes('504'));
-    contentEl.innerHTML = isTimeout
-      ? `<div style="background:rgba(212,175,55,0.1);border:1px solid rgba(212,175,55,0.3);border-radius:8px;padding:16px;margin:16px 0">
-           <p style="color:var(--accent);margin:0 0 8px;font-weight:700">⏳ ${_isPT ? 'A geração demorou mais do que o esperado' : 'La generación tardó más de lo esperado'}</p>
-           <p style="color:var(--text2);margin:0;font-size:0.9rem">${_isPT ? 'O servidor ainda pode estar processando. Aguarde 1-2 minutos e clique em "Regenerar perfil" novamente.' : 'El servidor puede seguir procesando. Espera 1-2 minutos y haz click en "Regenerar perfil" nuevamente.'}</p>
-         </div>`
-      : `<div class="form-error" style="margin:16px 0">${_isPT ? 'Erro ao gerar o perfil' : 'Error al generar el perfil'}: ${e.message}</div>`;
-  } finally {
+    contentEl.innerHTML = `<div class="form-error" style="margin:16px 0">${_isPT ? 'Erro ao gerar o perfil' : 'Error al generar el perfil'}: ${e.message}</div>`;
     btn.disabled = false;
     btn.textContent = `✨ ${_isPT ? 'Regenerar perfil' : 'Regenerar perfil'}`;
   }

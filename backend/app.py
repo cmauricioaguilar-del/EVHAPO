@@ -176,6 +176,8 @@ def init_db():
         "ALTER TABLE users ADD COLUMN sala_preferida TEXT DEFAULT ''",
         "ALTER TABLE users ADD COLUMN referral_code TEXT DEFAULT ''",
         "ALTER TABLE users ADD COLUMN referral_notified INTEGER DEFAULT 0",
+        "ALTER TABLE player_profiles ADD COLUMN status TEXT DEFAULT 'done'",
+        "ALTER TABLE player_profiles ADD COLUMN error_msg TEXT",
     ]
     for sql in migrations:
         try:
@@ -1020,46 +1022,54 @@ def generate_profile():
     if not _api_key:
         return jsonify({'error': 'Servicio no disponible. Reinicia el servidor con iniciar_servidor.bat'}), 503
 
+    data = request.json or {}
+    mental_answers       = data.get('mental_answers', [])
+    technical_answers    = data.get('technical_answers', [])
+    mental_scores        = data.get('mental_scores', {})
+    technical_scores     = data.get('technical_scores', {})
+    inconsistencies      = data.get('inconsistencies', [])
+    mental_session_id    = data.get('mental_session_id')
+    technical_session_id = data.get('technical_session_id')
+    lang                 = data.get('lang', 'es')
+    nombre = g.user_name
+
+    prompt = _build_profile_prompt(
+        nombre, mental_answers, technical_answers,
+        mental_scores, technical_scores, inconsistencies,
+        lang=lang
+    )
+
+    db = get_db()
+    # Insertar job con status='processing'
+    db.execute("DELETE FROM player_profiles WHERE user_id=? AND status='processing'", (g.user_id,))
+    job_id = db.execute(
+        "INSERT INTO player_profiles (user_id, mental_session_id, technical_session_id, profile_html, status, created_at) VALUES (?,?,?,?,?,?)",
+        (g.user_id, mental_session_id, technical_session_id, None, 'processing',
+         datetime.datetime.utcnow().isoformat())
+    ).lastrowid
+    db.commit()
+
+    threading.Thread(
+        target=_bg_profile_generation,
+        args=(job_id, g.user_id, prompt, _api_key),
+        daemon=True
+    ).start()
+
+    return jsonify({'job_id': job_id})
+
+
+def _bg_profile_generation(job_id, user_id, prompt, api_key):
+    """Genera el perfil IA en background y guarda el resultado en DB."""
     import requests as _requests
-
-    # Asegurar que la tabla existe
+    db = None
     try:
-        get_db().execute("""
-            CREATE TABLE IF NOT EXISTS player_profiles (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER,
-                mental_session_id INTEGER,
-                technical_session_id INTEGER,
-                profile_html TEXT,
-                created_at TEXT DEFAULT CURRENT_TIMESTAMP
-            )""")
-        get_db().commit()
-    except Exception:
-        pass
+        db = sqlite3.connect(DB_PATH)
+        db.row_factory = sqlite3.Row
 
-    try:
-        data = request.json or {}
-        mental_answers       = data.get('mental_answers', [])
-        technical_answers    = data.get('technical_answers', [])
-        mental_scores        = data.get('mental_scores', {})
-        technical_scores     = data.get('technical_scores', {})
-        inconsistencies      = data.get('inconsistencies', [])
-        mental_session_id    = data.get('mental_session_id')
-        technical_session_id = data.get('technical_session_id')
-        lang                 = data.get('lang', 'es')
-        nombre = g.user_name
-
-        prompt = _build_profile_prompt(
-            nombre, mental_answers, technical_answers,
-            mental_scores, technical_scores, inconsistencies,
-            lang=lang
-        )
-
-        # Llamada directa a la API de Anthropic usando requests (evita problemas de httpx en Windows)
         resp = _requests.post(
             'https://api.anthropic.com/v1/messages',
             headers={
-                'x-api-key': _api_key,
+                'x-api-key': api_key,
                 'anthropic-version': '2023-06-01',
                 'content-type': 'application/json',
             },
@@ -1068,29 +1078,56 @@ def generate_profile():
                 'max_tokens': 24000,
                 'messages': [{'role': 'user', 'content': prompt}]
             },
-            timeout=300,
-            verify=False  # Evitar problemas de certificados SSL en entornos Windows locales
+            timeout=600,
+            verify=False
         )
         resp.raise_for_status()
         profile_html = resp.json()['content'][0]['text']
 
-        db = get_db()
-        db.execute("DELETE FROM player_profiles WHERE user_id=?", (g.user_id,))
+        # Eliminar perfiles anteriores y guardar el nuevo
+        db.execute("DELETE FROM player_profiles WHERE user_id=? AND id!=?", (user_id, job_id))
         db.execute(
-            "INSERT INTO player_profiles (user_id, mental_session_id, technical_session_id, profile_html, created_at) VALUES (?,?,?,?,?)",
-            (g.user_id, mental_session_id, technical_session_id, profile_html,
-             datetime.datetime.utcnow().isoformat())
+            "UPDATE player_profiles SET profile_html=?, status='done', error_msg=NULL WHERE id=?",
+            (profile_html, job_id)
         )
         db.commit()
-        return jsonify({
-            'profile': profile_html,
-            'created_at': datetime.datetime.utcnow().isoformat()
-        })
-
+        print(f"[PROFILE] Job {job_id} completado para user {user_id}")
     except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return jsonify({'error': f'Error al generar perfil: {str(e)}'}), 500
+        print(f"[PROFILE] Error en job {job_id}: {e}")
+        if db:
+            try:
+                db.execute(
+                    "UPDATE player_profiles SET status='error', error_msg=? WHERE id=?",
+                    (str(e), job_id)
+                )
+                db.commit()
+            except Exception:
+                pass
+    finally:
+        if db:
+            db.close()
+
+
+@app.route('/api/profile/status/<int:job_id>', methods=['GET'])
+@require_auth
+def profile_job_status(job_id):
+    """Polling: retorna el estado del job de generación de perfil."""
+    db = get_db()
+    row = db.execute(
+        "SELECT * FROM player_profiles WHERE id=? AND user_id=?",
+        (job_id, g.user_id)
+    ).fetchone()
+    if not row:
+        return jsonify({'error': 'Job no encontrado'}), 404
+
+    status = row['status'] or 'done'
+    result = {'status': status}
+    if status == 'done':
+        result['profile'] = row['profile_html']
+        result['created_at'] = row['created_at']
+    elif status == 'error':
+        result['error'] = row['error_msg'] or 'Error desconocido al generar el perfil.'
+    return jsonify(result)
 
 
 def _build_profile_prompt(nombre, mental_answers, technical_answers,
