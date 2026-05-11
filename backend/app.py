@@ -651,7 +651,7 @@ def _create_stripe_payment(payment_id):
                     'currency': 'usd',
                     'unit_amount': 990,  # $9.90 USD en centavos
                     'product_data': {
-                        'name': 'EVHAPO – Acceso completo',
+                        'name': 'MindEV-IA – Acceso completo',
                         'description': 'Test Mental + Técnico · Acceso permanente',
                     },
                 },
@@ -1840,7 +1840,7 @@ def _send_reset_email(to_email, nombre, temp_pw):
     <div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;background:#0a0e1a;color:#e2e8f0;padding:32px;border-radius:12px">
       <div style="text-align:center;margin-bottom:24px">
         <span style="font-size:3rem;color:#d4af37">&#9824;</span>
-        <h1 style="color:#d4af37;margin:8px 0">EVHAPO</h1>
+        <h1 style="color:#d4af37;margin:8px 0">MindEV-IA</h1>
       </div>
       <h2 style="margin-bottom:8px">Hola, {nombre}</h2>
       <p>Recibimos tu solicitud de recuperacion de contrasena.</p>
