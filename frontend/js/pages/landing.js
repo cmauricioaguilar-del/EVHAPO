@@ -81,7 +81,7 @@ function renderLanding() {
         </p>
         <div id="promo-wrap" style="position:relative;width:100%;max-width:820px;border-radius:18px;overflow:hidden;box-shadow:0 8px 48px rgba(0,0,0,0.7);border:1px solid rgba(212,175,55,0.2);cursor:pointer" onclick="promoPlay()">
           <video id="promo-vid" autoplay muted loop playsinline preload="auto"
-            poster="/icons/mindev-logo.png"
+            poster="/assets/promo-poster.jpg"
             style="width:100%;display:block;background:#0a0a12">
             <source src="/assets/promo.mp4" type="video/mp4">
           </video>
