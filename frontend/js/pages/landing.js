@@ -82,6 +82,7 @@ function renderLanding() {
         <div id="promo-wrap" style="position:relative;width:100%;max-width:820px;border-radius:18px;overflow:hidden;box-shadow:0 8px 48px rgba(0,0,0,0.7);border:1px solid rgba(212,175,55,0.2);cursor:pointer" onclick="promoPlay()">
           <video id="promo-vid" autoplay muted loop playsinline preload="auto"
             poster="/assets/promo-poster.jpg"
+            oncanplay="this.play()"
             style="width:100%;display:block;background:#0a0a12">
             <source src="/assets/promo.mp4" type="video/mp4">
           </video>
@@ -270,16 +271,20 @@ function renderLanding() {
 
   document.getElementById('app').innerHTML = `${renderNavbar()}${html}`;
 
-  // Detectar si autoplay fue bloqueado y mostrar botón play
+  // Autoplay: esperar canplay y detectar solo NotAllowedError real
   const vid = document.getElementById('promo-vid');
+  const btn = document.getElementById('promo-play-btn');
   if (vid) {
-    vid.play().catch(() => {
-      const btn = document.getElementById('promo-play-btn');
-      if (btn) btn.style.display = 'flex';
-    });
-    vid.addEventListener('playing', () => {
-      const btn = document.getElementById('promo-play-btn');
-      if (btn) btn.style.display = 'none';
-    });
+    const tryPlay = () => {
+      vid.play().catch(err => {
+        if (err.name === 'NotAllowedError' && btn) btn.style.display = 'flex';
+      });
+    };
+    if (vid.readyState >= 3) {
+      tryPlay();
+    } else {
+      vid.addEventListener('canplay', tryPlay, { once: true });
+    }
+    vid.addEventListener('playing', () => { if (btn) btn.style.display = 'none'; });
   }
 }
