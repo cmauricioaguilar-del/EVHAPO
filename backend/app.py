@@ -748,6 +748,21 @@ def compute_benchmark(sessions):
 
 # ─── Admin routes ─────────────────────────────────────────────────────────────
 
+@app.route('/api/admin/config-status', methods=['GET'])
+@require_auth
+def config_status():
+    if not g.is_admin:
+        return jsonify({'error': 'Acceso denegado'}), 403
+    stripe_key = os.environ.get('STRIPE_SECRET_KEY') or STRIPE_SECRET_KEY
+    mp_token   = os.environ.get('MERCADOPAGO_ACCESS_TOKEN') or MERCADOPAGO_ACCESS_TOKEN
+    return jsonify({
+        'stripe_configured': bool(stripe_key),
+        'stripe_key_prefix': stripe_key[:12] + '...' if stripe_key else 'NO CONFIGURADO',
+        'mercadopago_configured': bool(mp_token),
+        'base_url': BASE_URL,
+        'smtp_configured': bool(SMTP_USER and SMTP_PASS),
+    })
+
 @app.route('/api/admin/stats', methods=['GET'])
 @require_auth
 def admin_stats():
@@ -815,7 +830,7 @@ def list_users():
         return jsonify({'error': 'Acceso denegado'}), 403
     db = get_db()
     rows = db.execute(
-        "SELECT id, nombre, apellido, email, pais, created_at FROM users ORDER BY created_at DESC"
+        "SELECT id, nombre, apellido, email, pais, referral_code, created_at FROM users ORDER BY created_at DESC"
     ).fetchall()
     return jsonify({'users': [dict(r) for r in rows]})
 
