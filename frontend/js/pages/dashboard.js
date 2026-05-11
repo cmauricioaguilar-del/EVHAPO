@@ -245,7 +245,7 @@ function renderDashboardContent(data, user) {
           </button>
           <div style="color:var(--text2);font-size:0.85rem;align-self:center">
             ${hasBoth ? `🟢 ${isPT ? 'Teste mental + técnico disponíveis' : 'Test mental + técnico disponibles'}` : mentalSc ? `🟡 ${isPT ? 'Apenas teste mental disponível' : 'Solo test mental disponible'}` : `🟡 ${isPT ? 'Apenas teste técnico disponível' : 'Solo test técnico disponible'}`}<br>
-            <span style="font-size:0.75rem">${isPT ? 'A análise leva ~15 segundos · É salva automaticamente' : 'El análisis tarda ~15 segundos · Se guarda automáticamente'}</span>
+            <span style="font-size:0.75rem">${isPT ? 'É salva automaticamente' : 'Se guarda automáticamente'}</span>
           </div>
         </div>
         <div id="profile-content">
@@ -506,7 +506,6 @@ async function generateProfile(mentalSessionId, technicalSessionId) {
     <div style="text-align:center;padding:48px 20px">
       <div class="spinner" style="margin:0 auto 20px"></div>
       <p style="color:var(--text2);font-size:1rem">${_isPT ? 'A IA está analisando suas respostas e correlações...' : 'La IA está analizando tus respuestas y correlaciones...'}</p>
-      <p style="color:var(--text3);font-size:0.85rem;margin-top:8px">${_isPT ? 'Este processo leva entre 15 e 30 segundos.' : 'Este proceso tarda entre 15 y 30 segundos.'}</p>
     </div>`;
 
   try {
