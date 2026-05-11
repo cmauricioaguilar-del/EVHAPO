@@ -109,7 +109,13 @@ window.addEventListener('load', async () => {
     history.replaceState(null, '', '/');
     if (!Api.isLoggedIn()) { App.go('landing'); return; }
 
-    if (stripeResult === 'success') {
+    if (stripeResult === 'sub_success') {
+      // Suscripción mensual Stripe
+      try {
+        const res = await Api.post('/api/payment/stripe-subscription-verify', { session_id: stripeSession });
+        App.go(res.ok ? 'dashboard' : 'payment');
+      } catch { App.go('payment'); }
+    } else if (stripeResult === 'success') {
       try {
         const res = await Api.post('/api/payment/stripe-verify', {
           session_id:  stripeSession,
@@ -118,7 +124,6 @@ window.addEventListener('load', async () => {
         App.go(res.ok ? 'dashboard' : 'payment');
       } catch { App.go('payment'); }
     } else {
-      // cancel → volver a pagar
       App.go('payment');
     }
     return;
@@ -129,7 +134,17 @@ window.addEventListener('load', async () => {
     history.replaceState(null, '', '/');
     if (!Api.isLoggedIn()) { App.go('landing'); return; }
 
-    if (mpResult === 'success') {
+    if (mpResult === 'sub_success') {
+      // Suscripción mensual MercadoPago
+      const user = Api.currentUser();
+      const sub  = JSON.parse(localStorage.getItem('evhapo_user') || '{}');
+      try {
+        const res = await Api.post('/api/payment/mp-subscription-verify', {
+          sub_id: sub.mp_subscription_id || ''
+        });
+        App.go(res.ok ? 'dashboard' : 'payment');
+      } catch { App.go('dashboard'); }
+    } else if (mpResult === 'success') {
       // Verificar y activar acceso
       try {
         const res = await Api.post('/api/payment/mp-verify', {

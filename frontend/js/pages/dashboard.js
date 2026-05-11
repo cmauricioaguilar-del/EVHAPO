@@ -37,6 +37,7 @@ async function renderDashboard() {
 function renderDashboardContent(data, user) {
   const { history, benchmark } = data;
   const isPT = I18N.isPT();
+  const sub  = data.subscription || null;
 
   // Resetear flags de carga para que los tabs siempre recarguen su contenido guardado
   _profileAlreadyLoaded    = false;
@@ -93,6 +94,24 @@ function renderDashboardContent(data, user) {
       <div class="stat-label">${isPT ? 'Índice combinado' : 'Índice combinado'}</div>
     </div>
   </div>`;
+
+  // ─── Banner suscripción activa ────────────────────────────────────────────
+  if (sub && sub.active) {
+    const endDate  = sub.period_end ? sub.period_end.slice(0,10) : '—';
+    html += `
+      <div style="background:linear-gradient(135deg,rgba(129,140,248,0.12),rgba(99,102,241,0.08));border:1px solid rgba(129,140,248,0.3);border-radius:12px;padding:14px 20px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="font-size:1.3rem">♻️</span>
+          <div>
+            <div style="font-weight:700;color:#818cf8;font-size:0.9rem">${isPT ? 'Assinatura Mensal Ativa' : 'Suscripción Mensual Activa'}</div>
+            <div style="font-size:0.78rem;color:var(--text3)">${isPT ? `Próxima cobrança: ${endDate}` : `Próximo cobro: ${endDate}`}</div>
+          </div>
+        </div>
+        <button onclick="cancelSubscription()" style="background:none;border:1px solid rgba(239,68,68,0.4);color:#f87171;border-radius:7px;padding:5px 12px;font-size:0.78rem;cursor:pointer;font-weight:600">
+          ${isPT ? 'Cancelar assinatura' : 'Cancelar suscripción'}
+        </button>
+      </div>`;
+  }
 
   if (!history.length) {
     html += `
@@ -972,6 +991,21 @@ async function loadLastTournament() {
   }
 }
 
+
+async function cancelSubscription() {
+  const isPT = I18N.isPT();
+  const msg  = isPT
+    ? '¿Cancelar tu assinatura? Conservarás el acceso hasta el final del período actual.'
+    : '¿Cancelar tu suscripción? Conservarás el acceso hasta el fin del período actual.';
+  if (!confirm(msg)) return;
+  try {
+    const res = await Api.post('/api/payment/cancel-subscription', {});
+    alert(isPT ? `✓ ${res.message}` : `✓ ${res.message}`);
+    App.go('dashboard');
+  } catch (e) {
+    alert(`Error: ${e.message}`);
+  }
+}
 
 async function startNewTest(testType = 'mental') {
   if (!Api.isLoggedIn()) { App.go('login'); return; }

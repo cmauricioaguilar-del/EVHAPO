@@ -28,10 +28,13 @@ _DATA_DIR = os.environ.get('DATA_DIR', os.path.dirname(__file__))
 os.makedirs(_DATA_DIR, exist_ok=True)
 DB_PATH = os.path.join(_DATA_DIR, 'evhapo.db')
 TEST_PRICE_USD = 9.90
+SUB_PRICE_USD  = 4.90   # precio mensual suscripción
 
 MERCADOPAGO_ACCESS_TOKEN = os.environ.get('MERCADOPAGO_ACCESS_TOKEN', '')
 MERCADOPAGO_PUBLIC_KEY   = os.environ.get('MERCADOPAGO_PUBLIC_KEY', '')
 STRIPE_SECRET_KEY        = os.environ.get('STRIPE_SECRET_KEY', '')
+STRIPE_WEBHOOK_SECRET    = os.environ.get('STRIPE_WEBHOOK_SECRET', '')
+STRIPE_SUB_PRICE_ID      = os.environ.get('STRIPE_SUB_PRICE_ID', '')   # opcional: ID de precio ya creado
 BASE_URL = os.environ.get('BASE_URL', 'http://localhost:5000')
 
 SMTP_SERVER = os.environ.get('SMTP_SERVER', 'smtp.gmail.com')
@@ -215,6 +218,12 @@ def init_db():
         "ALTER TABLE users ADD COLUMN coupon_welcome_sent INTEGER DEFAULT 0",
         "ALTER TABLE player_profiles ADD COLUMN status TEXT DEFAULT 'done'",
         "ALTER TABLE player_profiles ADD COLUMN error_msg TEXT",
+        # Suscripción mensual
+        "ALTER TABLE users ADD COLUMN subscription_status TEXT DEFAULT NULL",
+        "ALTER TABLE users ADD COLUMN subscription_period_end TEXT DEFAULT NULL",
+        "ALTER TABLE users ADD COLUMN stripe_subscription_id TEXT DEFAULT NULL",
+        "ALTER TABLE users ADD COLUMN stripe_customer_id TEXT DEFAULT NULL",
+        "ALTER TABLE users ADD COLUMN mp_subscription_id TEXT DEFAULT NULL",
     ]
     for sql in migrations:
         try:
@@ -393,12 +402,65 @@ def _get_coupon_days_remaining(coupon_activated_at):
         return None
 
 
+def _get_subscription_active(user):
+    """Retorna True si el usuario tiene suscripción mensual activa y vigente."""
+    if not user:
+        return False
+    status = user['subscription_status'] if 'subscription_status' in user.keys() else None
+    if status != 'active':
+        return False
+    period_end = user['subscription_period_end'] if 'subscription_period_end' in user.keys() else None
+    if not period_end:
+        return False
+    try:
+        end_dt = datetime.datetime.fromisoformat(period_end)
+        return end_dt > datetime.datetime.utcnow()
+    except Exception:
+        return False
+
+
+def _get_stripe_sub_price_id():
+    """Obtiene o crea el Price ID de suscripción mensual en Stripe."""
+    # 1. Variable de entorno hardcodeada (más rápido)
+    if STRIPE_SUB_PRICE_ID:
+        return STRIPE_SUB_PRICE_ID
+    env_id = os.environ.get('STRIPE_SUB_PRICE_ID', '')
+    if env_id:
+        return env_id
+    # 2. Crear producto + precio programáticamente
+    import stripe
+    stripe.api_key = os.environ.get('STRIPE_SECRET_KEY') or STRIPE_SECRET_KEY
+    try:
+        products = stripe.Product.search(query="metadata['mindev_type']:'subscription'")
+        for p in products.data:
+            prices = stripe.Price.list(product=p.id, active=True)
+            if prices.data:
+                return prices.data[0].id
+    except Exception:
+        pass
+    # Crear
+    product = stripe.Product.create(
+        name='MindEV-IA — Suscripción Mensual',
+        description='Acceso mensual: diagnósticos ilimitados, análisis IA, tracker y bankroll.',
+        metadata={'mindev_type': 'subscription'}
+    )
+    price = stripe.Price.create(
+        product=product.id,
+        unit_amount=490,   # USD $4.90
+        currency='usd',
+        recurring={'interval': 'month'},
+    )
+    return price.id
+
+
 @app.route('/api/me', methods=['GET'])
 @require_auth
 def me():
     db = get_db()
     user = db.execute(
-        "SELECT id, nombre, apellido, email, pais, created_at, coupon_code, coupon_activated_at FROM users WHERE id=?",
+        """SELECT id, nombre, apellido, email, pais, created_at, coupon_code, coupon_activated_at,
+                  subscription_status, subscription_period_end, stripe_subscription_id
+           FROM users WHERE id=?""",
         (g.user_id,)
     ).fetchone()
     sessions = db.execute(
@@ -421,13 +483,24 @@ def me():
             'expired': (days_remaining or 0) == 0,
         }
 
-    has_access = bool(payment) or (coupon_info is not None and coupon_info['active'])
+    sub_active = _get_subscription_active(user)
+    has_access = bool(payment) or (coupon_info is not None and coupon_info['active']) or sub_active
+
+    sub_info = None
+    if user['subscription_status']:
+        sub_info = {
+            'status': user['subscription_status'],
+            'period_end': user['subscription_period_end'],
+            'active': sub_active,
+            'stripe_subscription_id': user['stripe_subscription_id'],
+        }
 
     return jsonify({
         'user': dict(user),
         'sessions': [dict(s) for s in sessions],
         'has_payment': has_access,
         'coupon': coupon_info,
+        'subscription': sub_info,
     })
 
 # ─── Payment routes ───────────────────────────────────────────────────────────
@@ -653,6 +726,228 @@ def confirm_payment():
     threading.Thread(target=_send_referral_notification, args=(g.user_id,), daemon=True).start()
     return jsonify({'ok': True})
 
+# ─── Subscription routes ─────────────────────────────────────────────────────
+
+@app.route('/api/payment/create-subscription', methods=['POST'])
+@require_auth
+def create_subscription():
+    data   = request.json or {}
+    method = data.get('method', 'stripe')
+    db     = get_db()
+    user   = db.execute("SELECT * FROM users WHERE id=?", (g.user_id,)).fetchone()
+
+    if method == 'stripe':
+        sk = os.environ.get('STRIPE_SECRET_KEY') or STRIPE_SECRET_KEY
+        if not sk:
+            return jsonify({'error': 'Stripe no configurado'}), 400
+        try:
+            import stripe
+            stripe.api_key = sk
+            price_id = _get_stripe_sub_price_id()
+            session  = stripe.checkout.Session.create(
+                customer_email = user['email'],
+                line_items     = [{'price': price_id, 'quantity': 1}],
+                mode           = 'subscription',
+                success_url    = f"{BASE_URL}/?stripe_result=sub_success&session_id={{CHECKOUT_SESSION_ID}}",
+                cancel_url     = f"{BASE_URL}/?stripe_result=cancel",
+                metadata       = {'user_id': str(g.user_id)},
+                subscription_data = {'metadata': {'user_id': str(g.user_id)}},
+            )
+            return jsonify({'mode': 'stripe', 'checkout_url': session.url})
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+
+    elif method == 'mercadopago':
+        mp_token = MERCADOPAGO_ACCESS_TOKEN or os.environ.get('MERCADOPAGO_ACCESS_TOKEN', '')
+        if not mp_token:
+            return jsonify({'error': 'MercadoPago no configurado'}), 400
+        try:
+            import mercadopago
+            sdk  = mercadopago.SDK(mp_token)
+            pais = (user['pais'] or 'CL').upper()
+            # Precio mensual en moneda local (~$4.90 USD)
+            sub_price_map = {
+                'CL': (4750, 'CLP'), 'AR': (4500, 'ARS'), 'MX': (85, 'MXN'),
+                'CO': (20000, 'COP'), 'PE': (18.50, 'PEN'), 'UY': (195, 'UYU'), 'BR': (25, 'BRL'),
+            }
+            amount, currency = sub_price_map.get(pais, (4.90, 'USD'))
+            preapproval_data = {
+                "back_url": f"{BASE_URL}/?mp_result=sub_success",
+                "reason": "MindEV-IA — Suscripción Mensual",
+                "external_reference": str(g.user_id),
+                "payer_email": user['email'],
+                "auto_recurring": {
+                    "frequency": 1,
+                    "frequency_type": "months",
+                    "transaction_amount": float(amount),
+                    "currency_id": currency,
+                },
+            }
+            result = sdk.preapproval().create(preapproval_data)
+            if result['status'] == 201:
+                preapproval = result['response']
+                # Guardar ID provisional
+                db.execute("UPDATE users SET mp_subscription_id=? WHERE id=?",
+                           (preapproval['id'], g.user_id))
+                db.commit()
+                return jsonify({'mode': 'mercadopago', 'checkout_url': preapproval['init_point']})
+            return jsonify({'error': f"MP error: {result.get('response')}"}), 500
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+
+    return jsonify({'error': 'Método no soportado'}), 400
+
+
+@app.route('/api/payment/stripe-subscription-verify', methods=['POST'])
+@require_auth
+def stripe_subscription_verify():
+    data       = request.json or {}
+    session_id = data.get('session_id', '')
+    if not session_id:
+        return jsonify({'ok': False, 'error': 'Missing session_id'}), 400
+    try:
+        import stripe
+        stripe.api_key = os.environ.get('STRIPE_SECRET_KEY') or STRIPE_SECRET_KEY
+        cs  = stripe.checkout.Session.retrieve(session_id, expand=['subscription'])
+        if cs.status != 'complete':
+            return jsonify({'ok': False, 'status': cs.status})
+        sub        = cs.subscription
+        period_end = datetime.datetime.utcfromtimestamp(sub.current_period_end).isoformat()
+        db = get_db()
+        db.execute("""UPDATE users SET subscription_status='active', subscription_period_end=?,
+                        stripe_subscription_id=?, stripe_customer_id=? WHERE id=?""",
+                   (period_end, sub.id, cs.customer, g.user_id))
+        db.commit()
+        return jsonify({'ok': True, 'period_end': period_end})
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
+
+@app.route('/api/payment/mp-subscription-verify', methods=['POST'])
+@require_auth
+def mp_subscription_verify():
+    data   = request.json or {}
+    sub_id = data.get('sub_id')
+    if not sub_id:
+        return jsonify({'ok': False, 'error': 'Missing sub_id'}), 400
+    try:
+        import mercadopago
+        sdk    = mercadopago.SDK(MERCADOPAGO_ACCESS_TOKEN or os.environ.get('MERCADOPAGO_ACCESS_TOKEN', ''))
+        result = sdk.preapproval().get(sub_id)
+        if result['status'] != 200:
+            return jsonify({'ok': False, 'error': 'No se pudo verificar'})
+        preapproval = result['response']
+        status      = preapproval.get('status')
+        if status == 'authorized':
+            period_end = (datetime.datetime.utcnow() + datetime.timedelta(days=31)).isoformat()
+            db = get_db()
+            db.execute("""UPDATE users SET subscription_status='active', subscription_period_end=?,
+                            mp_subscription_id=? WHERE id=?""",
+                       (period_end, sub_id, g.user_id))
+            db.commit()
+            return jsonify({'ok': True, 'period_end': period_end})
+        return jsonify({'ok': False, 'status': status})
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
+
+@app.route('/api/webhooks/stripe', methods=['POST'])
+def stripe_webhook():
+    """Webhook de Stripe para renovación y cancelación de suscripciones."""
+    payload = request.get_data()
+    sig     = request.headers.get('Stripe-Signature', '')
+    secret  = os.environ.get('STRIPE_WEBHOOK_SECRET') or STRIPE_WEBHOOK_SECRET
+    try:
+        import stripe
+        stripe.api_key = os.environ.get('STRIPE_SECRET_KEY') or STRIPE_SECRET_KEY
+        if secret:
+            event = stripe.Webhook.construct_event(payload, sig, secret)
+        else:
+            event = stripe.Event.construct_from(json.loads(payload), stripe.api_key)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+    db = get_db()
+    etype = event.type
+    obj   = event.data.object
+
+    if etype == 'invoice.payment_succeeded':
+        sub_id = obj.get('subscription')
+        if sub_id:
+            sub_obj    = stripe.Subscription.retrieve(sub_id)
+            period_end = datetime.datetime.utcfromtimestamp(sub_obj.current_period_end).isoformat()
+            customer   = obj.get('customer')
+            db.execute("""UPDATE users SET subscription_status='active', subscription_period_end=?
+                          WHERE stripe_customer_id=?""", (period_end, customer))
+            db.commit()
+
+    elif etype in ('customer.subscription.deleted',):
+        customer = obj.get('customer')
+        db.execute("UPDATE users SET subscription_status='cancelled' WHERE stripe_customer_id=?", (customer,))
+        db.commit()
+
+    elif etype == 'customer.subscription.updated':
+        period_end = datetime.datetime.utcfromtimestamp(obj.current_period_end).isoformat()
+        status     = 'active' if obj.status == 'active' else 'cancelled'
+        db.execute("""UPDATE users SET subscription_status=?, subscription_period_end=?
+                      WHERE stripe_customer_id=?""", (status, period_end, obj.customer))
+        db.commit()
+
+    return jsonify({'received': True})
+
+
+@app.route('/api/payment/subscription', methods=['GET'])
+@require_auth
+def get_subscription_status():
+    db   = get_db()
+    user = db.execute(
+        "SELECT subscription_status, subscription_period_end, stripe_subscription_id, mp_subscription_id FROM users WHERE id=?",
+        (g.user_id,)
+    ).fetchone()
+    active = _get_subscription_active(user)
+    return jsonify({
+        'status':   user['subscription_status'],
+        'period_end': user['subscription_period_end'],
+        'active':   active,
+        'stripe_subscription_id': user['stripe_subscription_id'],
+        'mp_subscription_id': user['mp_subscription_id'],
+    })
+
+
+@app.route('/api/payment/cancel-subscription', methods=['POST'])
+@require_auth
+def cancel_subscription():
+    db   = get_db()
+    user = db.execute(
+        "SELECT stripe_subscription_id, mp_subscription_id FROM users WHERE id=?",
+        (g.user_id,)
+    ).fetchone()
+    # Cancelar en Stripe
+    sub_id = user['stripe_subscription_id']
+    if sub_id:
+        try:
+            import stripe
+            stripe.api_key = os.environ.get('STRIPE_SECRET_KEY') or STRIPE_SECRET_KEY
+            stripe.Subscription.cancel(sub_id)
+        except Exception as e:
+            print(f"[STRIPE] Error cancelando suscripción: {e}")
+    # Cancelar en MercadoPago
+    mp_sub_id = user['mp_subscription_id']
+    if mp_sub_id:
+        try:
+            import mercadopago
+            sdk = mercadopago.SDK(MERCADOPAGO_ACCESS_TOKEN or os.environ.get('MERCADOPAGO_ACCESS_TOKEN', ''))
+            sdk.preapproval().update(mp_sub_id, {"status": "cancelled"})
+        except Exception as e:
+            print(f"[MP] Error cancelando suscripción: {e}")
+
+    db.execute("UPDATE users SET subscription_status='cancelled' WHERE id=?", (g.user_id,))
+    db.commit()
+    return jsonify({'ok': True, 'message': 'Suscripción cancelada. El acceso continúa hasta el fin del período actual.'})
+
+
+# ─── Test sessions ────────────────────────────────────────────────────────────
+
 @app.route('/api/test/new-session', methods=['POST'])
 @require_auth
 def new_test_session():
@@ -661,16 +956,17 @@ def new_test_session():
     test_type = data.get('test_type', 'mental')
     db = get_db()
 
-    # Verificar acceso: pago aprobado, cupón activo o es admin
-    user = db.execute("SELECT is_admin, coupon_activated_at FROM users WHERE id=?", (g.user_id,)).fetchone()
+    # Verificar acceso: pago aprobado, cupón activo, suscripción activa o es admin
+    user = db.execute("SELECT is_admin, coupon_activated_at, subscription_status, subscription_period_end FROM users WHERE id=?", (g.user_id,)).fetchone()
     payment = db.execute(
         "SELECT id FROM payments WHERE user_id=? AND status='approved' ORDER BY id DESC LIMIT 1",
         (g.user_id,)
     ).fetchone()
 
     coupon_access = (_get_coupon_days_remaining(user['coupon_activated_at'] if user else None) or 0) > 0
+    sub_access    = _get_subscription_active(user)
 
-    if not payment and not coupon_access and not (user and user['is_admin']):
+    if not payment and not coupon_access and not sub_access and not (user and user['is_admin']):
         return jsonify({'error': 'no_payment', 'message': 'Necesitas completar el pago para acceder al test'}), 402
 
     payment_id = payment['id'] if payment else None
@@ -995,7 +1291,20 @@ def dashboard():
         r['scores'] = json.loads(s['scores_json'] or '{}')
         history.append(r)
 
-    return jsonify({'history': history, 'benchmark': benchmark})
+    # Suscripción
+    user_row = db.execute(
+        "SELECT subscription_status, subscription_period_end FROM users WHERE id=?", (g.user_id,)
+    ).fetchone()
+    sub_active = _get_subscription_active(user_row)
+    sub_info   = None
+    if user_row and user_row['subscription_status']:
+        sub_info = {
+            'status':     user_row['subscription_status'],
+            'period_end': user_row['subscription_period_end'],
+            'active':     sub_active,
+        }
+
+    return jsonify({'history': history, 'benchmark': benchmark, 'subscription': sub_info})
 
 def compute_benchmark(sessions):
     totals = {}

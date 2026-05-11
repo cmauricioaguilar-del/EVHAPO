@@ -1,35 +1,73 @@
 let _selectedMethod = 'mercadopago';
-let _mpConfigLoaded  = false;
+let _selectedPlan   = 'unique';   // 'unique' | 'subscription'
 
 // ─── Renderizado ──────────────────────────────────────────────────────────────
 async function renderPayment() {
   const user = Api.currentUser();
   if (!user) { App.go('register'); return; }
 
-  const pais = (JSON.parse(localStorage.getItem('evhapo_user') || '{}').pais || 'CL').toUpperCase();
+  const pais    = (JSON.parse(localStorage.getItem('evhapo_user') || '{}').pais || 'CL').toUpperCase();
   const isLatam = ['CL','AR','MX','CO','PE','UY','BR'].includes(pais);
   _selectedMethod = isLatam ? 'mercadopago' : 'stripe';
 
-  // Precio en moneda local
   const priceMap = {
-    CL: '$9.500 CLP', AR: '$9.000 ARS', MX: '$170 MXN',
-    CO: '$40.000 COP', PE: 'S/37 PEN', UY: '$390 UYU', BR: 'R$50 BRL'
+    CL: { unique: '$9.500 CLP', sub: '$4.750 CLP' },
+    AR: { unique: '$9.000 ARS', sub: '$4.500 ARS' },
+    MX: { unique: '$170 MXN',   sub: '$85 MXN'    },
+    CO: { unique: '$40.000 COP',sub: '$20.000 COP' },
+    PE: { unique: 'S/37 PEN',   sub: 'S/18.50 PEN' },
+    UY: { unique: '$390 UYU',   sub: '$195 UYU'    },
+    BR: { unique: 'R$50 BRL',   sub: 'R$25 BRL'    },
   };
-  const localPrice = priceMap[pais] || 'USD $9.90';
+  const prices     = priceMap[pais] || { unique: 'USD $9.90', sub: 'USD $4.90' };
+  const isPT       = I18N.isPT();
 
-  const isPT = I18N.isPT();
   document.getElementById('app').innerHTML = `${renderNavbar()}
     <div class="auth-container">
-      <div class="auth-card" style="max-width:540px">
+      <div class="auth-card" style="max-width:560px">
         <div style="text-align:center;margin-bottom:24px">
           <div style="font-size:2.5rem;color:var(--accent)">♠</div>
-          <h1>${isPT ? 'Acessar o Diagnóstico' : 'Acceder al Diagnóstico'}</h1>
-          <p class="auth-sub">${isPT ? `Olá ${user.nombre}. Um último passo para começar.` : `Hola ${user.nombre}. Un último paso para comenzar.`}</p>
+          <h1>${isPT ? 'Escolha seu plano' : 'Elige tu plan'}</h1>
+          <p class="auth-sub">${isPT ? `Olá ${user.nombre}. Um último passo.` : `Hola ${user.nombre}. Un último paso.`}</p>
         </div>
 
-        <div class="price-banner" style="padding:20px;margin-bottom:20px">
-          <div class="price">${localPrice}</div>
-          <div class="price-sub">${isPT ? 'Pagamento único · Acesso permanente · Teste Mental + Técnico' : 'Pago único · Acceso permanente · Test Mental + Técnico'}</div>
+        <!-- ── Selector de plan ────────────────────────────────────────── -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:24px">
+
+          <!-- Plan Único -->
+          <div id="plan-unique" onclick="selectPlan('unique')" style="
+            border:2px solid var(--accent);border-radius:12px;padding:16px 14px;cursor:pointer;
+            background:rgba(212,175,55,0.08);transition:all 0.15s;position:relative">
+            <div style="font-size:0.72rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px">
+              ${isPT ? 'Pagamento Único' : 'Pago Único'}
+            </div>
+            <div style="font-size:1.5rem;font-weight:900;color:var(--accent);line-height:1">${prices.unique}</div>
+            <div style="font-size:0.75rem;color:var(--text3);margin-top:4px">${isPT ? 'acesso permanente' : 'acceso permanente'}</div>
+            <div id="plan-unique-check" style="position:absolute;top:10px;right:10px;width:18px;height:18px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:0.65rem;color:#000;font-weight:800">✓</div>
+          </div>
+
+          <!-- Plan Mensual -->
+          <div id="plan-subscription" onclick="selectPlan('subscription')" style="
+            border:2px solid var(--border);border-radius:12px;padding:16px 14px;cursor:pointer;
+            background:var(--card);transition:all 0.15s;position:relative">
+            <div style="position:absolute;top:-10px;left:50%;transform:translateX(-50%);
+              background:linear-gradient(135deg,#818cf8,#6366f1);color:#fff;font-size:0.65rem;
+              font-weight:800;padding:2px 10px;border-radius:20px;white-space:nowrap;text-transform:uppercase;letter-spacing:0.05em">
+              ${isPT ? '🔥 Mais popular' : '🔥 Más popular'}
+            </div>
+            <div style="font-size:0.72rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px">
+              ${isPT ? 'Assinatura Mensal' : 'Suscripción Mensual'}
+            </div>
+            <div style="font-size:1.5rem;font-weight:900;color:#818cf8;line-height:1">${prices.sub}</div>
+            <div style="font-size:0.75rem;color:var(--text3);margin-top:4px">${isPT ? 'por mês · cancela quando quiser' : 'al mes · cancela cuando quieras'}</div>
+            <div id="plan-subscription-check" style="position:absolute;top:10px;right:10px;width:18px;height:18px;border-radius:50%;background:var(--border);display:flex;align-items:center;justify-content:center;font-size:0.65rem;color:var(--text3);font-weight:800;opacity:0.4">✓</div>
+          </div>
+
+        </div>
+
+        <!-- Comparación de planes -->
+        <div id="plan-features" style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-bottom:20px;font-size:0.82rem;color:var(--text2)">
+          ${_renderPlanFeatures('unique', isPT)}
         </div>
 
         <!-- Cupón -->
@@ -75,19 +113,17 @@ async function renderPayment() {
 
         <div id="mp-info" class="alert alert-info" style="margin-bottom:16px;${isLatam ? '' : 'display:none'}">
           ${isPT
-            ? '💙 Você será redirecionado para o <strong>Mercado Pago</strong> para concluir o pagamento com segurança. Aceitamos débito, crédito e transferência bancária.'
-            : '💙 Serás redirigido a <strong>Mercado Pago</strong> para completar el pago de forma segura. Aceptamos débito, crédito y transferencia bancaria.'}
+            ? '💙 Você será redirecionado para o <strong>Mercado Pago</strong> para concluir o pagamento com segurança.'
+            : '💙 Serás redirigido a <strong>Mercado Pago</strong> para completar el pago de forma segura.'}
         </div>
-
         <div id="stripe-info" class="alert alert-info" style="margin-bottom:16px;${!isLatam ? '' : 'display:none'}">
           ${isPT
-            ? '💳 Você será redirecionado para o checkout seguro do <strong>Stripe</strong>. Aceitamos Visa, Mastercard, Amex e Apple/Google Pay.'
-            : '💳 Serás redirigido al checkout seguro de <strong>Stripe</strong>. Aceptamos Visa, Mastercard, Amex y Apple/Google Pay.'}
+            ? '💳 Você será redirecionado para o checkout seguro do <strong>Stripe</strong>.'
+            : '💳 Serás redirigido al checkout seguro de <strong>Stripe</strong>.'}
         </div>
 
-
         <button class="btn btn-primary btn-block btn-lg" id="pay-btn" onclick="doPayment()">
-          ♠ ${isPT ? 'Pagar e começar o teste' : 'Pagar y comenzar el test'}
+          ♠ ${isPT ? 'Pagar e começar' : 'Pagar y comenzar'}
         </button>
 
         <p style="text-align:center;margin-top:16px;font-size:0.8rem;color:var(--text3)">
@@ -95,6 +131,52 @@ async function renderPayment() {
         </p>
       </div>
     </div>`;
+}
+
+function _renderPlanFeatures(plan, isPT) {
+  if (plan === 'unique') {
+    return isPT
+      ? `<strong style="color:var(--text1)">Pagamento único — acesso permanente</strong><br>
+         ✓ Testes Mental + Técnico ilimitados &nbsp;·&nbsp; ✓ Perfil IA &nbsp;·&nbsp; ✓ Plano de Estudo &nbsp;·&nbsp; ✓ Análise de Mãos &nbsp;·&nbsp; ✓ Tracker + Bankroll`
+      : `<strong style="color:var(--text1)">Pago único — acceso permanente</strong><br>
+         ✓ Tests Mental + Técnico ilimitados &nbsp;·&nbsp; ✓ Perfil IA &nbsp;·&nbsp; ✓ Plan de Estudio &nbsp;·&nbsp; ✓ Análisis de Manos &nbsp;·&nbsp; ✓ Tracker + Bankroll`;
+  }
+  return isPT
+    ? `<strong style="color:#818cf8">Assinatura — tudo incluído, cancele quando quiser</strong><br>
+       ✓ Tudo do plano único &nbsp;·&nbsp; ✓ Acesso enquanto ativo &nbsp;·&nbsp; ✓ Cobrança automática mensal &nbsp;·&nbsp; <span style="color:#fbbf24">★ Metade do preço</span>`
+    : `<strong style="color:#818cf8">Suscripción — todo incluido, cancela cuando quieras</strong><br>
+       ✓ Todo lo del plan único &nbsp;·&nbsp; ✓ Acceso mientras activo &nbsp;·&nbsp; ✓ Cobro automático mensual &nbsp;·&nbsp; <span style="color:#fbbf24">★ La mitad del precio</span>`;
+}
+
+function selectPlan(plan) {
+  _selectedPlan = plan;
+  const isUnique = plan === 'unique';
+
+  // Estilo plan único
+  const cardU  = document.getElementById('plan-unique');
+  const checkU = document.getElementById('plan-unique-check');
+  if (cardU) {
+    cardU.style.borderColor = isUnique ? 'var(--accent)' : 'var(--border)';
+    cardU.style.background  = isUnique ? 'rgba(212,175,55,0.08)' : 'var(--card)';
+  }
+  if (checkU) checkU.style.opacity = isUnique ? '1' : '0.3';
+
+  // Estilo plan mensual
+  const cardS  = document.getElementById('plan-subscription');
+  const checkS = document.getElementById('plan-subscription-check');
+  if (cardS) {
+    cardS.style.borderColor = !isUnique ? '#818cf8' : 'var(--border)';
+    cardS.style.background  = !isUnique ? 'rgba(129,140,248,0.08)' : 'var(--card)';
+  }
+  if (checkS) {
+    checkS.style.background = !isUnique ? '#818cf8' : 'var(--border)';
+    checkS.style.opacity    = !isUnique ? '1' : '0.4';
+    checkS.style.color      = !isUnique ? '#000' : 'var(--text3)';
+  }
+
+  // Actualizar features
+  const featEl = document.getElementById('plan-features');
+  if (featEl) featEl.innerHTML = _renderPlanFeatures(plan, I18N.isPT());
 }
 
 function selectMethod(method) {
@@ -112,10 +194,10 @@ function toggleCouponSection() {
 }
 
 async function applyCoupon() {
-  const code = (document.getElementById('coupon-input')?.value || '').trim().toUpperCase();
-  const msgEl  = document.getElementById('coupon-msg');
-  const btn    = document.getElementById('coupon-apply-btn');
-  const isPT   = I18N.isPT();
+  const code  = (document.getElementById('coupon-input')?.value || '').trim().toUpperCase();
+  const msgEl = document.getElementById('coupon-msg');
+  const btn   = document.getElementById('coupon-apply-btn');
+  const isPT  = I18N.isPT();
 
   if (code.length !== 6) {
     msgEl.innerHTML = `<span style="color:#ef4444;font-size:0.85rem">
@@ -123,15 +205,13 @@ async function applyCoupon() {
     </span>`;
     return;
   }
-
-  btn.disabled = true;
+  btn.disabled    = true;
   btn.textContent = isPT ? 'Verificando...' : 'Verificando...';
   msgEl.innerHTML = '';
 
   try {
     const result = await Api.post('/api/coupon/apply', { code });
     if (result.ok) {
-      // Actualizar localStorage con la info del cupón
       await Api.me();
       msgEl.innerHTML = `<span style="color:#4ade80;font-size:0.9rem;font-weight:600">
         ✓ ${isPT ? `Cupom ativado! ${result.days} dias de acesso.` : `¡Cupón activado! ${result.days} días de acceso.`}
@@ -140,47 +220,39 @@ async function applyCoupon() {
     }
   } catch (e) {
     msgEl.innerHTML = `<span style="color:#ef4444;font-size:0.85rem">${e.message}</span>`;
-    btn.disabled = false;
+    btn.disabled    = false;
     btn.textContent = isPT ? 'Aplicar' : 'Aplicar';
   }
 }
 
 async function doPayment() {
-  const btn     = document.getElementById('pay-btn');
-  const errEl   = document.getElementById('pay-error');
-  const pais = (JSON.parse(localStorage.getItem('evhapo_user') || '{}').pais || 'CL').toUpperCase();
+  const btn   = document.getElementById('pay-btn');
+  const errEl = document.getElementById('pay-error');
+  const pais  = (JSON.parse(localStorage.getItem('evhapo_user') || '{}').pais || 'CL').toUpperCase();
+  const isPT  = I18N.isPT();
 
-  const isPT = I18N.isPT();
   errEl.innerHTML = '';
-  btn.disabled = true;
+  btn.disabled    = true;
   btn.textContent = isPT ? 'Processando...' : 'Procesando...';
 
   try {
-    const result = await Api.post('/api/payment/create', {
-      method: _selectedMethod,
-      pais: pais
-    });
+    const endpoint = _selectedPlan === 'subscription'
+      ? '/api/payment/create-subscription'
+      : '/api/payment/create';
 
-    if (result.mode === 'demo') {
-      App.go('dashboard');
+    const result = await Api.post(endpoint, { method: _selectedMethod, pais });
+
+    if (result.mode === 'demo') { App.go('dashboard'); return; }
+
+    if (result.checkout_url || result.init_point) {
+      window.location.href = result.checkout_url || result.init_point;
       return;
     }
 
-    if (result.mode === 'mercadopago' && result.init_point) {
-      window.location.href = result.init_point;
-      return;
-    }
-
-    if (result.mode === 'stripe' && result.checkout_url) {
-      // Redirect al checkout hosted de Stripe (igual que MercadoPago con init_point)
-      window.location.href = result.checkout_url;
-      return;
-    }
-
-    throw new Error(result.error || (isPT ? 'Resposta inesperada do servidor' : 'Respuesta inesperada del servidor'));
+    throw new Error(result.error || (isPT ? 'Resposta inesperada' : 'Respuesta inesperada'));
   } catch (e) {
     errEl.innerHTML = `<div class="form-error">${e.message}</div>`;
-    btn.disabled = false;
-    btn.textContent = `♠ ${isPT ? 'Pagar e começar o teste' : 'Pagar y comenzar el test'}`;
+    btn.disabled    = false;
+    btn.textContent = `♠ ${isPT ? 'Pagar e começar' : 'Pagar y comenzar'}`;
   }
 }
