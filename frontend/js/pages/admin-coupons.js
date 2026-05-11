@@ -20,7 +20,14 @@ async function renderAdminCoupons() {
       <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:24px">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:12px">
           <h3 style="margin:0;font-size:1rem;color:var(--text2)">Todos los cupones</h3>
-          <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <!-- Info de cómo probar el botón de cupón -->
+        <div style="background:rgba(212,175,55,0.08);border:1px solid rgba(212,175,55,0.25);border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:0.85rem;color:var(--text2)">
+          💡 <strong>Para probar el botón "Tengo Cupón":</strong> ve a
+          <a href="#payment" onclick="App.go('payment');return false;" style="color:var(--accent);font-weight:700">la pantalla de pago</a>
+          — solo es visible para usuarios sin pago activo. Tu cuenta admin tiene acceso completo.
+        </div>
+
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
             <select id="coupon-filter" onchange="filterCoupons()"
               style="background:var(--input);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text2);font-size:0.85rem">
               <option value="all">Todos</option>

@@ -1204,8 +1204,12 @@ def _generate_coupon_email_html(nombre, days_remaining, lang='es'):
 
 
 def _send_coupon_reminder_email(user_id, nombre, email, days_remaining, pais):
-    """Envía el correo de recordatorio al usuario con cupón."""
-    if not SMTP_USER or not SMTP_PASS:
+    """Envía el correo de recordatorio semanal al usuario con cupón (texto generado por IA)."""
+    smtp_user   = os.environ.get('SMTP_USER', '') or SMTP_USER
+    smtp_pass   = os.environ.get('SMTP_PASS', '') or SMTP_PASS
+    smtp_server = os.environ.get('SMTP_SERVER', 'smtp.gmail.com')
+    smtp_port   = int(os.environ.get('SMTP_PORT', '587'))
+    if not smtp_user or not smtp_pass:
         print(f"[COUPON][DEV] Would send reminder to {email} — {days_remaining} days remaining")
         return
     lang = 'pt' if pais and pais.upper() == 'BR' else 'es'
@@ -1215,13 +1219,13 @@ def _send_coupon_reminder_email(user_id, nombre, email, days_remaining, pais):
                f"Você tem {days_remaining} dias restantes no MindEV")
     msg = MIMEMultipart('alternative')
     msg['Subject'] = subject
-    msg['From']    = SMTP_USER
+    msg['From']    = smtp_user
     msg['To']      = email
     msg.attach(MIMEText(html, 'html'))
-    with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+    with smtplib.SMTP(smtp_server, smtp_port, timeout=30) as server:
         server.starttls()
-        server.login(SMTP_USER, SMTP_PASS)
-        server.sendmail(SMTP_USER, email, msg.as_string())
+        server.login(smtp_user, smtp_pass)
+        server.sendmail(smtp_user, email, msg.as_string())
     print(f"[COUPON] Reminder sent to {email} — {days_remaining} days remaining")
 
 
@@ -1231,23 +1235,58 @@ def _send_coupon_sample_email(force=False):
     if _coupon_sample_sent and not force:
         return
     _coupon_sample_sent = True
-    # Leer vars en tiempo de ejecución (por si el scheduler arrancó antes de que se leyeran)
+    # Leer siempre en tiempo de ejecución
     smtp_user   = os.environ.get('SMTP_USER', '') or SMTP_USER
     smtp_pass   = os.environ.get('SMTP_PASS', '') or SMTP_PASS
     smtp_server = os.environ.get('SMTP_SERVER', 'smtp.gmail.com')
     smtp_port   = int(os.environ.get('SMTP_PORT', '587'))
+    base_url    = os.environ.get('BASE_URL', BASE_URL)
     if not smtp_user or not smtp_pass:
         print("[COUPON][DEV] SMTP no configurado — correo de muestra omitido")
         return
     try:
-        print("[COUPON] Generando HTML del correo de muestra...")
-        html = _generate_coupon_email_html("Mauricio", 23, lang='es')
+        nombre = "Mauricio"
+        days_remaining = 23
+        # Correo de muestra con párrafo fijo (sin llamada a IA para garantizar entrega)
+        ai_paragraph = (
+            "Hola Mauricio, llevas 7 días usando MindEV y tu acceso de prueba sigue activo. "
+            "Este es un ejemplo del correo semanal que recibirán tus usuarios con cupón. "
+            "El texto real de cada correo es generado automáticamente por IA, personalizado "
+            "con el nombre del jugador, los días de uso y un mensaje motivacional sobre su "
+            "juego de poker. <em>(Párrafo de ejemplo — en el correo real este texto es generado por Claude IA)</em>"
+        )
+        html = f"""
+        <div style="font-family:Arial,sans-serif;max-width:540px;margin:0 auto;background:#0a0e1a;color:#e2e8f0;padding:32px;border-radius:12px">
+          <div style="text-align:center;margin-bottom:24px">
+            <span style="font-size:3rem;color:#d4af37">♠</span>
+            <h1 style="color:#d4af37;margin:8px 0 4px">MindEV</h1>
+            <p style="margin:0;color:#94a3b8;font-size:0.9rem">Diagnóstico Mental y Técnico para Poker</p>
+          </div>
+          <div style="background:#1a2235;border:1px dashed #d4af37;border-radius:8px;padding:10px 16px;margin-bottom:20px;text-align:center">
+            <p style="margin:0;font-size:0.78rem;color:#d4af37;text-transform:uppercase;letter-spacing:1px">✉️ Correo de muestra — MindEV Admin</p>
+          </div>
+          <h2 style="margin-bottom:8px">Hola, {nombre} 👋</h2>
+          <div style="background:#1a2235;border-left:4px solid #f59e0b;padding:16px 20px;border-radius:8px;margin:20px 0">
+            <p style="margin:0;font-size:1.05rem;color:#fbbf24;font-weight:700">⏳ Tienes {days_remaining} días restantes en MindEV</p>
+          </div>
+          <p style="line-height:1.7;color:#cbd5e1">{ai_paragraph}</p>
+          <div style="text-align:center;margin:28px 0">
+            <a href="{base_url}" style="display:inline-block;background:#d4af37;color:#0a0e1a;font-weight:700;font-size:1rem;padding:14px 32px;border-radius:8px;text-decoration:none">
+              → Acceder a MindEV
+            </a>
+          </div>
+          <p style="text-align:center;margin-top:24px;color:#475569;font-size:0.8rem">
+            MindEV – Diagnóstico Mental y Técnico para Poker<br>
+            <a href="mailto:evhapo@tiburock.cl" style="color:#64748b">evhapo@tiburock.cl</a>
+          </p>
+        </div>
+        """
         msg = MIMEMultipart('alternative')
-        msg['Subject'] = "[MUESTRA] MindEV: correo semanal para usuario con cupón"
+        msg['Subject'] = f"[MUESTRA] MindEV — correo semanal de cupón ({days_remaining} días restantes)"
         msg['From']    = smtp_user
         msg['To']      = REFERRAL_NOTIFY_EMAIL
         msg.attach(MIMEText(html, 'html'))
-        print(f"[COUPON] Conectando a SMTP {smtp_server}:{smtp_port}...")
+        print(f"[COUPON] Conectando a SMTP {smtp_server}:{smtp_port} como {smtp_user}...")
         with smtplib.SMTP(smtp_server, smtp_port, timeout=30) as server:
             server.starttls()
             server.login(smtp_user, smtp_pass)
