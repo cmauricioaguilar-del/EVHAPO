@@ -1,3 +1,16 @@
+function promoPlay() {
+  const vid = document.getElementById('promo-vid');
+  const btn = document.getElementById('promo-play-btn');
+  if (!vid) return;
+  if (vid.paused) {
+    vid.play();
+    if (btn) btn.style.display = 'none';
+  } else {
+    vid.pause();
+    if (btn) btn.style.display = 'flex';
+  }
+}
+
 function renderLanding() {
   const isPT = I18N.isPT();
 
@@ -66,10 +79,16 @@ function renderLanding() {
         <p style="font-size:0.82rem;color:var(--text3);letter-spacing:0.08em;text-transform:uppercase;font-weight:600">
           ${isPT ? '▶ Veja como funciona' : '▶ Míralo en acción'}
         </p>
-        <div style="position:relative;width:100%;max-width:820px;border-radius:18px;overflow:hidden;box-shadow:0 8px 48px rgba(0,0,0,0.7);border:1px solid rgba(212,175,55,0.2)">
-          <video autoplay muted loop playsinline style="width:100%;display:block">
+        <div id="promo-wrap" style="position:relative;width:100%;max-width:820px;border-radius:18px;overflow:hidden;box-shadow:0 8px 48px rgba(0,0,0,0.7);border:1px solid rgba(212,175,55,0.2);cursor:pointer" onclick="promoPlay()">
+          <video id="promo-vid" autoplay muted loop playsinline preload="auto"
+            poster="/icons/mindev-logo.png"
+            style="width:100%;display:block;background:#0a0a12">
             <source src="/assets/promo.mp4" type="video/mp4">
           </video>
+          <!-- Botón play — visible solo si autoplay fue bloqueado -->
+          <div id="promo-play-btn" style="display:none;position:absolute;inset:0;align-items:center;justify-content:center;background:rgba(0,0,0,0.45)">
+            <div style="width:64px;height:64px;border-radius:50%;background:rgba(212,175,55,0.9);display:flex;align-items:center;justify-content:center;font-size:1.6rem">▶</div>
+          </div>
         </div>
       </div>
       <!-- ── /Video promo ──────────────────────────────────────────────── -->
@@ -250,4 +269,17 @@ function renderLanding() {
   `;
 
   document.getElementById('app').innerHTML = `${renderNavbar()}${html}`;
+
+  // Detectar si autoplay fue bloqueado y mostrar botón play
+  const vid = document.getElementById('promo-vid');
+  if (vid) {
+    vid.play().catch(() => {
+      const btn = document.getElementById('promo-play-btn');
+      if (btn) btn.style.display = 'flex';
+    });
+    vid.addEventListener('playing', () => {
+      const btn = document.getElementById('promo-play-btn');
+      if (btn) btn.style.display = 'none';
+    });
+  }
 }
