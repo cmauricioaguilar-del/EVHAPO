@@ -46,11 +46,6 @@ async function renderPayment() {
             <h3>${isPT ? 'Cartão Internacional' : 'Tarjeta Internacional'}</h3>
             <p>Visa, Mastercard, Amex</p>
           </div>
-          <div class="method-card" id="method-demo" onclick="selectMethod('demo')">
-            <span class="method-icon">🎮</span>
-            <h3>Demo</h3>
-            <p>${isPT ? 'Sem custo real' : 'Sin costo real'}</p>
-          </div>
         </div>
 
         <div id="mp-info" class="alert alert-info" style="margin-bottom:16px;${isLatam ? '' : 'display:none'}">
@@ -65,9 +60,6 @@ async function renderPayment() {
             : '💳 Serás redirigido al checkout seguro de <strong>Stripe</strong>. Aceptamos Visa, Mastercard, Amex y Apple/Google Pay.'}
         </div>
 
-        <div id="demo-note" class="alert alert-warning" style="margin-bottom:16px;display:none">
-          🎮 <strong>${isPT ? 'Modo Demo:' : 'Modo Demo:'}</strong> ${isPT ? 'O teste será habilitado sem custo real.' : 'El test se habilitará sin cargo real.'}
-        </div>
 
         <button class="btn btn-primary btn-block btn-lg" id="pay-btn" onclick="doPayment()">
           ♠ ${isPT ? 'Pagar e começar o teste' : 'Pagar y comenzar el test'}
@@ -82,12 +74,11 @@ async function renderPayment() {
 
 function selectMethod(method) {
   _selectedMethod = method;
-  ['demo','mercadopago','stripe'].forEach(m => {
+  ['mercadopago','stripe'].forEach(m => {
     document.getElementById(`method-${m}`)?.classList.toggle('selected', m === method);
   });
   document.getElementById('mp-info').style.display     = method === 'mercadopago' ? 'block' : 'none';
   document.getElementById('stripe-info').style.display = method === 'stripe'      ? 'block' : 'none';
-  document.getElementById('demo-note').style.display   = method === 'demo'        ? 'block' : 'none';
 }
 
 async function doPayment() {
