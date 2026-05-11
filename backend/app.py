@@ -1152,39 +1152,56 @@ def apply_coupon():
 def send_coupon_sample():
     if not g.is_admin:
         return jsonify({'error': 'Acceso denegado'}), 403
-    smtp_user = os.environ.get('SMTP_USER', '') or SMTP_USER
-    base_url  = os.environ.get('BASE_URL', BASE_URL)
+    base_url = os.environ.get('BASE_URL', BASE_URL)
+    logo_url = f"{base_url}/icons/mindev-logo.png"
+    ai_text_es = (
+        "Llevas 7 días usando MindEV y tu acceso de prueba sigue activo. "
+        "Este es un ejemplo del correo semanal que recibirán tus usuarios con cupón. "
+        "El texto real es generado automáticamente por IA, personalizado con el nombre del jugador "
+        "y un mensaje motivacional específico sobre su juego de poker."
+    )
+    ai_text_pt = (
+        "Você já usa o MindEV há 7 dias e seu acesso de teste continua ativo. "
+        "Este é um exemplo do e-mail semanal que seus usuários com cupom receberão. "
+        "O texto real é gerado automaticamente por IA, personalizado com o nome do jogador "
+        "e uma mensagem motivacional específica sobre seu jogo de poker."
+    )
     html = f"""
-    <div style="font-family:Arial,sans-serif;max-width:540px;margin:0 auto;background:#0a0e1a;color:#e2e8f0;padding:32px;border-radius:12px">
-      <div style="text-align:center;margin-bottom:24px">
-        <span style="font-size:3rem;color:#d4af37">&#9824;</span>
-        <h1 style="color:#d4af37;margin:8px 0 4px">MindEV</h1>
-        <p style="margin:0;color:#94a3b8;font-size:0.9rem">Diagnostico Mental y Tecnico para Poker</p>
+    <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;background:#0a0e1a;color:#e2e8f0;padding:36px 32px;border-radius:14px">
+
+      <div style="text-align:center;margin-bottom:20px">
+        <img src="{logo_url}" alt="MindEV" style="height:52px;max-width:200px;object-fit:contain">
+        <p style="margin:8px 0 0;color:#64748b;font-size:0.78rem;letter-spacing:0.05em;text-transform:uppercase">Diagnóstico Mental y Técnico para Poker</p>
       </div>
-      <div style="background:#1a2235;border:1px dashed #d4af37;border-radius:8px;padding:10px 16px;margin-bottom:20px;text-align:center">
-        <p style="margin:0;font-size:0.78rem;color:#d4af37;text-transform:uppercase;letter-spacing:1px">Correo de muestra - MindEV Admin</p>
+
+      <div style="background:#1e2d45;border:1px dashed #d4af37;border-radius:8px;padding:8px 14px;margin-bottom:20px;text-align:center">
+        <p style="margin:0;font-size:0.72rem;color:#d4af37;text-transform:uppercase;letter-spacing:1px">&#9993; Correo de muestra — MindEV Admin</p>
       </div>
-      <h2 style="margin-bottom:8px">Hola, Mauricio</h2>
-      <div style="background:#1a2235;border-left:4px solid #f59e0b;padding:16px 20px;border-radius:8px;margin:20px 0">
-        <p style="margin:0;font-size:1.05rem;color:#fbbf24;font-weight:700">Tienes 23 dias restantes en MindEV</p>
+
+      <h2 style="margin:0 0 18px;font-size:1.25rem;color:#f1f5f9">Hola, Mauricio!</h2>
+
+      <div style="background:#1e2d45;border-left:4px solid #f59e0b;padding:14px 18px;border-radius:0 8px 8px 0;margin-bottom:20px">
+        <p style="margin:0;font-size:1rem;color:#fbbf24;font-weight:700">&#9203; Tienes 23 días restantes en MindEV</p>
       </div>
-      <p style="line-height:1.7;color:#cbd5e1">
-        Llevas 7 dias usando MindEV y tu acceso de prueba sigue activo.
-        Este es un ejemplo del correo semanal que recibirán tus usuarios con cupon.
-        El texto real es generado automaticamente por IA, personalizado con el nombre del jugador
-        y un mensaje motivacional sobre su juego de poker.
-      </p>
-      <div style="text-align:center;margin:28px 0">
-        <a href="{base_url}" style="display:inline-block;background:#d4af37;color:#0a0e1a;font-weight:700;font-size:1rem;padding:14px 32px;border-radius:8px;text-decoration:none">
-          Acceder a MindEV
+
+      <p style="line-height:1.75;color:#cbd5e1;font-size:0.97rem;margin-bottom:12px"><strong>Español:</strong> {ai_text_es}</p>
+      <p style="line-height:1.75;color:#94a3b8;font-size:0.97rem;margin-bottom:28px"><strong>Português:</strong> {ai_text_pt}</p>
+
+      <div style="text-align:center;margin-bottom:28px">
+        <a href="{base_url}" style="display:inline-block;background:#d4af37;color:#0a0e1a;font-weight:800;font-size:1rem;padding:14px 36px;border-radius:8px;text-decoration:none">
+          &#9654; Acceder a MindEV
         </a>
       </div>
-      <p style="text-align:center;margin-top:24px;color:#475569;font-size:0.8rem">MindEV - evhapo@tiburock.cl</p>
+
+      <div style="border-top:1px solid #1e293b;padding-top:16px;text-align:center">
+        <img src="{logo_url}" alt="MindEV" style="height:22px;opacity:0.45;margin-bottom:6px">
+        <p style="margin:0;color:#334155;font-size:0.75rem">Diagnóstico Mental y Técnico para Poker</p>
+      </div>
     </div>
     """
     try:
-        _smtp_send(REFERRAL_NOTIFY_EMAIL, "[MUESTRA] MindEV - correo semanal de cupon", html)
-        return jsonify({'ok': True, 'message': f'Correo enviado a {REFERRAL_NOTIFY_EMAIL}', 'smtp_user': smtp_user})
+        _smtp_send(REFERRAL_NOTIFY_EMAIL, "[MUESTRA] MindEV — correo semanal de cupón", html)
+        return jsonify({'ok': True, 'message': f'Correo enviado a {REFERRAL_NOTIFY_EMAIL}'})
     except Exception as e:
         print(f"[COUPON] ERROR: {e}")
         return jsonify({'error': str(e)}), 500
@@ -1264,32 +1281,54 @@ def _generate_coupon_email_html(nombre, days_remaining, lang='es'):
         if lang == 'es' else
         f"Você tem {days_remaining} dias restantes no MindEV"
     )
-    greeting = f"{'Hola' if lang == 'es' else 'Olá'}, {nombre} 👋"
-    cta_text = '→ Acceder a MindEV' if lang == 'es' else '→ Acessar MindEV'
-    footer_text = ('Diagnóstico Mental y Técnico para Poker'
-                   if lang == 'es' else 'Diagnóstico Mental e Técnico para Poker')
+    greeting  = f"{'Hola' if lang == 'es' else 'Olá'}, {nombre}!"
+    cta_text  = 'Acceder a MindEV' if lang == 'es' else 'Acessar MindEV'
+    sub_text  = ('Diagnóstico Mental y Técnico para Poker'
+                 if lang == 'es' else 'Diagnóstico Mental e Técnico para Poker')
+    base_url  = os.environ.get('BASE_URL', BASE_URL)
+    logo_url  = f"{base_url}/icons/mindev-logo.png"
+    logo_pt   = f"{base_url}/icons/mindev-logo-pt.svg"
+    logo_src  = logo_pt if lang == 'pt' else logo_url
 
     return f"""
-    <div style="font-family:Arial,sans-serif;max-width:540px;margin:0 auto;background:#0a0e1a;color:#e2e8f0;padding:32px;border-radius:12px">
-      <div style="text-align:center;margin-bottom:24px">
-        <span style="font-size:3rem;color:#d4af37">♠</span>
-        <h1 style="color:#d4af37;margin:8px 0 4px">MindEV</h1>
-        <p style="margin:0;color:#94a3b8;font-size:0.9rem">{footer_text}</p>
+    <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;background:#0a0e1a;color:#e2e8f0;padding:36px 32px;border-radius:14px">
+
+      <!-- Header con logo -->
+      <div style="text-align:center;margin-bottom:28px">
+        <img src="{logo_src}" alt="MindEV" style="height:52px;max-width:200px;object-fit:contain"
+             onerror="this.style.display='none';document.getElementById('logo-fallback').style.display='block'">
+        <div id="logo-fallback" style="display:none">
+          <span style="font-size:2.8rem;color:#d4af37">&#9824;</span>
+          <h1 style="color:#d4af37;margin:4px 0 0;font-size:1.6rem;letter-spacing:2px">MindEV</h1>
+        </div>
+        <p style="margin:8px 0 0;color:#64748b;font-size:0.82rem;letter-spacing:0.05em;text-transform:uppercase">{sub_text}</p>
       </div>
-      <h2 style="margin-bottom:8px">{greeting}</h2>
-      <div style="background:#1a2235;border-left:4px solid #f59e0b;padding:16px 20px;border-radius:8px;margin:20px 0">
-        <p style="margin:0;font-size:1.05rem;color:#fbbf24;font-weight:700">⏳ {subject_label}</p>
+
+      <!-- Saludo -->
+      <h2 style="margin:0 0 20px;font-size:1.3rem;color:#f1f5f9">{greeting}</h2>
+
+      <!-- Alerta de días -->
+      <div style="background:#1e2d45;border-left:4px solid #f59e0b;padding:14px 18px;border-radius:0 8px 8px 0;margin-bottom:22px">
+        <p style="margin:0;font-size:1rem;color:#fbbf24;font-weight:700">&#9203; {subject_label}</p>
       </div>
-      <p style="line-height:1.7;color:#cbd5e1">{ai_paragraph}</p>
-      <div style="text-align:center;margin:28px 0">
-        <a href="{BASE_URL}" style="display:inline-block;background:#d4af37;color:#0a0e1a;font-weight:700;font-size:1rem;padding:14px 32px;border-radius:8px;text-decoration:none">
-          {cta_text}
+
+      <!-- Párrafo IA -->
+      <p style="line-height:1.75;color:#cbd5e1;font-size:0.97rem;margin-bottom:28px">{ai_paragraph}</p>
+
+      <!-- CTA -->
+      <div style="text-align:center;margin-bottom:28px">
+        <a href="{base_url}"
+           style="display:inline-block;background:#d4af37;color:#0a0e1a;font-weight:800;font-size:1rem;padding:14px 36px;border-radius:8px;text-decoration:none;letter-spacing:0.02em">
+          &#9654; {cta_text}
         </a>
       </div>
-      <p style="text-align:center;margin-top:24px;color:#475569;font-size:0.8rem">
-        MindEV – {footer_text}<br>
-        <a href="mailto:evhapo@tiburock.cl" style="color:#64748b">evhapo@tiburock.cl</a>
-      </p>
+
+      <!-- Footer limpio -->
+      <div style="border-top:1px solid #1e293b;padding-top:18px;text-align:center">
+        <img src="{logo_url}" alt="MindEV" style="height:24px;opacity:0.5;margin-bottom:6px">
+        <p style="margin:0;color:#334155;font-size:0.75rem">{sub_text}</p>
+      </div>
+
     </div>
     """
 
