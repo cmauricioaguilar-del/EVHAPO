@@ -983,15 +983,6 @@ def _send_referral_notification(user_id, db=None):
         email = user['email']
         pais = user['pais']
 
-        if not SMTP_USER or not SMTP_PASS:
-            print(f"[REFERRAL][DEV] Nuevo usuario referido — email: {email}, código: {code}")
-            return
-
-        msg = MIMEMultipart('alternative')
-        msg['Subject'] = f"Nuevo usuario, referido por: {code}"
-        msg['From'] = SMTP_USER
-        msg['To'] = REFERRAL_NOTIFY_EMAIL
-
         body = f"""
         <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;background:#0a0e1a;color:#e2e8f0;padding:32px;border-radius:12px">
           <div style="text-align:center;margin-bottom:24px">
@@ -1010,12 +1001,7 @@ def _send_referral_notification(user_id, db=None):
           </table>
         </div>
         """
-        msg.attach(MIMEText(body, 'html'))
-
-        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
-            server.starttls()
-            server.login(SMTP_USER, SMTP_PASS)
-            server.sendmail(SMTP_USER, REFERRAL_NOTIFY_EMAIL, msg.as_string())
+        _smtp_send(REFERRAL_NOTIFY_EMAIL, f"Nuevo usuario, referido por: {code}", body)
 
         print(f"[REFERRAL] Email enviado — usuario: {email}, código: {code}")
     except Exception as e:
@@ -1025,34 +1011,95 @@ def _send_referral_notification(user_id, db=None):
             db.close()
 
 
-def _send_reset_email(to_email, nombre, temp_pw):
-    msg = MIMEMultipart('alternative')
-    msg['Subject'] = 'EVHAPO – Tu contraseña temporal'
-    msg['From']    = SMTP_USER
-    msg['To']      = to_email
+def _smtp_send(to_addr, subject, html_body):
+    """
+    Envía un email HTML intentando múltiples estrategias SMTP.
+    Fuerza IPv4 para evitar el error 'Network is unreachable' en Railway (IPv6 no disponible).
+    Lanza excepción con detalle si todos los intentos fallan.
+    """
+    import ssl, socket
 
+    smtp_user   = os.environ.get('SMTP_USER', '') or SMTP_USER
+    smtp_pass   = os.environ.get('SMTP_PASS', '') or SMTP_PASS
+    smtp_server = os.environ.get('SMTP_SERVER', 'smtp.gmail.com')
+
+    if not smtp_user or not smtp_pass:
+        raise Exception('SMTP_USER o SMTP_PASS no configurados')
+
+    msg = MIMEMultipart('alternative')
+    msg['Subject'] = subject
+    msg['From']    = smtp_user
+    msg['To']      = to_addr
+    msg.attach(MIMEText(html_body, 'html'))
+    raw = msg.as_string()
+
+    errors = []
+
+    # — Intento 1: IPv4 forzado, puerto 587 STARTTLS —
+    try:
+        infos = socket.getaddrinfo(smtp_server, 587, socket.AF_INET, socket.SOCK_STREAM)
+        ipv4 = infos[0][4][0]
+        with smtplib.SMTP(ipv4, 587, timeout=25) as s:
+            s._host = smtp_server   # para validación TLS del certificado
+            s.ehlo()
+            s.starttls()
+            s.ehlo()
+            s.login(smtp_user, smtp_pass)
+            s.sendmail(smtp_user, to_addr, raw)
+        print(f"[SMTP] Enviado a {to_addr} via IPv4/587")
+        return
+    except Exception as e:
+        errors.append(f"IPv4/587: {e}")
+
+    # — Intento 2: IPv4 forzado, puerto 465 SSL —
+    try:
+        infos = socket.getaddrinfo(smtp_server, 465, socket.AF_INET, socket.SOCK_STREAM)
+        ipv4 = infos[0][4][0]
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+        with smtplib.SMTP_SSL(ipv4, 465, context=ctx, timeout=25) as s:
+            s.login(smtp_user, smtp_pass)
+            s.sendmail(smtp_user, to_addr, raw)
+        print(f"[SMTP] Enviado a {to_addr} via IPv4/465-SSL")
+        return
+    except Exception as e:
+        errors.append(f"IPv4/465: {e}")
+
+    # — Intento 3: hostname directo, puerto 587 —
+    try:
+        with smtplib.SMTP(smtp_server, 587, timeout=25) as s:
+            s.ehlo()
+            s.starttls()
+            s.ehlo()
+            s.login(smtp_user, smtp_pass)
+            s.sendmail(smtp_user, to_addr, raw)
+        print(f"[SMTP] Enviado a {to_addr} via hostname/587")
+        return
+    except Exception as e:
+        errors.append(f"hostname/587: {e}")
+
+    raise Exception("Todos los intentos SMTP fallaron — " + " | ".join(errors))
+
+
+def _send_reset_email(to_email, nombre, temp_pw):
     body = f"""
     <div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;background:#0a0e1a;color:#e2e8f0;padding:32px;border-radius:12px">
       <div style="text-align:center;margin-bottom:24px">
-        <span style="font-size:3rem;color:#d4af37">♠</span>
+        <span style="font-size:3rem;color:#d4af37">&#9824;</span>
         <h1 style="color:#d4af37;margin:8px 0">EVHAPO</h1>
       </div>
       <h2 style="margin-bottom:8px">Hola, {nombre}</h2>
-      <p>Recibimos tu solicitud de recuperación de contraseña.</p>
-      <p>Tu nueva contraseña temporal es:</p>
+      <p>Recibimos tu solicitud de recuperacion de contrasena.</p>
+      <p>Tu nueva contrasena temporal es:</p>
       <div style="background:#1a2235;border:2px solid #d4af37;border-radius:8px;padding:20px;text-align:center;margin:20px 0">
         <code style="font-size:1.5rem;color:#d4af37;letter-spacing:3px;font-weight:bold">{temp_pw}</code>
       </div>
-      <p>Ingresa con esta contraseña y cámbiala desde tu perfil lo antes posible.</p>
+      <p>Ingresa con esta contrasena y cambiala desde tu perfil lo antes posible.</p>
       <p style="color:#64748b;font-size:0.85rem;margin-top:24px">Si no solicitaste este cambio, ignora este mensaje.</p>
     </div>
     """
-    msg.attach(MIMEText(body, 'html'))
-
-    with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
-        server.starttls()
-        server.login(SMTP_USER, SMTP_PASS)
-        server.sendmail(SMTP_USER, to_email, msg.as_string())
+    _smtp_send(to_email, 'MindEV - Tu contrasena temporal', body)
 
 # ─── Coupon routes ───────────────────────────────────────────────────────────
 
@@ -1095,64 +1142,42 @@ def apply_coupon():
 def send_coupon_sample():
     if not g.is_admin:
         return jsonify({'error': 'Acceso denegado'}), 403
-    # Ejecutar de forma síncrona para capturar errores reales
-    smtp_user   = os.environ.get('SMTP_USER', '') or SMTP_USER
-    smtp_pass   = os.environ.get('SMTP_PASS', '') or SMTP_PASS
-    smtp_server = os.environ.get('SMTP_SERVER', 'smtp.gmail.com')
-    smtp_port   = int(os.environ.get('SMTP_PORT', '587'))
-    if not smtp_user or not smtp_pass:
-        return jsonify({'error': f'SMTP no configurado. SMTP_USER={bool(smtp_user)}, SMTP_PASS={bool(smtp_pass)}'}), 500
+    smtp_user = os.environ.get('SMTP_USER', '') or SMTP_USER
+    base_url  = os.environ.get('BASE_URL', BASE_URL)
+    html = f"""
+    <div style="font-family:Arial,sans-serif;max-width:540px;margin:0 auto;background:#0a0e1a;color:#e2e8f0;padding:32px;border-radius:12px">
+      <div style="text-align:center;margin-bottom:24px">
+        <span style="font-size:3rem;color:#d4af37">&#9824;</span>
+        <h1 style="color:#d4af37;margin:8px 0 4px">MindEV</h1>
+        <p style="margin:0;color:#94a3b8;font-size:0.9rem">Diagnostico Mental y Tecnico para Poker</p>
+      </div>
+      <div style="background:#1a2235;border:1px dashed #d4af37;border-radius:8px;padding:10px 16px;margin-bottom:20px;text-align:center">
+        <p style="margin:0;font-size:0.78rem;color:#d4af37;text-transform:uppercase;letter-spacing:1px">Correo de muestra - MindEV Admin</p>
+      </div>
+      <h2 style="margin-bottom:8px">Hola, Mauricio</h2>
+      <div style="background:#1a2235;border-left:4px solid #f59e0b;padding:16px 20px;border-radius:8px;margin:20px 0">
+        <p style="margin:0;font-size:1.05rem;color:#fbbf24;font-weight:700">Tienes 23 dias restantes en MindEV</p>
+      </div>
+      <p style="line-height:1.7;color:#cbd5e1">
+        Llevas 7 dias usando MindEV y tu acceso de prueba sigue activo.
+        Este es un ejemplo del correo semanal que recibirán tus usuarios con cupon.
+        El texto real es generado automaticamente por IA, personalizado con el nombre del jugador
+        y un mensaje motivacional sobre su juego de poker.
+      </p>
+      <div style="text-align:center;margin:28px 0">
+        <a href="{base_url}" style="display:inline-block;background:#d4af37;color:#0a0e1a;font-weight:700;font-size:1rem;padding:14px 32px;border-radius:8px;text-decoration:none">
+          Acceder a MindEV
+        </a>
+      </div>
+      <p style="text-align:center;margin-top:24px;color:#475569;font-size:0.8rem">MindEV - evhapo@tiburock.cl</p>
+    </div>
+    """
     try:
-        nombre = "Mauricio"
-        days_remaining = 23
-        base_url = os.environ.get('BASE_URL', BASE_URL)
-        ai_paragraph = (
-            "Hola Mauricio, llevas 7 días usando MindEV y tu acceso de prueba sigue activo. "
-            "Este es un ejemplo del correo semanal que recibirán tus usuarios con cupón. "
-            "El texto real es generado automáticamente por IA, personalizado con el nombre del jugador "
-            "y un mensaje motivacional sobre su juego de poker."
-        )
-        html = f"""
-        <div style="font-family:Arial,sans-serif;max-width:540px;margin:0 auto;background:#0a0e1a;color:#e2e8f0;padding:32px;border-radius:12px">
-          <div style="text-align:center;margin-bottom:24px">
-            <span style="font-size:3rem;color:#d4af37">&#9824;</span>
-            <h1 style="color:#d4af37;margin:8px 0 4px">MindEV</h1>
-            <p style="margin:0;color:#94a3b8;font-size:0.9rem">Diagnostico Mental y Tecnico para Poker</p>
-          </div>
-          <div style="background:#1a2235;border:1px dashed #d4af37;border-radius:8px;padding:10px 16px;margin-bottom:20px;text-align:center">
-            <p style="margin:0;font-size:0.78rem;color:#d4af37;text-transform:uppercase;letter-spacing:1px">Correo de muestra - MindEV Admin</p>
-          </div>
-          <h2 style="margin-bottom:8px">Hola, {nombre}</h2>
-          <div style="background:#1a2235;border-left:4px solid #f59e0b;padding:16px 20px;border-radius:8px;margin:20px 0">
-            <p style="margin:0;font-size:1.05rem;color:#fbbf24;font-weight:700">Tienes {days_remaining} dias restantes en MindEV</p>
-          </div>
-          <p style="line-height:1.7;color:#cbd5e1">{ai_paragraph}</p>
-          <div style="text-align:center;margin:28px 0">
-            <a href="{base_url}" style="display:inline-block;background:#d4af37;color:#0a0e1a;font-weight:700;font-size:1rem;padding:14px 32px;border-radius:8px;text-decoration:none">
-              Acceder a MindEV
-            </a>
-          </div>
-          <p style="text-align:center;margin-top:24px;color:#475569;font-size:0.8rem">
-            MindEV - evhapo@tiburock.cl
-          </p>
-        </div>
-        """
-        msg = MIMEMultipart('alternative')
-        msg['Subject'] = f"[MUESTRA] MindEV - correo semanal de cupon"
-        msg['From']    = smtp_user
-        msg['To']      = REFERRAL_NOTIFY_EMAIL
-        msg.attach(MIMEText(html, 'html'))
-        with smtplib.SMTP(smtp_server, smtp_port, timeout=30) as server:
-            server.ehlo()
-            server.starttls()
-            server.ehlo()
-            server.login(smtp_user, smtp_pass)
-            server.sendmail(smtp_user, REFERRAL_NOTIFY_EMAIL, msg.as_string())
-        print(f"[COUPON] Correo de muestra enviado a {REFERRAL_NOTIFY_EMAIL}")
+        _smtp_send(REFERRAL_NOTIFY_EMAIL, "[MUESTRA] MindEV - correo semanal de cupon", html)
         return jsonify({'ok': True, 'message': f'Correo enviado a {REFERRAL_NOTIFY_EMAIL}', 'smtp_user': smtp_user})
     except Exception as e:
         print(f"[COUPON] ERROR: {e}")
-        return jsonify({'error': str(e), 'smtp_user': smtp_user, 'smtp_server': smtp_server}), 500
+        return jsonify({'error': str(e)}), 500
 
 
 @app.route('/api/admin/coupons', methods=['GET'])
@@ -1261,27 +1286,12 @@ def _generate_coupon_email_html(nombre, days_remaining, lang='es'):
 
 def _send_coupon_reminder_email(user_id, nombre, email, days_remaining, pais):
     """Envía el correo de recordatorio semanal al usuario con cupón (texto generado por IA)."""
-    smtp_user   = os.environ.get('SMTP_USER', '') or SMTP_USER
-    smtp_pass   = os.environ.get('SMTP_PASS', '') or SMTP_PASS
-    smtp_server = os.environ.get('SMTP_SERVER', 'smtp.gmail.com')
-    smtp_port   = int(os.environ.get('SMTP_PORT', '587'))
-    if not smtp_user or not smtp_pass:
-        print(f"[COUPON][DEV] Would send reminder to {email} — {days_remaining} days remaining")
-        return
     lang = 'pt' if pais and pais.upper() == 'BR' else 'es'
     html = _generate_coupon_email_html(nombre, days_remaining, lang)
-    subject = (f"Tienes {days_remaining} días restantes en MindEV"
+    subject = (f"Tienes {days_remaining} dias restantes en MindEV"
                if lang == 'es' else
-               f"Você tem {days_remaining} dias restantes no MindEV")
-    msg = MIMEMultipart('alternative')
-    msg['Subject'] = subject
-    msg['From']    = smtp_user
-    msg['To']      = email
-    msg.attach(MIMEText(html, 'html'))
-    with smtplib.SMTP(smtp_server, smtp_port, timeout=30) as server:
-        server.starttls()
-        server.login(smtp_user, smtp_pass)
-        server.sendmail(smtp_user, email, msg.as_string())
+               f"Voce tem {days_remaining} dias restantes no MindEV")
+    _smtp_send(email, subject, html)
     print(f"[COUPON] Reminder sent to {email} — {days_remaining} days remaining")
 
 
