@@ -17,6 +17,7 @@ const App = {
       case 'results':           renderResults(arg); break;
       case 'dashboard':         renderDashboard(); break;
       case 'admin-referrals':   renderAdminReferrals(); break;
+      case 'admin-users':       renderAdminUsers(); break;
       default: renderLanding();
     }
 

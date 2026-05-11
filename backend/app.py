@@ -808,6 +808,37 @@ def delete_referral_code(code):
     db.commit()
     return jsonify({'ok': True})
 
+@app.route('/api/admin/users', methods=['GET'])
+@require_auth
+def list_users():
+    if not g.is_admin:
+        return jsonify({'error': 'Acceso denegado'}), 403
+    db = get_db()
+    rows = db.execute(
+        "SELECT id, nombre, apellido, email, pais, created_at FROM users ORDER BY created_at DESC"
+    ).fetchall()
+    return jsonify({'users': [dict(r) for r in rows]})
+
+@app.route('/api/admin/users/<int:user_id>', methods=['DELETE'])
+@require_auth
+def delete_user(user_id):
+    if not g.is_admin:
+        return jsonify({'error': 'Acceso denegado'}), 403
+    if user_id == g.user_id:
+        return jsonify({'error': 'No puedes eliminarte a ti mismo'}), 400
+    db = get_db()
+    user = db.execute("SELECT nombre, apellido, email FROM users WHERE id=?", (user_id,)).fetchone()
+    if not user:
+        return jsonify({'error': 'Usuario no encontrado'}), 404
+    db.execute('DELETE FROM tokens WHERE user_id=?', (user_id,))
+    db.execute('DELETE FROM test_sessions WHERE user_id=?', (user_id,))
+    db.execute('DELETE FROM payments WHERE user_id=?', (user_id,))
+    db.execute('DELETE FROM player_profiles WHERE user_id=?', (user_id,))
+    db.execute('DELETE FROM tournament_analyses WHERE user_id=?', (user_id,))
+    db.execute('DELETE FROM users WHERE id=?', (user_id,))
+    db.commit()
+    return jsonify({'ok': True, 'deleted': f"{user['nombre']} {user['apellido']}"})
+
 @app.route('/api/referral/validate', methods=['POST'])
 def validate_referral_code():
     data = request.json or {}

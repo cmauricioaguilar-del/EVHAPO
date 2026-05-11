@@ -11,7 +11,8 @@ async function renderDashboard() {
           <p class="text-muted">${isPT ? 'Bem-vindo/a,' : 'Bienvenido/a,'} <strong>${user.nombre}</strong>. ${isPT ? 'Seu centro de diagnóstico e melhoria.' : 'Tu centro de diagnóstico y mejora.'}</p>
         </div>
         <div style="display:flex;gap:10px;flex-wrap:wrap">
-          ${user.is_admin ? `<button class="btn btn-secondary" onclick="App.go('admin-referrals')" style="border-color:var(--accent);color:var(--accent)">♠ Códigos Referidos</button>` : ''}
+          ${user.is_admin ? `<button class="btn btn-secondary" onclick="App.go('admin-referrals')" style="border-color:var(--accent);color:var(--accent)">♠ Referidos</button>` : ''}
+          ${user.is_admin ? `<button class="btn btn-secondary" onclick="App.go('admin-users')" style="border-color:var(--accent);color:var(--accent)">👥 Usuarios</button>` : ''}
           <button class="btn btn-secondary" onclick="startNewTest('mental')">🧠 ${isPT ? 'Teste Mental' : 'Test Mental'}</button>
           <button class="btn btn-primary"   onclick="startNewTest('technical')">⚙️ ${isPT ? 'Teste Técnico' : 'Test Técnico'}</button>
         </div>
