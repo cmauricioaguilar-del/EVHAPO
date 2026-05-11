@@ -1090,6 +1090,15 @@ def apply_coupon():
     return jsonify({'ok': True, 'days': 30, 'activated_at': now})
 
 
+@app.route('/api/admin/send-coupon-sample', methods=['POST'])
+@require_auth
+def send_coupon_sample():
+    if not g.is_admin:
+        return jsonify({'error': 'Acceso denegado'}), 403
+    threading.Thread(target=_send_coupon_sample_email, kwargs={'force': True}, daemon=True).start()
+    return jsonify({'ok': True, 'message': f'Correo de muestra enviado a {REFERRAL_NOTIFY_EMAIL}'})
+
+
 @app.route('/api/admin/coupons', methods=['GET'])
 @require_auth
 def list_coupons():
@@ -1216,31 +1225,37 @@ def _send_coupon_reminder_email(user_id, nombre, email, days_remaining, pais):
     print(f"[COUPON] Reminder sent to {email} — {days_remaining} days remaining")
 
 
-def _send_coupon_sample_email():
-    """Envía un correo de muestra al admin para mostrar cómo se ve el recordatorio."""
+def _send_coupon_sample_email(force=False):
+    """Envía un correo de muestra al admin. force=True omite la protección anti-duplicado."""
     global _coupon_sample_sent
-    if _coupon_sample_sent:
+    if _coupon_sample_sent and not force:
         return
     _coupon_sample_sent = True
+    # Leer vars en tiempo de ejecución (por si el scheduler arrancó antes de que se leyeran)
+    smtp_user   = os.environ.get('SMTP_USER', '') or SMTP_USER
+    smtp_pass   = os.environ.get('SMTP_PASS', '') or SMTP_PASS
+    smtp_server = os.environ.get('SMTP_SERVER', 'smtp.gmail.com')
+    smtp_port   = int(os.environ.get('SMTP_PORT', '587'))
+    if not smtp_user or not smtp_pass:
+        print("[COUPON][DEV] SMTP no configurado — correo de muestra omitido")
+        return
     try:
-        if not SMTP_USER or not SMTP_PASS:
-            print("[COUPON][DEV] SMTP not configured — sample email skipped")
-            return
-        nombre = "Mauricio"
-        days_remaining = 23
-        html = _generate_coupon_email_html(nombre, days_remaining, lang='es')
+        print("[COUPON] Generando HTML del correo de muestra...")
+        html = _generate_coupon_email_html("Mauricio", 23, lang='es')
         msg = MIMEMultipart('alternative')
-        msg['Subject'] = f"[MUESTRA] MindEV: Tienes {days_remaining} días restantes en tu cupón"
-        msg['From']    = SMTP_USER
+        msg['Subject'] = "[MUESTRA] MindEV: correo semanal para usuario con cupón"
+        msg['From']    = smtp_user
         msg['To']      = REFERRAL_NOTIFY_EMAIL
         msg.attach(MIMEText(html, 'html'))
-        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+        print(f"[COUPON] Conectando a SMTP {smtp_server}:{smtp_port}...")
+        with smtplib.SMTP(smtp_server, smtp_port, timeout=30) as server:
             server.starttls()
-            server.login(SMTP_USER, SMTP_PASS)
-            server.sendmail(SMTP_USER, REFERRAL_NOTIFY_EMAIL, msg.as_string())
-        print(f"[COUPON] Sample email sent to {REFERRAL_NOTIFY_EMAIL}")
+            server.login(smtp_user, smtp_pass)
+            server.sendmail(smtp_user, REFERRAL_NOTIFY_EMAIL, msg.as_string())
+        print(f"[COUPON] Correo de muestra enviado a {REFERRAL_NOTIFY_EMAIL}")
     except Exception as e:
-        print(f"[COUPON] Error sending sample email: {e}")
+        _coupon_sample_sent = False  # Permitir reintento
+        print(f"[COUPON] ERROR al enviar correo de muestra: {e}")
 
 
 def _check_coupon_reminders():

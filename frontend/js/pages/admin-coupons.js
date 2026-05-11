@@ -35,6 +35,10 @@ async function renderAdminCoupons() {
               style="background:none;border:1px solid var(--border);border-radius:6px;padding:6px 12px;color:var(--text2);cursor:pointer;font-size:0.85rem">
               📋 Copiar disponibles
             </button>
+            <button onclick="sendSampleEmail()" id="sample-email-btn"
+              style="background:rgba(212,175,55,0.15);border:1px solid var(--accent);border-radius:6px;padding:6px 12px;color:var(--accent);cursor:pointer;font-size:0.85rem;font-weight:600">
+              ✉️ Enviar correo de prueba
+            </button>
           </div>
         </div>
         <div id="coupons-list">
@@ -130,6 +134,25 @@ function renderCouponsList(coupons) {
     </table>
     </div>
     <p style="margin:12px 0 0;color:var(--text3);font-size:0.8rem">${coupons.length} código${coupons.length !== 1 ? 's' : ''}</p>`;
+}
+
+async function sendSampleEmail() {
+  const btn = document.getElementById('sample-email-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Enviando...';
+  try {
+    const res = await Api.post('/api/admin/send-coupon-sample', {});
+    btn.textContent = '✅ Enviado';
+    setTimeout(() => {
+      btn.disabled = false;
+      btn.textContent = '✉️ Enviar correo de prueba';
+    }, 4000);
+    alert(`✓ ${res.message}\n\nRevisa tu bandeja de entrada (y spam) en c.mauricio.aguilar@gmail.com`);
+  } catch (e) {
+    btn.disabled = false;
+    btn.textContent = '✉️ Enviar correo de prueba';
+    alert(`Error: ${e.message}`);
+  }
 }
 
 function copyCodes() {
