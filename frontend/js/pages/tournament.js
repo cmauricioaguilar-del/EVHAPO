@@ -9,7 +9,7 @@ function renderTournamentTab() {
         <div class="card-header">
           <span class="card-icon">🏆</span>
           <div>
-            <h2>${isPT ? 'Análise de Torneio' : 'Análisis de Torneo'}</h2>
+            <h2>${isPT ? 'Análise de Mãos' : 'Análisis de Manos'}</h2>
             <div class="card-sub">${isPT ? 'Envie seu histórico de mãos e a IA analisará suas melhores e piores decisões' : 'Sube tu historial de manos y la IA analizará tus mejores y peores decisiones'}</div>
           </div>
         </div>
@@ -60,7 +60,7 @@ function renderTournamentTab() {
         <!-- Botón analizar -->
         <div style="margin-top:20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
           <button id="tourn-analyze-btn" class="btn btn-primary" onclick="tournAnalyze()" disabled style="opacity:0.5">
-            🤖 ${isPT ? 'Analisar torneio com IA' : 'Analizar torneo con IA'}
+            🤖 ${isPT ? 'Analisar mãos com IA' : 'Analizar manos con IA'}
           </button>
         </div>
       </div>
@@ -134,7 +134,7 @@ function _tournShowResult(data) {
       <div class="card-header">
         <span class="card-icon">🏆</span>
         <div>
-          <h2 style="margin:0">${data.meta?.tournament_name || (isPT ? 'Torneio' : 'Torneo')}</h2>
+          <h2 style="margin:0">${data.meta?.tournament_name || (isPT ? 'Análise de Mãos' : 'Análisis de Manos')}</h2>
           <div class="card-sub">${data.meta?.platform || ''} · ${data.meta?.date?.slice(0,10) || ''} · Buy-in: ${data.meta?.buy_in || 'N/D'}</div>
         </div>
         <div style="margin-left:auto;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
@@ -149,7 +149,7 @@ function _tournShowResult(data) {
       </div>
     </div>
     <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap">
-      <button class="btn btn-secondary btn-sm" onclick="tournClearFile()">🔄 ${isPT ? 'Analisar outro torneio' : 'Analizar otro torneo'}</button>
+      <button class="btn btn-secondary btn-sm" onclick="tournClearFile()">🔄 ${isPT ? 'Analisar outras mãos' : 'Analizar otras manos'}</button>
       <button class="btn btn-primary btn-sm"   onclick="tournDownloadPDF()">📄 ${isPT ? 'Baixar PDF' : 'Descargar PDF'}</button>
     </div>`;
 }
@@ -168,7 +168,7 @@ function _tournStopPolling() {
   if (_tournPollTimer) { clearInterval(_tournPollTimer); _tournPollTimer = null; }
   const btn = document.getElementById('tourn-analyze-btn');
   const _isPT = I18N.isPT();
-  if (btn) { btn.disabled = false; btn.textContent = `🤖 ${_isPT ? 'Analisar torneio com IA' : 'Analizar torneo con IA'}`; btn.style.opacity = '1'; }
+  if (btn) { btn.disabled = false; btn.textContent = `🤖 ${_isPT ? 'Analisar mãos com IA' : 'Analizar manos con IA'}`; btn.style.opacity = '1'; }
 }
 
 async function _tournPoll(jobId, meta) {
@@ -252,7 +252,7 @@ async function tournAnalyze() {
 
     // Actualizar spinner con meta del torneo
     const spinnerMsg = document.querySelector('#tourn-result .spinner-msg');
-    if (spinnerMsg) spinnerMsg.textContent = `${_isPT2 ? 'Analisando' : 'Analizando'} ${data.meta?.tournament_name || (_isPT2 ? 'torneio' : 'torneo')}…`;
+    if (spinnerMsg) spinnerMsg.textContent = `${_isPT2 ? 'Analisando' : 'Analizando'} ${data.meta?.tournament_name || (_isPT2 ? 'mãos' : 'manos')}…`;
 
     // Iniciar polling cada 4 segundos
     if (_tournPollTimer) clearInterval(_tournPollTimer);
@@ -289,7 +289,7 @@ async function tournDownloadPDF() {
     pdf.setTextColor(212, 175, 55);
     pdf.setFontSize(16);
     pdf.setFont('helvetica', 'bold');
-    pdf.text('MindEV — Análisis de Torneo', pageW / 2, 12, { align: 'center' });
+    pdf.text('MindEV — Análisis de Manos', pageW / 2, 12, { align: 'center' });
     pdf.setFontSize(10);
     pdf.setTextColor(148, 163, 184);
     const meta = document.querySelector('#tourn-result .card-sub');
@@ -310,7 +310,7 @@ async function tournDownloadPDF() {
       remaining -= sliceH; srcY += srcH;
       if (remaining > 0) { pdf.addPage(); yPos = 10; }
     }
-    pdf.save(`MindEV_Torneo_${new Date().toISOString().slice(0,10)}.pdf`);
+    pdf.save(`MindEV_Manos_${new Date().toISOString().slice(0,10)}.pdf`);
   } catch (e) {
     reportEl.style.background = origBg;
     alert('Error generando PDF: ' + e.message);

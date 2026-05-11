@@ -1459,7 +1459,7 @@ def _bg_tournament_analysis(job_id, meta, prompt, api_key):
             },
             json={
                 'model': 'claude-sonnet-4-6',
-                'max_tokens': 16000,
+                'max_tokens': 28000,
                 'messages': [{'role': 'user', 'content': prompt}]
             },
             timeout=300,
@@ -1693,11 +1693,11 @@ def _build_tournament_prompt(nombre, meta, player_profile, lang='es'):
     profile_section = ''
     if player_profile:
         profile_section = f"""
-PERFIL PSICOLÓGICO DEL JUGADOR (generado por IA con tests EVHAPO/MindEV):
+PERFIL DEL JUGADOR SEGÚN RESPUESTAS DEL TEST MENTAL (generado por IA con tests MindEV):
 {player_profile[:2500]}
 """
     else:
-        profile_section = 'PERFIL PSICOLÓGICO: No disponible (el jugador aún no generó su perfil).'
+        profile_section = 'PERFIL DEL JUGADOR: El jugador aún no ha completado el test mental. Basa el análisis de la sección 5 en los patrones observados en las manos.'
 
     start_chips = f"{meta.get('starting_chips', 0):,}" if meta.get('starting_chips') else 'N/D'
     end_chips   = f"{meta.get('ending_chips',   0):,}" if meta.get('ending_chips')   else 'N/D'
@@ -1709,8 +1709,16 @@ PERFIL PSICOLÓGICO DEL JUGADOR (generado por IA con tests EVHAPO/MindEV):
     else:
         lang_instruction = "IMPORTANTE: Genera todo el reporte en ESPAÑOL."
 
-    return f"""Eres un coach de poker MTT de élite. Analiza el siguiente historial de torneo del jugador "{nombre}" y genera un REPORTE COMPLETO en HTML (sin etiquetas html/head/body).
+    return f"""Eres un coach de poker MTT de élite. Analiza el siguiente historial de manos del jugador "{nombre}" y genera un REPORTE COMPLETO en HTML (sin etiquetas html/head/body).
 {lang_instruction}
+
+TERMINOLOGÍA POKER OBLIGATORIA: Usa siempre los términos originales en inglés para acciones de poker. NUNCA los traduzcas:
+- "call" → SIEMPRE "call" (NUNCA "llama", "paga", "iguala"). Úsalo como verbo: "hace call", "dio call", "hacer call".
+- "raise" → SIEMPRE "raise" (NUNCA "sube", "aumenta"). Ej: "hizo raise", "hacer raise".
+- "fold" → SIEMPRE "fold" (NUNCA "se retira", "tira"). Ej: "hizo fold", "hacer fold".
+- "check" → SIEMPRE "check" (NUNCA "pasa"). Ej: "hizo check".
+- "bet" → SIEMPRE "bet" (NUNCA "apuesta"). Ej: "hizo bet", "betting".
+- "all-in", "bluff", "stack", "pot", "flop", "turn", "river", "pre-flop", "3-bet", "c-bet" → mantener en inglés siempre.
 
 ═══ DATOS DEL TORNEO ═══
 Plataforma: {meta.get('platform', 'N/D')}
@@ -1762,11 +1770,15 @@ Cada error: título h3 con badge-bad, descripción de la mano real, jugada alter
 ━━━ SECCIÓN 4: 7 RECOMENDACIONES DE MEJORA ━━━
 Una lista numerada con ítems card-gold. Cada recomendación conecta directamente con uno de los 7 errores. Accionable y específica.
 
-━━━ SECCIÓN 5: CORRELACIÓN CON PERFIL DEL JUGADOR ━━━
-~200 palabras (suficientes para justificar y cerrar la idea).
-{"Correlaciona los errores del torneo con las debilidades del perfil psicológico/técnico. Con ejemplos: 'En la mano X, Hero hizo Y, lo cual es consistente con su perfil de Z...'. Conecta lo que pasó en la mesa con lo que revelan sus tests MindEV." if player_profile else "No hay perfil disponible. Explica cómo un perfil psicológico ayudaría a entender estos errores y recomienda completar los tests MindEV."}
+━━━ SECCIÓN 5: PERFIL SEGÚN RESPUESTAS DEL TEST MENTAL ━━━
+~250 palabras. Título de la sección: "Perfil según respuestas del test mental".
+{"Correlaciona los errores observados en las manos con las características del perfil del jugador. Con ejemplos concretos: 'En la mano X, Hero hizo Y, lo cual es consistente con su perfil de Z...'. Conecta lo que pasó en la mesa con lo que revelan sus tests MindEV." if player_profile else "Analiza los patrones de decisión observados en las manos y describe el perfil mental del jugador que se infiere de ellas (tolerancia al riesgo, manejo del tilt, disciplina, tendencias). Sugiere completar el test mental de MindEV para obtener un perfil más detallado."}
 
-IMPORTANTE: Usa ejemplos REALES de las manos del historial (nivel, cartas, acciones reales). Sé directo, técnico y motivador. Completa TODAS las secciones hasta el final.
+IMPORTANTE FINAL:
+- Usa ejemplos REALES de las manos del historial (nivel, cartas, acciones reales).
+- Sé directo, técnico y motivador.
+- Completa ABSOLUTAMENTE TODAS las secciones (1 a 5) hasta el final sin cortar ninguna.
+- No uses la frase "perfil psicológico no disponible" ni ninguna variante negativa de "no disponible".
 """
 
 

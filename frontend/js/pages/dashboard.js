@@ -111,7 +111,7 @@ function renderDashboardContent(data, user) {
     <button class="tab-btn ${!hasBoth ? 'active' : ''}" onclick="dashTab('mental')">🧠 Mental ${mentalSc ? '' : `<span style='font-size:0.7rem;color:var(--text3)'>— ${isPT ? 'pendente' : 'pendiente'}</span>`}</button>
     <button class="tab-btn" onclick="dashTab('technical')">⚙️ ${isPT ? 'Técnico' : 'Técnico'} ${techSc ? '' : `<span style='font-size:0.7rem;color:var(--text3)'>— ${isPT ? 'pendente' : 'pendiente'}</span>`}</button>
     <button class="tab-btn" onclick="dashTab('profile')">🧬 ${isPT ? 'Meu Perfil' : 'Mi Perfil'}</button>
-    <button class="tab-btn" onclick="dashTab('tournament')">🏆 ${isPT ? 'Torneio' : 'Torneo'}</button>
+    <button class="tab-btn" onclick="dashTab('tournament')">🃏 ${isPT ? 'Análise de Mãos' : 'Análisis de Manos'}</button>
     <button class="tab-btn" onclick="dashTab('history')">📅 ${isPT ? 'Histórico' : 'Historial'}</button>
     <button class="tab-btn" onclick="dashTab('benchmark')">🏅 Benchmark</button>
   </div>`;
@@ -772,14 +772,14 @@ async function loadLastTournament() {
       <div class="alert alert-info" style="margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
         <span>📂 ${isPT ? 'Último análise gerado em' : 'Último análisis generado el'} <strong>${dt}</strong></span>
         <button class="btn btn-secondary btn-sm" onclick="tournClearFile();loadLastTournament._shown=false;document.getElementById('tourn-upload-area').style.display='block'">
-          ${isPT ? '+ Analisar novo torneio' : '+ Analizar nuevo torneo'}
+          ${isPT ? '+ Analisar novas mãos' : '+ Analizar nuevas manos'}
         </button>
       </div>
       <div class="card" style="margin-bottom:20px">
         <div class="card-header">
           <span class="card-icon">🏆</span>
           <div>
-            <h2 style="margin:0">${a.tournament_name || (isPT ? 'Torneio' : 'Torneo')}</h2>
+            <h2 style="margin:0">${a.tournament_name || (isPT ? 'Análise de Mãos' : 'Análisis de Manos')}</h2>
             <div class="card-sub">${a.platform || ''} · ${(a.date || '').slice(0,10)} · Buy-in: ${a.buy_in || 'N/D'}</div>
           </div>
           <div style="margin-left:auto;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
@@ -796,7 +796,7 @@ async function loadLastTournament() {
           _tournamentAlreadyLoaded=false;
           document.getElementById('tourn-result').style.display='none';
           document.getElementById('tourn-upload-area').style.display='block';
-        ">🔄 ${isPT ? 'Analisar outro torneio' : 'Analizar otro torneo'}</button>
+        ">🔄 ${isPT ? 'Analisar outras mãos' : 'Analizar otras manos'}</button>
         <button class="btn btn-primary btn-sm" onclick="tournDownloadPDF()">📄 ${isPT ? 'Baixar PDF' : 'Descargar PDF'}</button>
       </div>`;
   } catch (e) {
