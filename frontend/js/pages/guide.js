@@ -137,7 +137,7 @@ function showGuide() {
           <div style="display:flex;gap:8px;align-items:center">
             <button onclick="downloadGuidePDF()" title="${isPT ? 'Baixar PDF' : 'Descargar PDF'}"
               style="background:rgba(212,175,55,0.12);border:1px solid var(--accent);color:var(--accent);border-radius:8px;padding:6px 12px;cursor:pointer;font-size:0.8rem;font-weight:600">
-              ⬇ PDF
+              PDF
             </button>
             <button onclick="hideGuide()"
               style="background:none;border:1px solid var(--border);border-radius:8px;padding:6px 10px;cursor:pointer;color:var(--text2);font-size:0.9rem">✕</button>
@@ -220,11 +220,11 @@ function downloadGuidePDF() {
     doc.setFont('helvetica', 'bold');
     doc.text(String(s.num), margin + 12, y + cardH / 2 + 2.5, { align: 'center' });
 
-    // Title
+    // Title  (sin emoji — jsPDF solo soporta Latin)
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(10);
     doc.setTextColor(...rgb);
-    doc.text(`${s.icon}  ${title}`, margin + 21, y + 9);
+    doc.text(title, margin + 21, y + 9);
 
     // Description
     doc.setFont('helvetica', 'normal');
@@ -233,20 +233,20 @@ function downloadGuidePDF() {
     const lines = doc.splitTextToSize(desc, W - margin * 2 - 24);
     doc.text(lines, margin + 21, y + 16);
 
-    // Note
+    // Note  (reemplaza 💡 por > )
     if (note) {
       doc.setFontSize(7);
       doc.setTextColor(120, 120, 120);
-      doc.text(`💡 ${note}`, margin + 21, y + 26);
+      doc.text(`> ${note}`, margin + 21, y + 26);
     }
 
     y += cardH + 5;
 
-    // Connector arrow
+    // Connector (caracter ASCII puro)
     if (i < GUIDE_STEPS.length - 1) {
-      doc.setTextColor(100, 100, 100);
-      doc.setFontSize(8);
-      doc.text('↓', W / 2, y - 1, { align: 'center' });
+      doc.setTextColor(80, 80, 80);
+      doc.setFontSize(9);
+      doc.text('|', W / 2, y - 1, { align: 'center' });
     }
   });
 
