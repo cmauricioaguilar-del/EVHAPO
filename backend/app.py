@@ -38,8 +38,9 @@ STRIPE_SUB_PRICE_ID      = os.environ.get('STRIPE_SUB_PRICE_ID', '')   # opciona
 PADDLE_API_KEY           = os.environ.get('PADDLE_API_KEY', '')
 PADDLE_PRICE_ONE_TIME    = os.environ.get('PADDLE_PRICE_ONE_TIME', '')
 PADDLE_PRICE_SUBSCRIPTION= os.environ.get('PADDLE_PRICE_SUBSCRIPTION', '')
-PADDLE_WEBHOOK_SECRET    = os.environ.get('PADDLE_WEBHOOK_SECRET', '')
-PADDLE_CLIENT_TOKEN      = os.environ.get('PADDLE_CLIENT_TOKEN', '')
+PADDLE_WEBHOOK_SECRET     = os.environ.get('PADDLE_WEBHOOK_SECRET', '')
+PADDLE_WEBHOOK_SECRET_SIM = os.environ.get('PADDLE_WEBHOOK_SECRET_SIM', '')
+PADDLE_CLIENT_TOKEN       = os.environ.get('PADDLE_CLIENT_TOKEN', '')
 BASE_URL = os.environ.get('BASE_URL', 'http://localhost:5000')
 
 SMTP_SERVER = os.environ.get('SMTP_SERVER', 'smtp.gmail.com')
@@ -945,16 +946,24 @@ def paddle_subscription_verify():
 @app.route('/api/webhooks/paddle', methods=['POST'])
 def paddle_webhook():
     """Webhook de Paddle para eventos de pago y suscripción."""
-    wh_secret = os.environ.get('PADDLE_WEBHOOK_SECRET') or PADDLE_WEBHOOK_SECRET
-    if wh_secret:
+    secrets_to_try = [
+        os.environ.get('PADDLE_WEBHOOK_SECRET')     or PADDLE_WEBHOOK_SECRET,
+        os.environ.get('PADDLE_WEBHOOK_SECRET_SIM') or PADDLE_WEBHOOK_SECRET_SIM,
+    ]
+    secrets_to_try = [s for s in secrets_to_try if s]
+    if secrets_to_try:
         sig_header = request.headers.get('paddle-signature', '')
         try:
-            parts    = dict(p.split('=', 1) for p in sig_header.split(';') if '=' in p)
-            ts       = parts.get('ts', '')
-            h1       = parts.get('h1', '')
-            payload  = f"{ts}:{request.data.decode('utf-8')}"
-            expected = hmac.new(wh_secret.encode(), payload.encode(), hashlib.sha256).hexdigest()
-            if not hmac.compare_digest(expected, h1):
+            parts   = dict(p.split('=', 1) for p in sig_header.split(';') if '=' in p)
+            ts      = parts.get('ts', '')
+            h1      = parts.get('h1', '')
+            payload = f"{ts}:{request.data.decode('utf-8')}"
+            valid   = any(
+                hmac.compare_digest(
+                    hmac.new(s.encode(), payload.encode(), hashlib.sha256).hexdigest(), h1
+                ) for s in secrets_to_try
+            )
+            if not valid:
                 return jsonify({'error': 'Invalid signature'}), 401
         except Exception as ex:
             print(f"[PADDLE WH] Signature error: {ex}")
