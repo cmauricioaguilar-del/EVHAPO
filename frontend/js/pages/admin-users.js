@@ -114,16 +114,34 @@ function renderUsersList(users) {
             </td>
             <td style="padding:10px 8px;color:var(--text3);font-size:0.82rem">${(u.created_at || '').slice(0,10)}</td>
             <td style="padding:10px 8px;text-align:right">
-              <button onclick="deleteUser(${u.id}, '${escHtml(u.nombre)} ${escHtml(u.apellido)}')"
-                style="background:none;border:1px solid #ef4444;color:#ef4444;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:0.82rem">
-                ✕
-              </button>
+              <div style="display:flex;gap:6px;justify-content:flex-end">
+                ${u.coupon_activated_at ? `
+                  <button onclick="resendWelcomeEmail(${u.id}, '${escHtml(u.email)}')"
+                    title="Reenviar correo de bienvenida de cupón"
+                    style="background:none;border:1px solid #fbbf24;color:#fbbf24;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:0.78rem">
+                    ✉️
+                  </button>` : ''}
+                <button onclick="deleteUser(${u.id}, '${escHtml(u.nombre)} ${escHtml(u.apellido)}')"
+                  style="background:none;border:1px solid #ef4444;color:#ef4444;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:0.82rem">
+                  ✕
+                </button>
+              </div>
             </td>
           </tr>`).join('')}
       </tbody>
     </table>
     </div>
     <p style="margin:12px 0 0;color:var(--text3);font-size:0.8rem">${users.length} usuario${users.length !== 1 ? 's' : ''}</p>`;
+}
+
+async function resendWelcomeEmail(userId, email) {
+  if (!confirm(`¿Reenviar correo de bienvenida a ${email}?`)) return;
+  try {
+    const res = await Api.post(`/api/admin/users/${userId}/resend-welcome`, {});
+    alert(`✓ ${res.message}`);
+  } catch (e) {
+    alert(`❌ Error: ${e.message}`);
+  }
 }
 
 async function deleteUser(userId, name) {

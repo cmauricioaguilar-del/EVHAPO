@@ -11,6 +11,10 @@ async function renderDashboard() {
           <p class="text-muted">${isPT ? 'Bem-vindo/a,' : 'Bienvenido/a,'} <strong>${user.nombre}</strong>. ${isPT ? 'Seu centro de diagnóstico e melhoria.' : 'Tu centro de diagnóstico y mejora.'}</p>
         </div>
         <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button class="btn btn-secondary" onclick="App.go('study-plan')" style="border-color:#818cf8;color:#818cf8">📚 Plan</button>
+          <button class="btn btn-secondary" onclick="App.go('sessions')" style="border-color:#4DB6AC;color:#4DB6AC">🃏 Sesiones</button>
+          <button class="btn btn-secondary" onclick="App.go('bankroll')" style="border-color:#4ade80;color:#4ade80">💰 Bankroll</button>
+          ${user.is_admin ? `<button class="btn btn-secondary" onclick="App.go('admin-analytics')" style="border-color:#4DB6AC;color:#4DB6AC">📊 Analytics</button>` : ''}
           ${user.is_admin ? `<button class="btn btn-secondary" onclick="App.go('admin-referrals')" style="border-color:var(--accent);color:var(--accent)">♠ Referidos</button>` : ''}
           ${user.is_admin ? `<button class="btn btn-secondary" onclick="App.go('admin-users')" style="border-color:var(--accent);color:var(--accent)">👥 Usuarios</button>` : ''}
           ${user.is_admin ? `<button class="btn btn-secondary" onclick="App.go('admin-coupons')" style="border-color:var(--accent);color:var(--accent)">🎟️ Cupones</button>` : ''}
@@ -105,12 +109,34 @@ function renderDashboardContent(data, user) {
   }
 
   // ─── Tabs ─────────────────────────────────────────────────────────────────
-  const hasBoth = mentalSc && techSc;
+  const hasBoth      = mentalSc && techSc;
+  const hasEvolution = mentalHistory.length >= 2 || technicalHistory.length >= 2;
   _dashHasBoth  = !!hasBoth;
+
+  // Guardar datos de evolución globalmente (para dibujar radares al activar el tab)
+  _evoData = {};
+  if (mentalHistory.length >= 2) {
+    _evoData.mental = {
+      prev: typeof mentalHistory[1].scores === 'string' ? JSON.parse(mentalHistory[1].scores) : mentalHistory[1].scores,
+      curr: typeof mentalHistory[0].scores === 'string' ? JSON.parse(mentalHistory[0].scores) : mentalHistory[0].scores,
+      prevDate: mentalHistory[1].completed_at,
+      currDate: mentalHistory[0].completed_at,
+    };
+  }
+  if (technicalHistory.length >= 2) {
+    _evoData.technical = {
+      prev: typeof technicalHistory[1].scores === 'string' ? JSON.parse(technicalHistory[1].scores) : technicalHistory[1].scores,
+      curr: typeof technicalHistory[0].scores === 'string' ? JSON.parse(technicalHistory[0].scores) : technicalHistory[0].scores,
+      prevDate: technicalHistory[1].completed_at,
+      currDate: technicalHistory[0].completed_at,
+    };
+  }
+
   html += `<div class="tabs">
     ${hasBoth ? `<button class="tab-btn active" onclick="dashTab('combined')">🔀 ${isPT ? 'Vista Combinada' : 'Vista Combinada'}</button>` : ''}
     <button class="tab-btn ${!hasBoth ? 'active' : ''}" onclick="dashTab('mental')">🧠 Mental ${mentalSc ? '' : `<span style='font-size:0.7rem;color:var(--text3)'>— ${isPT ? 'pendente' : 'pendiente'}</span>`}</button>
     <button class="tab-btn" onclick="dashTab('technical')">⚙️ ${isPT ? 'Técnico' : 'Técnico'} ${techSc ? '' : `<span style='font-size:0.7rem;color:var(--text3)'>— ${isPT ? 'pendente' : 'pendiente'}</span>`}</button>
+    ${hasEvolution ? `<button class="tab-btn" onclick="dashTab('evolution')">📈 ${isPT ? 'Evolução' : 'Evolución'}</button>` : ''}
     <button class="tab-btn" onclick="dashTab('profile')">🧬 ${isPT ? 'Meu Perfil' : 'Mi Perfil'}</button>
     <button class="tab-btn" onclick="dashTab('tournament')">🃏 ${isPT ? 'Análise de Mãos' : 'Análisis de Manos'}</button>
     <button class="tab-btn" onclick="dashTab('history')">📅 ${isPT ? 'Histórico' : 'Historial'}</button>
@@ -284,6 +310,94 @@ function renderDashboardContent(data, user) {
   }).join('');
   html += `</div>`;
 
+  // ─── TAB: Evolución ──────────────────────────────────────────────────────
+  html += `<div id="dtab-evolution" style="display:none">`;
+  if (hasEvolution) {
+    const evoSections = ['mental', 'technical'].map(tt => {
+      const evoD = _evoData[tt];
+      if (!evoD) return '';
+      const cats   = tt === 'technical' ? I18N.techCats() : I18N.cats();
+      const getOv  = sc => tt === 'technical' ? getTechnicalOverallScore(sc) : getOverallScore(sc);
+      const getLv  = (sc, ov) => tt === 'technical' ? getTechnicalLevel(ov) : getLevel(ov);
+      const prevOv = getOv(evoD.prev);
+      const currOv = getOv(evoD.curr);
+      const delta  = Math.round((currOv - prevOv) * 10) / 10;
+      const dc     = delta > 0 ? '#4ade80' : delta < 0 ? '#f87171' : '#94a3b8';
+      const da     = delta > 0 ? '▲' : delta < 0 ? '▼' : '→';
+      const ds     = delta > 0 ? '+' : '';
+      const fmtDate = d => new Date(d).toLocaleDateString(isPT ? 'pt-BR' : 'es-ES', { day:'numeric', month:'short' });
+      const canvasId = `evo-radar-${tt}`;
+      const accentColor = tt === 'technical' ? '#4DB6AC' : '#d4af37';
+      const icon   = tt === 'technical' ? '⚙️' : '🧠';
+      const label  = tt === 'technical' ? 'Técnico' : 'Mental';
+      const currLv = getLv(evoD.curr, currOv);
+
+      return `
+        <div class="card" style="margin-bottom:24px">
+          <div class="card-header" style="flex-wrap:wrap;gap:12px">
+            <span class="card-icon">${icon}</span>
+            <div>
+              <h2>${isPT ? 'Evolução' : 'Evolución'} ${label}</h2>
+              <div class="card-sub">${fmtDate(evoD.prevDate)} → ${fmtDate(evoD.currDate)}</div>
+            </div>
+            <div style="margin-left:auto;display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+              <div style="text-align:center">
+                <div style="font-size:0.72rem;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:2px">${isPT ? 'Anterior' : 'Anterior'}</div>
+                <div style="font-size:1.4rem;font-weight:700;color:var(--text3)">${prevOv}%</div>
+              </div>
+              <div style="font-size:1.5rem;color:${dc}">${da}</div>
+              <div style="text-align:center">
+                <div style="font-size:0.72rem;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:2px">${isPT ? 'Agora' : 'Ahora'}</div>
+                <div style="font-size:1.4rem;font-weight:700;color:${accentColor}">${currOv}%</div>
+              </div>
+              <div style="background:${delta > 0 ? 'rgba(74,222,128,0.1)' : delta < 0 ? 'rgba(248,113,113,0.1)' : 'rgba(148,163,184,0.1)'};border:1px solid ${dc};border-radius:10px;padding:10px 18px;text-align:center;min-width:80px">
+                <div style="font-size:1.6rem;font-weight:800;color:${dc}">${ds}${delta}%</div>
+                <div style="font-size:0.72rem;color:${dc}">${isPT ? 'evolução' : 'evolución'}</div>
+              </div>
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:20px">
+            <!-- Radar comparativo -->
+            <div>
+              <canvas id="${canvasId}" style="max-height:260px"></canvas>
+              <div style="display:flex;justify-content:center;gap:20px;margin-top:8px;font-size:0.78rem;color:var(--text3)">
+                <span><span style="color:#334155;font-weight:700">●</span> ${fmtDate(evoD.prevDate)}</span>
+                <span><span style="color:${accentColor};font-weight:700">●</span> ${fmtDate(evoD.currDate)} · ${currLv.label}</span>
+              </div>
+            </div>
+            <!-- Barras por categoría -->
+            <div>
+              ${cats.map(c => {
+                const pv = evoD.prev[c.key] || 0;
+                const cv = evoD.curr[c.key] || 0;
+                const d  = cv - pv;
+                const dcolor = d > 0 ? '#4ade80' : d < 0 ? '#f87171' : '#64748b';
+                const darrow = d > 0 ? '▲' : d < 0 ? '▼' : '—';
+                return `
+                  <div style="margin-bottom:10px">
+                    <div style="display:flex;justify-content:space-between;font-size:0.82rem;margin-bottom:3px">
+                      <span>${c.icon} ${c.label}</span>
+                      <span style="font-weight:700;color:${dcolor};font-size:0.8rem">${darrow} ${d >= 0 ? '+' : ''}${d.toFixed(0)}%</span>
+                    </div>
+                    <div style="display:flex;gap:6px;align-items:center;font-size:0.72rem">
+                      <span style="color:var(--text3);width:28px;text-align:right">${pv}%</span>
+                      <div style="flex:1;height:7px;background:var(--border);border-radius:4px;position:relative;overflow:hidden">
+                        <div style="position:absolute;left:0;top:0;height:100%;width:${pv}%;background:#1e3a5f;border-radius:4px"></div>
+                        <div style="position:absolute;left:0;top:0;height:100%;width:${cv}%;background:${accentColor};border-radius:4px;opacity:0.9"></div>
+                      </div>
+                      <span style="color:${accentColor};width:28px">${cv}%</span>
+                    </div>
+                  </div>`;
+              }).join('')}
+            </div>
+          </div>
+        </div>`;
+    }).join('');
+    html += evoSections;
+  }
+  html += `</div>`;
+
   // ─── TAB: Benchmark ───────────────────────────────────────────────────────
   html += `<div id="dtab-benchmark" style="display:none">`;
 
@@ -425,8 +539,55 @@ function drawDashRadar(canvasId, categories, scores, borderColor, bgColor) {
   });
 }
 
+function drawComparisonRadar(canvasId, categories, prevScores, currScores, accentColor) {
+  const ctx = document.getElementById(canvasId);
+  if (!ctx) return;
+  const existing = Chart.getChart(ctx);
+  if (existing) existing.destroy();
+  new Chart(ctx, {
+    type: 'radar',
+    data: {
+      labels: categories.map(c => c.label),
+      datasets: [
+        {
+          label: 'Anterior',
+          data: categories.map(c => prevScores[c.key] || 0),
+          backgroundColor: 'rgba(30,41,59,0.5)',
+          borderColor: '#334155',
+          borderWidth: 1.5,
+          borderDash: [5, 4],
+          pointRadius: 2,
+          pointBackgroundColor: '#475569',
+        },
+        {
+          label: 'Ahora',
+          data: categories.map(c => currScores[c.key] || 0),
+          backgroundColor: accentColor === '#d4af37' ? 'rgba(212,175,55,0.12)' : 'rgba(77,182,172,0.12)',
+          borderColor: accentColor,
+          borderWidth: 2.5,
+          pointRadius: 3,
+          pointBackgroundColor: accentColor,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        r: {
+          min: 0, max: 100,
+          ticks: { stepSize: 25, color: '#64748b', font: { size: 9 }, backdropColor: 'transparent' },
+          grid: { color: 'rgba(255,255,255,0.07)' },
+          angleLines: { color: 'rgba(255,255,255,0.07)' },
+          pointLabels: { color: '#94a3b8', font: { size: 9 } },
+        },
+      },
+    },
+  });
+}
+
 function dashTab(tab) {
-  ['combined','mental','technical','profile','tournament','history','benchmark'].forEach(t => {
+  ['combined','mental','technical','evolution','profile','tournament','history','benchmark'].forEach(t => {
     const el  = document.getElementById(`dtab-${t}`);
     const btn = document.querySelector(`[onclick="dashTab('${t}')"]`);
     if (el)  el.style.display  = t === tab ? 'block' : 'none';
@@ -454,6 +615,10 @@ function dashTab(tab) {
       if (_dashTechSc)   drawDashRadar('dash-radar-tech',   I18N.techCats(), _dashTechSc,
         'rgba(77,182,172,0.9)', 'rgba(77,182,172,0.12)');
     }
+    if (tab === 'evolution' && _evoData) {
+      if (_evoData.mental)    drawComparisonRadar('evo-radar-mental',    I18N.cats(),     _evoData.mental.prev,    _evoData.mental.curr,    '#d4af37');
+      if (_evoData.technical) drawComparisonRadar('evo-radar-technical', I18N.techCats(), _evoData.technical.prev, _evoData.technical.curr, '#4DB6AC');
+    }
   }, 100);
 }
 
@@ -466,6 +631,7 @@ let _tournamentAlreadyLoaded = false;
 let _dashMentalSc  = null;
 let _dashTechSc    = null;
 let _dashHasBoth   = false;
+let _evoData       = null;  // { mental:{prev,curr}, technical:{prev,curr} }
 
 async function loadSavedProfile() {
   if (_profileAlreadyLoaded) return;

@@ -42,9 +42,17 @@ async function renderAdminCoupons() {
               style="background:none;border:1px solid var(--border);border-radius:6px;padding:6px 12px;color:var(--text2);cursor:pointer;font-size:0.85rem">
               📋 Copiar disponibles
             </button>
-            <button onclick="sendSampleEmail()" id="sample-email-btn"
+            <button onclick="sendSampleEmail('weekly')" id="sample-email-btn"
               style="background:rgba(212,175,55,0.15);border:1px solid var(--accent);border-radius:6px;padding:6px 12px;color:var(--accent);cursor:pointer;font-size:0.85rem;font-weight:600">
-              ✉️ Enviar correo de prueba
+              ✉️ Semanal (muestra)
+            </button>
+            <button onclick="sendSampleEmail('welcome')" id="sample-welcome-btn"
+              style="background:rgba(74,222,128,0.12);border:1px solid #4ade80;border-radius:6px;padding:6px 12px;color:#4ade80;cursor:pointer;font-size:0.85rem;font-weight:600">
+              🎉 Bienvenida (muestra)
+            </button>
+            <button onclick="sendSampleEmail('expiry')" id="sample-expiry-btn"
+              style="background:rgba(239,68,68,0.12);border:1px solid #ef4444;border-radius:6px;padding:6px 12px;color:#f87171;cursor:pointer;font-size:0.85rem;font-weight:600">
+              ⚠️ Expiración (muestra)
             </button>
           </div>
         </div>
@@ -143,24 +151,26 @@ function renderCouponsList(coupons) {
     <p style="margin:12px 0 0;color:var(--text3);font-size:0.8rem">${coupons.length} código${coupons.length !== 1 ? 's' : ''}</p>`;
 }
 
-async function sendSampleEmail() {
-  const btn = document.getElementById('sample-email-btn');
+async function sendSampleEmail(type = 'weekly') {
+  const btnMap = {
+    weekly:  { id: 'sample-email-btn',   endpoint: '/api/admin/send-coupon-sample',         label: '✉️ Semanal (muestra)' },
+    welcome: { id: 'sample-welcome-btn', endpoint: '/api/admin/send-coupon-welcome-sample',  label: '🎉 Bienvenida (muestra)' },
+    expiry:  { id: 'sample-expiry-btn',  endpoint: '/api/admin/send-coupon-expiry-sample',   label: '⚠️ Expiración (muestra)' },
+  };
+  const { id, endpoint, label } = btnMap[type] || btnMap.weekly;
+  const btn = document.getElementById(id);
+  if (!btn) return;
   btn.disabled = true;
   btn.textContent = '⏳ Enviando...';
   try {
-    const res = await Api.post('/api/admin/send-coupon-sample', {});
+    const res = await Api.post(endpoint, {});
     btn.textContent = '✅ Enviado';
-    setTimeout(() => {
-      btn.disabled = false;
-      btn.textContent = '✉️ Enviar correo de prueba';
-    }, 5000);
-    alert(`✓ ${res.message}\nSMTP: ${res.smtp_user}\n\nRevisa bandeja de entrada Y carpeta SPAM en c.mauricio.aguilar@gmail.com`);
+    setTimeout(() => { btn.disabled = false; btn.textContent = label; }, 5000);
+    alert(`✓ ${res.message}\n\nRevisa tu bandeja de entrada (y SPAM).`);
   } catch (e) {
     btn.disabled = false;
-    btn.textContent = '✉️ Enviar correo de prueba';
-    // Mostrar error detallado
-    const detail = e.message || 'Error desconocido';
-    alert(`❌ ERROR al enviar:\n\n${detail}\n\nRevisa las variables SMTP_USER y SMTP_PASS en Railway.`);
+    btn.textContent = label;
+    alert(`❌ ERROR al enviar:\n\n${e.message || 'Error desconocido'}`);
   }
 }
 

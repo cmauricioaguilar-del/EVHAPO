@@ -19,6 +19,10 @@ const App = {
       case 'admin-referrals':   renderAdminReferrals(); break;
       case 'admin-users':       renderAdminUsers(); break;
       case 'admin-coupons':     renderAdminCoupons(); break;
+      case 'admin-analytics':   renderAdminAnalytics(); break;
+      case 'study-plan':        renderStudyPlan(); break;
+      case 'sessions':          renderSessions(); break;
+      case 'bankroll':          renderBankroll(); break;
       default: renderLanding();
     }
 

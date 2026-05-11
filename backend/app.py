@@ -167,6 +167,30 @@ def init_db():
             used_at TEXT,
             created_at TEXT DEFAULT CURRENT_TIMESTAMP
         );
+
+        CREATE TABLE IF NOT EXISTS study_plans (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER REFERENCES users(id),
+            plan_html TEXT,
+            mental_overall REAL,
+            technical_overall REAL,
+            status TEXT DEFAULT 'pending',
+            error_msg TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS poker_sessions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER REFERENCES users(id),
+            date TEXT NOT NULL,
+            format TEXT NOT NULL,
+            stakes TEXT NOT NULL,
+            hours REAL NOT NULL DEFAULT 0,
+            profit_loss REAL NOT NULL DEFAULT 0,
+            mental_state INTEGER NOT NULL DEFAULT 5,
+            notes TEXT DEFAULT '',
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
     """)
     db.commit()
     # Migración: agregar columnas nuevas si no existen (para DBs ya creadas)
@@ -187,6 +211,8 @@ def init_db():
         "ALTER TABLE users ADD COLUMN coupon_code TEXT DEFAULT ''",
         "ALTER TABLE users ADD COLUMN coupon_activated_at TEXT",
         "ALTER TABLE users ADD COLUMN last_coupon_reminder TEXT",
+        "ALTER TABLE users ADD COLUMN coupon_expiry_warned INTEGER DEFAULT 0",
+        "ALTER TABLE users ADD COLUMN coupon_welcome_sent INTEGER DEFAULT 0",
         "ALTER TABLE player_profiles ADD COLUMN status TEXT DEFAULT 'done'",
         "ALTER TABLE player_profiles ADD COLUMN error_msg TEXT",
     ]
@@ -704,6 +730,172 @@ def start_test():
         return jsonify({'error': 'Test ya completado', 'session_id': session_id}), 400
     return jsonify({'ok': True, 'session_id': session_id})
 
+# ─── Email post-test ─────────────────────────────────────────────────────────
+
+_CAT_NAMES = {
+    'es': {
+        'tolerancia': 'Tolerancia', 'habitos': 'Hábitos',
+        'concentracion': 'Concentración', 'expectativas': 'Expectativas',
+        'disciplina': 'Disciplina', 'paciencia': 'Paciencia',
+        'resiliencia': 'Resiliencia', 'constancia': 'Constancia',
+        'perseverancia': 'Perseveranza', 'autocontrol': 'Autocontrol',
+        'gestion_tilt': 'Gestión del Tilt', 'mentalidad_crecimiento': 'Mentalidad de Crecimiento',
+        'rangos_preflop': 'Rangos Pre-Flop', 'juego_ip': 'Juego en Posición',
+        'juego_oop': 'Juego Fuera de Posición', 'textura_flop': 'Textura del Flop',
+        'lineas_turn': 'Turn: Líneas', 'river_value': 'River: Value Bet',
+    },
+    'pt': {
+        'tolerancia': 'Tolerância', 'habitos': 'Hábitos',
+        'concentracion': 'Concentração', 'expectativas': 'Expectativas',
+        'disciplina': 'Disciplina', 'paciencia': 'Paciência',
+        'resiliencia': 'Resiliência', 'constancia': 'Constância',
+        'perseverancia': 'Perseverança', 'autocontrol': 'Autocontrole',
+        'gestion_tilt': 'Gestão do Tilt', 'mentalidad_crecimiento': 'Mentalidade de Crescimento',
+        'rangos_preflop': 'Ranges Pré-Flop', 'juego_ip': 'Jogo em Posição',
+        'juego_oop': 'Jogo Fora de Posição', 'textura_flop': 'Textura do Flop',
+        'lineas_turn': 'Turn: Linhas', 'river_value': 'River: Value Bet',
+    },
+}
+
+
+def _level_label_py(overall, test_type='mental', lang='es'):
+    if test_type == 'technical':
+        if overall >= 85: return ('PROFESIONAL ♠', 'PROFISSIONAL ♠')[lang == 'pt']
+        if overall >= 70: return ('AVANZADO',       'AVANÇADO')[lang == 'pt']
+        if overall >= 50: return ('INTERMEDIO',      'INTERMEDIÁRIO')[lang == 'pt']
+        if overall >= 30: return ('BAJO',            'BAIXO')[lang == 'pt']
+        return ('PRINCIPIANTE', 'INICIANTE')[lang == 'pt']
+    else:
+        if overall >= 90: return ('Élite ♠',         'Elite ♠')[lang == 'pt']
+        if overall >= 75: return ('Avanzado',         'Avançado')[lang == 'pt']
+        if overall >= 60: return ('En Desarrollo',    'Em Desenvolvimento')[lang == 'pt']
+        if overall >= 45: return ('Intermedio',       'Intermediário')[lang == 'pt']
+        return ('Principiante', 'Iniciante')[lang == 'pt']
+
+
+def _generate_posttest_email_html(nombre, test_type, overall, scores, lang='es'):
+    """HTML del correo que se envía al usuario al completar un test."""
+    import requests as _req2
+    base_url = os.environ.get('BASE_URL', BASE_URL)
+    logo_url = f"{base_url}/icons/mindev-logo.png"
+    names    = _CAT_NAMES.get(lang, _CAT_NAMES['es'])
+    sub_text = 'Diagnóstico Mental y Técnico para Poker' if lang == 'es' else 'Diagnóstico Mental e Técnico para Poker'
+
+    level = _level_label_py(overall, test_type, lang)
+    is_tech = test_type == 'technical'
+    accent = '#4DB6AC' if is_tech else '#d4af37'
+    type_label = ('Técnico ⚙️' if is_tech else 'Mental 🧠') if lang == 'es' else ('Técnico ⚙️' if is_tech else 'Mental 🧠')
+
+    # Top 3 fortalezas y brechas
+    sorted_cats = sorted(scores.items(), key=lambda x: x[1], reverse=True)
+    top3    = [(names.get(k, k), v) for k, v in sorted_cats[:3]]
+    bottom3 = [(names.get(k, k), v) for k, v in sorted_cats[-3:]]
+
+    # Párrafo IA corto
+    ai_text = ''
+    api_key = _get_api_key()
+    if api_key:
+        try:
+            lang_word = 'Spanish' if lang == 'es' else 'Brazilian Portuguese'
+            prompt = (
+                f"You are MindEV, a poker improvement platform. Write ONE short sentence (max 20 words) in {lang_word} "
+                f"congratulating {nombre} for completing their {test_type} diagnostic with a score of {overall}%. "
+                f"Be specific and encouraging. Write ONLY the sentence, nothing else."
+            )
+            resp = _req2.post(
+                'https://api.anthropic.com/v1/messages',
+                headers={'x-api-key': api_key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json'},
+                json={'model': 'claude-haiku-4-5', 'max_tokens': 80, 'messages': [{'role': 'user', 'content': prompt}]},
+                timeout=20, verify=False
+            )
+            if resp.status_code == 200:
+                ai_text = resp.json()['content'][0]['text'].strip()
+        except Exception:
+            pass
+
+    if not ai_text:
+        ai_text = (f'¡Buen trabajo completando tu diagnóstico, {nombre}!' if lang == 'es'
+                   else f'Bom trabalho ao completar seu diagnóstico, {nombre}!')
+
+    # Score color
+    sc_color = '#4ade80' if overall >= 75 else '#fbbf24' if overall >= 50 else '#f87171'
+
+    def cat_row(name, pct):
+        bar_color = '#4ade80' if pct >= 75 else '#fbbf24' if pct >= 50 else '#f87171'
+        return (f'<tr><td style="padding:5px 10px;font-size:0.85rem;color:#94a3b8">{name}</td>'
+                f'<td style="padding:5px 10px;text-align:right;font-weight:700;color:{bar_color};font-size:0.85rem">{pct}%</td></tr>')
+
+    strengths_rows = ''.join(cat_row(n, round(v, 0)) for n, v in top3)
+    gaps_rows      = ''.join(cat_row(n, round(v, 0)) for n, v in bottom3)
+
+    strengths_label = '💪 Tus fortalezas'   if lang == 'es' else '💪 Seus pontos fortes'
+    gaps_label      = '🎯 Áreas a trabajar' if lang == 'es' else '🎯 Áreas a trabalhar'
+    cta_label       = 'Ver mi informe completo'  if lang == 'es' else 'Ver meu relatório completo'
+    footer_note     = 'Diagnóstico Mental y Técnico para Poker' if lang == 'es' else 'Diagnóstico Mental e Técnico para Poker'
+
+    return f"""
+    <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;background:#0a0e1a;color:#e2e8f0;padding:36px 32px;border-radius:14px">
+
+      <div style="text-align:center;margin-bottom:24px">
+        <img src="{logo_url}" alt="MindEV" style="height:48px;max-width:180px;object-fit:contain">
+        <p style="margin:8px 0 0;color:#64748b;font-size:0.78rem;letter-spacing:0.05em;text-transform:uppercase">{sub_text}</p>
+      </div>
+
+      <h2 style="margin:0 0 8px;font-size:1.2rem;color:#f1f5f9">{nombre}, completaste tu diagnóstico {'Test ' if lang == 'es' else 'Teste '}{type_label}</h2>
+      <p style="color:#94a3b8;margin:0 0 20px;font-size:0.9rem;font-style:italic">{ai_text}</p>
+
+      <!-- Score grande -->
+      <div style="background:#1e2d45;border-radius:12px;padding:20px;text-align:center;margin-bottom:24px">
+        <div style="font-size:3rem;font-weight:800;color:{sc_color}">{overall}%</div>
+        <div style="font-size:1rem;color:{accent};font-weight:700;margin-top:4px">{level}</div>
+      </div>
+
+      <!-- Fortalezas y brechas -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
+        <div>
+          <div style="font-size:0.8rem;font-weight:700;color:#4ade80;margin-bottom:8px;text-transform:uppercase">{strengths_label}</div>
+          <table style="width:100%;border-collapse:collapse">
+            <tbody>{strengths_rows}</tbody>
+          </table>
+        </div>
+        <div>
+          <div style="font-size:0.8rem;font-weight:700;color:#f87171;margin-bottom:8px;text-transform:uppercase">{gaps_label}</div>
+          <table style="width:100%;border-collapse:collapse">
+            <tbody>{gaps_rows}</tbody>
+          </table>
+        </div>
+      </div>
+
+      <div style="text-align:center;margin-bottom:28px">
+        <a href="{base_url}"
+           style="display:inline-block;background:{accent};color:#0a0e1a;font-weight:800;font-size:1rem;padding:14px 36px;border-radius:8px;text-decoration:none">
+          &#9654; {cta_label}
+        </a>
+      </div>
+
+      <div style="border-top:1px solid #1e293b;padding-top:16px;text-align:center">
+        <img src="{logo_url}" alt="MindEV" style="height:22px;opacity:0.45;margin-bottom:6px">
+        <p style="margin:0;color:#334155;font-size:0.75rem">{footer_note}</p>
+      </div>
+    </div>
+    """
+
+
+def _send_posttest_email(nombre, email, pais, test_type, overall, scores):
+    """Envía el correo de resultados después de completar un test."""
+    lang = 'pt' if pais and pais.upper() == 'BR' else 'es'
+    try:
+        html    = _generate_posttest_email_html(nombre, test_type, overall, scores, lang)
+        type_lbl = ('Técnico' if test_type == 'technical' else 'Mental') if lang == 'es' else ('Técnico' if test_type == 'technical' else 'Mental')
+        subject = (f'Tus resultados del Test {type_lbl} en MindEV — {overall}%'
+                   if lang == 'es' else
+                   f'Seus resultados do Teste {type_lbl} no MindEV — {overall}%')
+        _smtp_send(email, subject, html)
+        print(f"[POSTTEST] Email sent to {email} — {test_type} {overall}%")
+    except Exception as e:
+        print(f"[POSTTEST] Email error for {email}: {e}")
+
+
 @app.route('/api/test/submit', methods=['POST'])
 @require_auth
 def submit_test():
@@ -728,6 +920,20 @@ def submit_test():
         (total, json.dumps(scores), json.dumps(answers), datetime.datetime.utcnow().isoformat(), session_id)
     )
     db.commit()
+
+    # Enviar email con resultados en background (no bloquea la respuesta)
+    user_info = db.execute(
+        "SELECT nombre, email, pais FROM users WHERE id=?", (g.user_id,)
+    ).fetchone()
+    if user_info and scores:
+        overall = round(sum(scores.values()) / len(scores), 1) if scores else 0
+        threading.Thread(
+            target=_send_posttest_email,
+            args=(user_info['nombre'], user_info['email'], user_info['pais'] or '',
+                  test_type, overall, scores),
+            daemon=True
+        ).start()
+
     return jsonify({'ok': True, 'scores': scores, 'total': total, 'session_id': session_id})
 
 def calculate_scores(answers, test_type='mental'):
@@ -914,6 +1120,218 @@ def delete_user(user_id):
     db.execute('DELETE FROM users WHERE id=?', (user_id,))
     db.commit()
     return jsonify({'ok': True, 'deleted': f"{user['nombre']} {user['apellido']}"})
+
+
+@app.route('/api/admin/analytics', methods=['GET'])
+@require_auth
+def admin_analytics():
+    if not g.is_admin:
+        return jsonify({'error': 'Acceso denegado'}), 403
+    db = get_db()
+
+    # Totales globales
+    total_users   = db.execute("SELECT COUNT(*) as c FROM users").fetchone()['c']
+    total_tests   = db.execute("SELECT COUNT(*) as c FROM test_sessions WHERE completed=1").fetchone()['c']
+    total_revenue = db.execute("SELECT COALESCE(SUM(amount),0) as s FROM payments WHERE status='approved'").fetchone()['s']
+    avg_score     = db.execute("SELECT ROUND(AVG(score_total),1) as a FROM test_sessions WHERE completed=1 AND score_total > 0").fetchone()['a']
+
+    # Usuarios por día (últimos 30 días)
+    users_by_day = db.execute("""
+        SELECT DATE(created_at) as day, COUNT(*) as count
+        FROM users
+        WHERE created_at >= DATE('now', '-30 days')
+        GROUP BY day ORDER BY day ASC
+    """).fetchall()
+
+    # Tests completados por día (últimos 30 días)
+    tests_by_day = db.execute("""
+        SELECT DATE(created_at) as day, COUNT(*) as count
+        FROM test_sessions
+        WHERE completed=1 AND created_at >= DATE('now', '-30 days')
+        GROUP BY day ORDER BY day ASC
+    """).fetchall()
+
+    # Ingresos por día (últimos 30 días)
+    revenue_by_day = db.execute("""
+        SELECT DATE(created_at) as day, ROUND(SUM(amount),2) as revenue
+        FROM payments
+        WHERE status='approved' AND created_at >= DATE('now', '-30 days')
+        GROUP BY day ORDER BY day ASC
+    """).fetchall()
+
+    # Países (top 10)
+    countries = db.execute("""
+        SELECT COALESCE(NULLIF(TRIM(pais),''), 'Sin especificar') as pais, COUNT(*) as count
+        FROM users
+        GROUP BY pais ORDER BY count DESC LIMIT 10
+    """).fetchall()
+
+    # Tipos de test
+    test_types = db.execute("""
+        SELECT COALESCE(NULLIF(test_type,''),'mental') as test_type, COUNT(*) as count
+        FROM test_sessions WHERE completed=1
+        GROUP BY test_type
+    """).fetchall()
+
+    # Cupones: stats
+    coupon_row = db.execute("""
+        SELECT COUNT(*) as total,
+               SUM(CASE WHEN used_by IS NOT NULL THEN 1 ELSE 0 END) as used
+        FROM coupons
+    """).fetchone()
+    coupon_total     = coupon_row['total'] or 0
+    coupon_used      = coupon_row['used']  or 0
+    coupon_available = coupon_total - coupon_used
+
+    # Cupones activos (no expirados)
+    coupon_active_users = db.execute("""
+        SELECT COUNT(*) as c FROM users
+        WHERE coupon_activated_at IS NOT NULL AND coupon_activated_at != ''
+          AND CAST((JULIANDAY('now') - JULIANDAY(coupon_activated_at)) AS INTEGER) < 30
+    """).fetchone()['c']
+
+    # Conversión cupón → pago
+    coupon_converted = db.execute("""
+        SELECT COUNT(DISTINCT u.id) as c
+        FROM users u
+        JOIN payments p ON p.user_id = u.id AND p.status='approved'
+        WHERE u.coupon_activated_at IS NOT NULL AND u.coupon_activated_at != ''
+    """).fetchone()['c']
+    conversion_rate = round(coupon_converted / coupon_used * 100, 1) if coupon_used > 0 else 0
+
+    # Usuarios nuevos últimos 7 días
+    new_users_7d = db.execute("""
+        SELECT COUNT(*) as c FROM users
+        WHERE created_at >= DATE('now', '-7 days')
+    """).fetchone()['c']
+
+    # Tests últimos 7 días
+    tests_7d = db.execute("""
+        SELECT COUNT(*) as c FROM test_sessions
+        WHERE completed=1 AND created_at >= DATE('now', '-7 days')
+    """).fetchone()['c']
+
+    return jsonify({
+        'totals': {
+            'users': total_users,
+            'tests': total_tests,
+            'revenue': round(total_revenue, 2),
+            'avg_score': avg_score or 0,
+            'new_users_7d': new_users_7d,
+            'tests_7d': tests_7d,
+        },
+        'coupon': {
+            'total': coupon_total,
+            'used': coupon_used,
+            'available': coupon_available,
+            'active': coupon_active_users,
+            'converted': coupon_converted,
+            'conversion_rate': conversion_rate,
+        },
+        'users_by_day':   [dict(r) for r in users_by_day],
+        'tests_by_day':   [dict(r) for r in tests_by_day],
+        'revenue_by_day': [dict(r) for r in revenue_by_day],
+        'countries':      [dict(r) for r in countries],
+        'test_types':     [dict(r) for r in test_types],
+    })
+
+
+@app.route('/api/admin/export/<string:export_type>', methods=['GET'])
+@require_auth
+def admin_export(export_type):
+    if not g.is_admin:
+        return jsonify({'error': 'Acceso denegado'}), 403
+    db = get_db()
+    from flask import Response
+    import csv, io
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+
+    if export_type == 'users':
+        writer.writerow(['ID', 'Nombre', 'Apellido', 'Email', 'País', 'Referido por',
+                         'Cupón código', 'Cupón activado', 'Días restantes cupón', 'Registro'])
+        rows = db.execute(
+            "SELECT id, nombre, apellido, email, pais, referral_code, "
+            "coupon_code, coupon_activated_at, created_at FROM users ORDER BY created_at DESC"
+        ).fetchall()
+        for r in rows:
+            days = _get_coupon_days_remaining(r['coupon_activated_at'])
+            writer.writerow([
+                r['id'], r['nombre'], r['apellido'], r['email'],
+                r['pais'] or '', r['referral_code'] or '',
+                r['coupon_code'] or '', (r['coupon_activated_at'] or '')[:10],
+                days if days else '', (r['created_at'] or '')[:10]
+            ])
+        filename = 'mindev-usuarios.csv'
+
+    elif export_type == 'tests':
+        writer.writerow(['ID', 'Usuario ID', 'Nombre', 'Email', 'Tipo', 'Score Total',
+                         'Completado', 'Fecha'])
+        rows = db.execute("""
+            SELECT ts.id, ts.user_id, u.nombre, u.apellido, u.email,
+                   COALESCE(NULLIF(ts.test_type,''),'mental') as test_type,
+                   ts.score_total, ts.completed_at, ts.created_at
+            FROM test_sessions ts
+            LEFT JOIN users u ON u.id = ts.user_id
+            WHERE ts.completed=1
+            ORDER BY ts.created_at DESC
+        """).fetchall()
+        for r in rows:
+            writer.writerow([
+                r['id'], r['user_id'],
+                f"{r['nombre'] or ''} {r['apellido'] or ''}".strip(),
+                r['email'] or '', r['test_type'],
+                round(r['score_total'] or 0, 1),
+                (r['completed_at'] or '')[:10], (r['created_at'] or '')[:10]
+            ])
+        filename = 'mindev-tests.csv'
+
+    elif export_type == 'coupons':
+        writer.writerow(['Código', 'Estado', 'Usado por (nombre)', 'Email', 'País', 'Fecha uso'])
+        rows = db.execute("""
+            SELECT c.code, c.used_at, u.nombre, u.apellido, u.email, u.pais
+            FROM coupons c LEFT JOIN users u ON c.used_by = u.id
+            ORDER BY c.code ASC
+        """).fetchall()
+        for r in rows:
+            estado = 'Utilizado' if r['used_at'] else 'Disponible'
+            writer.writerow([
+                r['code'], estado,
+                f"{r['nombre'] or ''} {r['apellido'] or ''}".strip() if r['nombre'] else '',
+                r['email'] or '', r['pais'] or '',
+                (r['used_at'] or '')[:10]
+            ])
+        filename = 'mindev-cupones.csv'
+
+    elif export_type == 'payments':
+        writer.writerow(['ID', 'Usuario', 'Email', 'Monto', 'Moneda', 'Método', 'Estado', 'Fecha'])
+        rows = db.execute("""
+            SELECT p.id, u.nombre, u.apellido, u.email,
+                   p.amount, p.currency, p.method, p.status, p.created_at
+            FROM payments p LEFT JOIN users u ON u.id = p.user_id
+            WHERE p.status='approved'
+            ORDER BY p.created_at DESC
+        """).fetchall()
+        for r in rows:
+            writer.writerow([
+                r['id'],
+                f"{r['nombre'] or ''} {r['apellido'] or ''}".strip(),
+                r['email'] or '', r['amount'], r['currency'] or '',
+                r['method'] or '', r['status'] or '',
+                (r['created_at'] or '')[:10]
+            ])
+        filename = 'mindev-pagos.csv'
+
+    else:
+        return jsonify({'error': 'Tipo de exportación no válido'}), 400
+
+    output.seek(0)
+    return Response(
+        '﻿' + output.getvalue(),   # BOM UTF-8 para que Excel lo abra bien
+        mimetype='text/csv; charset=utf-8',
+        headers={'Content-Disposition': f'attachment; filename="{filename}"'}
+    )
 
 @app.route('/api/referral/validate', methods=['POST'])
 def validate_referral_code():
@@ -1144,7 +1562,69 @@ def apply_coupon():
                (code, now, g.user_id))
     db.commit()
 
+    # Enviar correo de bienvenida en background (no bloquea la respuesta)
+    user_info = db.execute(
+        "SELECT nombre, email, pais FROM users WHERE id=?", (g.user_id,)
+    ).fetchone()
+    if user_info:
+        threading.Thread(
+            target=_send_coupon_welcome_email,
+            args=(user_info['nombre'], user_info['email'], user_info['pais'] or '', g.user_id),
+            daemon=True
+        ).start()
+
     return jsonify({'ok': True, 'days': 30, 'activated_at': now})
+
+
+@app.route('/api/admin/users/<int:user_id>/resend-welcome', methods=['POST'])
+@require_auth
+def resend_welcome_email(user_id):
+    """Reenvía el correo de bienvenida de cupón a un usuario específico."""
+    if not g.is_admin:
+        return jsonify({'error': 'Acceso denegado'}), 403
+    db = get_db()
+    user = db.execute(
+        "SELECT nombre, email, pais, coupon_activated_at FROM users WHERE id=?", (user_id,)
+    ).fetchone()
+    if not user:
+        return jsonify({'error': 'Usuario no encontrado'}), 404
+    if not user['coupon_activated_at']:
+        return jsonify({'error': 'Este usuario no tiene cupón activo'}), 400
+    try:
+        _send_coupon_welcome_email(user['nombre'], user['email'], user['pais'] or '', user_id)
+        return jsonify({'ok': True, 'message': f'Correo enviado a {user["email"]}'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/admin/send-coupon-welcome-sample', methods=['POST'])
+@require_auth
+def send_coupon_welcome_sample():
+    """Envía un correo de muestra de bienvenida al admin."""
+    if not g.is_admin:
+        return jsonify({'error': 'Acceso denegado'}), 403
+    notify_email = os.environ.get('REFERRAL_NOTIFY_EMAIL', REFERRAL_NOTIFY_EMAIL)
+    try:
+        html = _generate_coupon_welcome_html('Mauricio', lang='es')
+        _smtp_send(notify_email, '[MUESTRA] MindEV — correo de bienvenida con cupón', html)
+        return jsonify({'ok': True, 'message': f'Correo de bienvenida enviado a {notify_email}'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/admin/send-coupon-expiry-sample', methods=['POST'])
+@require_auth
+def send_coupon_expiry_sample():
+    """Envía un correo de muestra de expiración al admin."""
+    if not g.is_admin:
+        return jsonify({'error': 'Acceso denegado'}), 403
+    notify_email = os.environ.get('REFERRAL_NOTIFY_EMAIL', REFERRAL_NOTIFY_EMAIL)
+    try:
+        html = _generate_coupon_expiry_html('Mauricio', 3, lang='es')
+        _smtp_send(notify_email, '[MUESTRA] MindEV — aviso de expiración de cupón', html)
+        return jsonify({'ok': True, 'message': f'Correo de expiración enviado a {notify_email}'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 @app.route('/api/admin/send-coupon-sample', methods=['POST'])
@@ -1333,6 +1813,213 @@ def _generate_coupon_email_html(nombre, days_remaining, lang='es'):
     """
 
 
+def _generate_coupon_welcome_html(nombre, lang='es'):
+    """HTML del correo de bienvenida al activar un cupón."""
+    base_url = os.environ.get('BASE_URL', BASE_URL)
+    logo_url = f"{base_url}/icons/mindev-logo.png"
+    sub_text = ('Diagnóstico Mental y Técnico para Poker'
+                if lang == 'es' else 'Diagnóstico Mental e Técnico para Poker')
+
+    if lang == 'es':
+        greeting   = f"¡Bienvenido, {nombre}!"
+        headline   = "✅ Tu acceso de 30 días está activo"
+        body_p1    = (
+            "Tu cupón fue validado exitosamente. Tienes <strong>30 días completos</strong> "
+            "para explorar MindEV y descubrir exactamente en qué áreas debes trabajar "
+            "para mejorar tu juego."
+        )
+        body_p2    = "Con tu acceso puedes:"
+        features   = [
+            "🧠 <strong>Test Mental</strong> — identifica tus fugas emocionales y de enfoque",
+            "♠️ <strong>Test Técnico</strong> — evalúa tu dominio de conceptos clave de poker",
+            "📊 <strong>Dashboard</strong> — revisa tus resultados y plan de mejora personalizado",
+        ]
+        cta_text   = "Comenzar ahora"
+        sub_note   = "Recibirás un recordatorio semanal mientras tu acceso esté activo."
+    else:
+        greeting   = f"Bem-vindo, {nombre}!"
+        headline   = "✅ Seu acesso de 30 dias está ativo"
+        body_p1    = (
+            "Seu cupom foi validado com sucesso. Você tem <strong>30 dias completos</strong> "
+            "para explorar o MindEV e descobrir exatamente em quais áreas você deve trabalhar "
+            "para melhorar seu jogo."
+        )
+        body_p2    = "Com seu acesso você pode:"
+        features   = [
+            "🧠 <strong>Teste Mental</strong> — identifica suas fugas emocionais e de foco",
+            "♠️ <strong>Teste Técnico</strong> — avalia seu domínio dos conceitos-chave do poker",
+            "📊 <strong>Dashboard</strong> — revise seus resultados e plano de melhoria personalizado",
+        ]
+        cta_text   = "Começar agora"
+        sub_note   = "Você receberá um lembrete semanal enquanto seu acesso estiver ativo."
+
+    features_html = ''.join(
+        f'<li style="margin:8px 0;color:#cbd5e1;font-size:0.95rem">{f}</li>'
+        for f in features
+    )
+
+    return f"""
+    <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;background:#0a0e1a;color:#e2e8f0;padding:36px 32px;border-radius:14px">
+
+      <div style="text-align:center;margin-bottom:28px">
+        <img src="{logo_url}" alt="MindEV" style="height:52px;max-width:200px;object-fit:contain">
+        <p style="margin:8px 0 0;color:#64748b;font-size:0.82rem;letter-spacing:0.05em;text-transform:uppercase">{sub_text}</p>
+      </div>
+
+      <h2 style="margin:0 0 16px;font-size:1.3rem;color:#f1f5f9">{greeting}</h2>
+
+      <div style="background:#1e3a2f;border-left:4px solid #4ade80;padding:14px 18px;border-radius:0 8px 8px 0;margin-bottom:22px">
+        <p style="margin:0;font-size:1rem;color:#4ade80;font-weight:700">{headline}</p>
+      </div>
+
+      <p style="line-height:1.75;color:#cbd5e1;font-size:0.97rem;margin-bottom:16px">{body_p1}</p>
+
+      <p style="color:#94a3b8;font-size:0.9rem;margin-bottom:10px">{body_p2}</p>
+      <ul style="padding-left:20px;margin:0 0 24px">{features_html}</ul>
+
+      <div style="text-align:center;margin-bottom:24px">
+        <a href="{base_url}"
+           style="display:inline-block;background:#d4af37;color:#0a0e1a;font-weight:800;font-size:1rem;padding:14px 36px;border-radius:8px;text-decoration:none;letter-spacing:0.02em">
+          &#9654; {cta_text}
+        </a>
+      </div>
+
+      <p style="text-align:center;color:#475569;font-size:0.82rem;margin-bottom:24px">{sub_note}</p>
+
+      <div style="border-top:1px solid #1e293b;padding-top:18px;text-align:center">
+        <img src="{logo_url}" alt="MindEV" style="height:24px;opacity:0.5;margin-bottom:6px">
+        <p style="margin:0;color:#334155;font-size:0.75rem">{sub_text}</p>
+      </div>
+    </div>
+    """
+
+
+def _send_coupon_welcome_email(nombre, email, pais, user_id=None):
+    """Envía el correo de bienvenida cuando el usuario activa su cupón."""
+    lang = 'pt' if pais and pais.upper() == 'BR' else 'es'
+    html = _generate_coupon_welcome_html(nombre, lang)
+    subject = ('¡Tu acceso a MindEV está activo — 30 días!'
+               if lang == 'es' else
+               'Seu acesso ao MindEV está ativo — 30 dias!')
+    try:
+        _smtp_send(email, subject, html)
+        print(f"[COUPON] Welcome email sent to {email}")
+        # Marcar como enviado en la BD (evita reenvíos del scheduler)
+        if user_id:
+            try:
+                _db = sqlite3.connect(DB_PATH)
+                _db.execute("UPDATE users SET coupon_welcome_sent=1 WHERE id=?", (user_id,))
+                _db.commit()
+                _db.close()
+            except Exception:
+                pass
+    except Exception as e:
+        print(f"[COUPON] Welcome email error for {email}: {e}")
+
+
+def _generate_coupon_expiry_html(nombre, days_remaining, lang='es'):
+    """HTML del correo de alerta cuando quedan ≤ 3 días."""
+    import requests as _requests
+    base_url = os.environ.get('BASE_URL', BASE_URL)
+    logo_url = f"{base_url}/icons/mindev-logo.png"
+    sub_text = ('Diagnóstico Mental y Técnico para Poker'
+                if lang == 'es' else 'Diagnóstico Mental e Técnico para Poker')
+
+    # Párrafo generado por IA (urgencia)
+    ai_paragraph = ''
+    api_key = _get_api_key()
+    if api_key:
+        try:
+            lang_word = 'Spanish' if lang == 'es' else 'Brazilian Portuguese'
+            prompt = (
+                f"You are MindEV, a poker improvement platform. Write a SHORT urgent paragraph "
+                f"(2-3 sentences) in {lang_word} for a poker player named {nombre} who has only "
+                f"{days_remaining} day{'s' if days_remaining != 1 else ''} left of trial access. "
+                f"Emphasize the urgency of using the remaining time. Mention that losing access "
+                f"means losing the personalized improvement plan and diagnostics. Be direct and "
+                f"motivating, not alarming. Write ONLY the paragraph, nothing else."
+            )
+            resp = _requests.post(
+                'https://api.anthropic.com/v1/messages',
+                headers={
+                    'x-api-key': api_key,
+                    'anthropic-version': '2023-06-01',
+                    'content-type': 'application/json',
+                },
+                json={
+                    'model': 'claude-sonnet-4-6',
+                    'max_tokens': 250,
+                    'messages': [{'role': 'user', 'content': prompt}]
+                },
+                timeout=30, verify=False
+            )
+            if resp.status_code == 200:
+                ai_paragraph = resp.json()['content'][0]['text'].strip()
+        except Exception as e:
+            print(f"[COUPON] Expiry AI paragraph error: {e}")
+
+    if not ai_paragraph:
+        ai_paragraph = (
+            f'Tu acceso a MindEV vence en {days_remaining} día{"s" if days_remaining != 1 else ""}. '
+            'Es el momento ideal para completar tu diagnóstico y descargar tu plan de mejora antes '
+            'de que expire tu acceso.'
+            if lang == 'es' else
+            f'Seu acesso ao MindEV expira em {days_remaining} dia{"s" if days_remaining != 1 else ""}. '
+            'É o momento ideal para completar seu diagnóstico e baixar seu plano de melhoria antes '
+            'que seu acesso expire.'
+        )
+
+    if lang == 'es':
+        greeting     = f"¡{nombre}, tu acceso vence pronto!"
+        alert_text   = f"⚠️ Solo te quedan {days_remaining} día{'s' if days_remaining != 1 else ''}"
+        cta_text     = "Aprovechar mi acceso ahora"
+    else:
+        greeting     = f"{nombre}, seu acesso está expirando!"
+        alert_text   = f"⚠️ Só restam {days_remaining} dia{'s' if days_remaining != 1 else ''}"
+        cta_text     = "Aproveitar meu acesso agora"
+
+    return f"""
+    <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;background:#0a0e1a;color:#e2e8f0;padding:36px 32px;border-radius:14px">
+
+      <div style="text-align:center;margin-bottom:28px">
+        <img src="{logo_url}" alt="MindEV" style="height:52px;max-width:200px;object-fit:contain">
+        <p style="margin:8px 0 0;color:#64748b;font-size:0.82rem;letter-spacing:0.05em;text-transform:uppercase">{sub_text}</p>
+      </div>
+
+      <h2 style="margin:0 0 16px;font-size:1.3rem;color:#f1f5f9">{greeting}</h2>
+
+      <div style="background:#3b1a1a;border-left:4px solid #ef4444;padding:14px 18px;border-radius:0 8px 8px 0;margin-bottom:22px">
+        <p style="margin:0;font-size:1.05rem;color:#f87171;font-weight:700">{alert_text}</p>
+      </div>
+
+      <p style="line-height:1.75;color:#cbd5e1;font-size:0.97rem;margin-bottom:28px">{ai_paragraph}</p>
+
+      <div style="text-align:center;margin-bottom:28px">
+        <a href="{base_url}"
+           style="display:inline-block;background:#ef4444;color:#fff;font-weight:800;font-size:1rem;padding:14px 36px;border-radius:8px;text-decoration:none;letter-spacing:0.02em">
+          &#9654; {cta_text}
+        </a>
+      </div>
+
+      <div style="border-top:1px solid #1e293b;padding-top:18px;text-align:center">
+        <img src="{logo_url}" alt="MindEV" style="height:24px;opacity:0.5;margin-bottom:6px">
+        <p style="margin:0;color:#334155;font-size:0.75rem">{sub_text}</p>
+      </div>
+    </div>
+    """
+
+
+def _send_coupon_expiry_warning(user_id, nombre, email, days_remaining, pais):
+    """Envía el correo de alerta de expiración (una sola vez, cuando quedan ≤ 3 días)."""
+    lang = 'pt' if pais and pais.upper() == 'BR' else 'es'
+    html = _generate_coupon_expiry_html(nombre, days_remaining, lang)
+    subject = (f'⚠️ Tu acceso a MindEV vence en {days_remaining} día{"s" if days_remaining != 1 else ""}'
+               if lang == 'es' else
+               f'⚠️ Seu acesso ao MindEV expira em {days_remaining} dia{"s" if days_remaining != 1 else ""}')
+    _smtp_send(email, subject, html)
+    print(f"[COUPON] Expiry warning sent to {email} — {days_remaining} days remaining")
+
+
 def _send_coupon_reminder_email(user_id, nombre, email, days_remaining, pais):
     """Envía el correo de recordatorio semanal al usuario con cupón (texto generado por IA)."""
     lang = 'pt' if pais and pais.upper() == 'BR' else 'es'
@@ -1413,13 +2100,14 @@ def _send_coupon_sample_email(force=False):
 
 
 def _check_coupon_reminders():
-    """Revisa qué usuarios con cupón necesitan recordatorio semanal y los envía."""
+    """Revisa qué usuarios con cupón necesitan welcome email, recordatorio semanal o aviso de expiración."""
     db = sqlite3.connect(DB_PATH)
     db.row_factory = sqlite3.Row
     try:
         now = datetime.datetime.utcnow()
         users = db.execute(
-            "SELECT id, nombre, apellido, email, pais, coupon_activated_at, last_coupon_reminder "
+            "SELECT id, nombre, apellido, email, pais, coupon_activated_at, "
+            "last_coupon_reminder, coupon_expiry_warned, coupon_welcome_sent "
             "FROM users WHERE coupon_activated_at IS NOT NULL AND coupon_activated_at != ''"
         ).fetchall()
         for user in users:
@@ -1427,6 +2115,28 @@ def _check_coupon_reminders():
                 days_remaining = _get_coupon_days_remaining(user['coupon_activated_at'])
                 if (days_remaining or 0) <= 0:
                     continue  # Expirado, no más correos
+
+                # ── Correo de bienvenida (si el hilo background falló) ─────────────
+                if not (user['coupon_welcome_sent'] or 0):
+                    _send_coupon_welcome_email(
+                        user['nombre'], user['email'], user['pais'], user['id']
+                    )
+                    continue  # No enviar también el semanal el mismo momento
+
+                # ── Aviso de expiración próxima (≤ 3 días, se envía UNA sola vez) ──
+                expiry_warned = user['coupon_expiry_warned'] or 0
+                if days_remaining <= 3 and not expiry_warned:
+                    _send_coupon_expiry_warning(
+                        user['id'], user['nombre'], user['email'],
+                        days_remaining, user['pais']
+                    )
+                    db.execute("UPDATE users SET coupon_expiry_warned=1 WHERE id=?", (user['id'],))
+                    db.commit()
+                    continue  # No enviar también el semanal el mismo día
+
+                # ── Recordatorio semanal (a partir del día 7, cada 7 días) ──
+                if days_remaining <= 3:
+                    continue  # Ya en zona de expiración, no más semanales
                 activated = datetime.datetime.fromisoformat(user['coupon_activated_at'])
                 days_used = (now - activated).days
                 last_reminder = user['last_coupon_reminder']
@@ -1436,6 +2146,7 @@ def _check_coupon_reminders():
                         continue  # Correo enviado hace menos de 7 días
                 elif days_used < 7:
                     continue  # Primer correo: esperar al menos 7 días tras activación
+
                 _send_coupon_reminder_email(
                     user['id'], user['nombre'], user['email'],
                     days_remaining, user['pais']
@@ -2247,6 +2958,269 @@ IMPORTANTE FINAL:
 - Completa ABSOLUTAMENTE TODAS las secciones (1 a 5) hasta el final sin cortar ninguna.
 - No uses la frase "perfil psicológico no disponible" ni ninguna variante negativa de "no disponible".
 """
+
+
+# ─── Plan de Estudio IA ───────────────────────────────────────────────────────
+
+def _build_study_plan_prompt(nombre, mental_scores, technical_scores, lang='es'):
+    lang_word = 'Spanish' if lang == 'es' else 'Brazilian Portuguese'
+
+    def fmt_scores(sc):
+        names = _CAT_NAMES.get(lang, _CAT_NAMES['es'])
+        return '\n'.join(f"  {names.get(k, k)}: {round(v, 1)}%" for k, v in sorted(sc.items(), key=lambda x: x[1]))
+
+    mental_overall  = round(sum(mental_scores.values())  / len(mental_scores),  1) if mental_scores  else None
+    tech_overall    = round(sum(technical_scores.values()) / len(technical_scores), 1) if technical_scores else None
+
+    def weak(sc, threshold=60):
+        names = _CAT_NAMES.get(lang, _CAT_NAMES['es'])
+        return [names.get(k, k) for k, v in sc.items() if v < threshold]
+
+    weak_mental = weak(mental_scores)  if mental_scores  else []
+    weak_tech   = weak(technical_scores) if technical_scores else []
+
+    scores_section = ''
+    if mental_scores:
+        scores_section += f"\nTEST MENTAL ({mental_overall}% overall):\n{fmt_scores(mental_scores)}"
+    if technical_scores:
+        scores_section += f"\n\nTEST TÉCNICO ({tech_overall}% overall):\n{fmt_scores(technical_scores)}"
+
+    weak_section = ''
+    if weak_mental:
+        weak_section += f"\nÁreas mentales a priorizar: {', '.join(weak_mental)}"
+    if weak_tech:
+        weak_section += f"\nÁreas técnicas a priorizar: {', '.join(weak_tech)}"
+
+    return f"""You are MindEV, an expert poker coach. Create a structured 4-week study plan in {lang_word} for {nombre}.
+
+DIAGNOSTIC RESULTS:{scores_section}
+{weak_section}
+
+REQUIREMENTS:
+- Week 1: Mental foundation focused on weakest mental area(s)
+- Week 2: Technical foundation focused on weakest technical area(s)
+- Week 3: Integration — connect mental + technical work
+- Week 4: Application in live play + retesting habits
+
+For each week provide:
+1. Theme and main objective (1 sentence)
+2. Daily schedule Mon–Sun: specific task + estimated time (15–30 min/day)
+3. Two recommended resources (book, article, video type, or exercise)
+4. Weekly measurable milestone
+
+Write ONLY clean HTML with this exact dark-theme styling (no <html>/<head>/<body> tags):
+- Wrap each week in: <div style="background:#1a2744;border-radius:12px;padding:20px;margin-bottom:20px">
+- Week title: <h3 style="color:#d4af37;margin:0 0 4px;font-size:1.05rem">
+- Subtitle/objective: <p style="color:#94a3b8;font-size:0.85rem;margin:0 0 14px">
+- Day labels: <span style="color:#64748b;font-size:0.78rem;font-weight:700;text-transform:uppercase">LUNES</span>
+- Task text: <span style="color:#cbd5e1;font-size:0.88rem">
+- Resources section: <div style="background:#0f172a;border-radius:8px;padding:12px;margin-top:12px">
+- Resources title: <div style="color:#60a5fa;font-size:0.8rem;font-weight:700;margin-bottom:6px">📚 RECURSOS</div>
+- Milestone: <div style="background:#1e3a2f;border-left:3px solid #4ade80;padding:10px 14px;border-radius:0 6px 6px 0;margin-top:12px;font-size:0.85rem;color:#4ade80">
+
+Be specific — use the player's actual weak areas. No generic advice. Total output: ~800-1000 words of HTML."""
+
+
+def _bg_study_plan_generation(job_id, user_id, prompt, api_key):
+    import requests as _rq
+    db = None
+    try:
+        db = sqlite3.connect(DB_PATH)
+        db.row_factory = sqlite3.Row
+        resp = _rq.post(
+            'https://api.anthropic.com/v1/messages',
+            headers={'x-api-key': api_key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json'},
+            json={'model': 'claude-sonnet-4-6', 'max_tokens': 8000, 'messages': [{'role': 'user', 'content': prompt}]},
+            timeout=300, verify=False
+        )
+        resp.raise_for_status()
+        plan_html = resp.json()['content'][0]['text']
+        db.execute("DELETE FROM study_plans WHERE user_id=? AND id!=?", (user_id, job_id))
+        db.execute("UPDATE study_plans SET plan_html=?, status='done', error_msg=NULL WHERE id=?", (plan_html, job_id))
+        db.commit()
+        print(f"[STUDY] Plan generado para user {user_id}")
+    except Exception as e:
+        print(f"[STUDY] Error job {job_id}: {e}")
+        if db:
+            try:
+                db.execute("UPDATE study_plans SET status='error', error_msg=? WHERE id=?", (str(e), job_id))
+                db.commit()
+            except Exception: pass
+    finally:
+        if db: db.close()
+
+
+@app.route('/api/study-plan/generate', methods=['POST'])
+@require_auth
+def generate_study_plan():
+    api_key = _get_api_key()
+    if not api_key:
+        return jsonify({'error': 'Servicio IA no disponible'}), 503
+    db = get_db()
+    lang = (request.json or {}).get('lang', 'es')
+
+    # Obtener scores de los últimos tests completados
+    mental_row = db.execute(
+        "SELECT scores_json FROM test_sessions WHERE user_id=? AND completed=1 AND (test_type='mental' OR test_type IS NULL) ORDER BY completed_at DESC LIMIT 1",
+        (g.user_id,)
+    ).fetchone()
+    tech_row = db.execute(
+        "SELECT scores_json FROM test_sessions WHERE user_id=? AND completed=1 AND test_type='technical' ORDER BY completed_at DESC LIMIT 1",
+        (g.user_id,)
+    ).fetchone()
+
+    if not mental_row and not tech_row:
+        return jsonify({'error': 'Necesitas completar al menos un test para generar tu plan de estudio.'}), 400
+
+    mental_scores = json.loads(mental_row['scores_json']) if mental_row else {}
+    tech_scores   = json.loads(tech_row['scores_json'])   if tech_row   else {}
+
+    mental_overall = round(sum(mental_scores.values()) / len(mental_scores), 1) if mental_scores else None
+    tech_overall   = round(sum(tech_scores.values())   / len(tech_scores),   1) if tech_scores   else None
+
+    prompt = _build_study_plan_prompt(g.user_name, mental_scores, tech_scores, lang)
+
+    db.execute("DELETE FROM study_plans WHERE user_id=? AND status='processing'", (g.user_id,))
+    job_id = db.execute(
+        "INSERT INTO study_plans (user_id, plan_html, mental_overall, technical_overall, status, created_at) VALUES (?,?,?,?,?,?)",
+        (g.user_id, None, mental_overall, tech_overall, 'processing', datetime.datetime.utcnow().isoformat())
+    ).lastrowid
+    db.commit()
+
+    threading.Thread(target=_bg_study_plan_generation, args=(job_id, g.user_id, prompt, api_key), daemon=True).start()
+    return jsonify({'job_id': job_id})
+
+
+@app.route('/api/study-plan/status/<int:job_id>', methods=['GET'])
+@require_auth
+def study_plan_status(job_id):
+    db = get_db()
+    row = db.execute("SELECT * FROM study_plans WHERE id=? AND user_id=?", (job_id, g.user_id)).fetchone()
+    if not row: return jsonify({'error': 'Job no encontrado'}), 404
+    status = row['status'] or 'done'
+    result = {'status': status}
+    if status == 'done':
+        result['plan'] = row['plan_html']
+        result['created_at'] = row['created_at']
+        result['mental_overall']   = row['mental_overall']
+        result['technical_overall'] = row['technical_overall']
+    elif status == 'error':
+        result['error'] = row['error_msg'] or 'Error desconocido'
+    return jsonify(result)
+
+
+@app.route('/api/study-plan/get', methods=['GET'])
+@require_auth
+def get_study_plan():
+    db = get_db()
+    row = db.execute(
+        "SELECT * FROM study_plans WHERE user_id=? AND status='done' ORDER BY created_at DESC LIMIT 1",
+        (g.user_id,)
+    ).fetchone()
+    if not row: return jsonify({'plan': None})
+    return jsonify({'plan': row['plan_html'], 'created_at': row['created_at'],
+                    'mental_overall': row['mental_overall'], 'technical_overall': row['technical_overall']})
+
+
+# ─── Tracker de Sesiones ──────────────────────────────────────────────────────
+
+@app.route('/api/sessions', methods=['GET'])
+@require_auth
+def list_sessions():
+    db = get_db()
+    rows = db.execute(
+        "SELECT * FROM poker_sessions WHERE user_id=? ORDER BY date DESC, created_at DESC LIMIT 100",
+        (g.user_id,)
+    ).fetchall()
+    return jsonify({'sessions': [dict(r) for r in rows]})
+
+
+@app.route('/api/sessions', methods=['POST'])
+@require_auth
+def add_session():
+    d = request.json or {}
+    date         = (d.get('date') or '').strip()
+    fmt          = (d.get('format') or '').strip()
+    stakes       = (d.get('stakes') or '').strip()
+    hours        = float(d.get('hours') or 0)
+    profit_loss  = float(d.get('profit_loss') or 0)
+    mental_state = int(d.get('mental_state') or 5)
+    notes        = (d.get('notes') or '').strip()[:500]
+
+    if not date or not fmt or not stakes or hours <= 0:
+        return jsonify({'error': 'Completa los campos obligatorios: fecha, formato, nivel y horas.'}), 400
+    if not (1 <= mental_state <= 10):
+        return jsonify({'error': 'Estado mental debe ser entre 1 y 10'}), 400
+
+    db = get_db()
+    sid = db.execute(
+        "INSERT INTO poker_sessions (user_id, date, format, stakes, hours, profit_loss, mental_state, notes) VALUES (?,?,?,?,?,?,?,?)",
+        (g.user_id, date, fmt, stakes, hours, profit_loss, mental_state, notes)
+    ).lastrowid
+    db.commit()
+    return jsonify({'ok': True, 'id': sid}), 201
+
+
+@app.route('/api/sessions/<int:sid>', methods=['DELETE'])
+@require_auth
+def delete_session(sid):
+    db = get_db()
+    row = db.execute("SELECT id FROM poker_sessions WHERE id=? AND user_id=?", (sid, g.user_id)).fetchone()
+    if not row: return jsonify({'error': 'Sesión no encontrada'}), 404
+    db.execute("DELETE FROM poker_sessions WHERE id=?", (sid,))
+    db.commit()
+    return jsonify({'ok': True})
+
+
+@app.route('/api/sessions/stats', methods=['GET'])
+@require_auth
+def sessions_stats():
+    db = get_db()
+    rows = db.execute(
+        "SELECT * FROM poker_sessions WHERE user_id=? ORDER BY date ASC",
+        (g.user_id,)
+    ).fetchall()
+    if not rows:
+        return jsonify({'stats': None, 'chart': []})
+
+    total_sessions = len(rows)
+    total_profit   = sum(r['profit_loss'] for r in rows)
+    total_hours    = sum(r['hours'] for r in rows)
+    hourly_rate    = round(total_profit / total_hours, 2) if total_hours > 0 else 0
+    avg_mental     = round(sum(r['mental_state'] for r in rows) / total_sessions, 1)
+
+    # Mejor y peor formato
+    fmt_profit = {}
+    for r in rows:
+        fmt_profit[r['format']] = fmt_profit.get(r['format'], 0) + r['profit_loss']
+    best_format  = max(fmt_profit, key=fmt_profit.get) if fmt_profit else None
+    worst_format = min(fmt_profit, key=fmt_profit.get) if len(fmt_profit) > 1 else None
+
+    # Chart: profit acumulado por sesión
+    cumulative = 0
+    chart = []
+    for r in rows:
+        cumulative += r['profit_loss']
+        chart.append({'date': r['date'], 'profit': round(r['profit_loss'], 2), 'cumulative': round(cumulative, 2)})
+
+    # Sesiones último mes
+    month_ago = (datetime.datetime.utcnow() - datetime.timedelta(days=30)).strftime('%Y-%m-%d')
+    sessions_30d = sum(1 for r in rows if r['date'] >= month_ago)
+
+    return jsonify({
+        'stats': {
+            'total_sessions': total_sessions,
+            'total_profit':   round(total_profit, 2),
+            'total_hours':    round(total_hours, 1),
+            'hourly_rate':    hourly_rate,
+            'avg_mental':     avg_mental,
+            'best_format':    best_format,
+            'worst_format':   worst_format,
+            'sessions_30d':   sessions_30d,
+            'fmt_profit':     {k: round(v, 2) for k, v in fmt_profit.items()},
+        },
+        'chart': chart
+    })
 
 
 # Inicializar BD al importar el módulo (gunicorn no ejecuta __main__)
