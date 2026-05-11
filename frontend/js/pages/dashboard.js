@@ -506,6 +506,11 @@ async function generateProfile(mentalSessionId, technicalSessionId) {
     <div style="text-align:center;padding:48px 20px">
       <div class="spinner" style="margin:0 auto 20px"></div>
       <p style="color:var(--text2);font-size:1rem">${_isPT ? 'A IA está analisando suas respostas e correlações...' : 'La IA está analizando tus respuestas y correlaciones...'}</p>
+      <div style="margin-top:16px;background:rgba(212,175,55,0.1);border:1px solid rgba(212,175,55,0.3);border-radius:8px;padding:12px 16px;max-width:400px;margin-left:auto;margin-right:auto">
+        <p style="color:var(--accent);font-size:0.85rem;margin:0">
+          ⚠️ ${_isPT ? 'Este processo pode demorar. <strong>Não feche nem recarregue a página</strong> até o perfil aparecer.' : 'Este proceso puede tardar varios minutos. <strong>No cierres ni recargues la página</strong> hasta que aparezca el perfil.'}
+        </p>
+      </div>
     </div>`;
 
   try {
@@ -547,7 +552,13 @@ async function generateProfile(mentalSessionId, technicalSessionId) {
       <div id="profile-ia-output">${res.profile}</div>`;
 
   } catch (e) {
-    contentEl.innerHTML = `<div class="form-error" style="margin:16px 0">${_isPT ? 'Erro ao gerar o perfil' : 'Error al generar el perfil'}: ${e.message}</div>`;
+    const isTimeout = e.message && (e.message.includes('524') || e.message.includes('timeout') || e.message.includes('504'));
+    contentEl.innerHTML = isTimeout
+      ? `<div style="background:rgba(212,175,55,0.1);border:1px solid rgba(212,175,55,0.3);border-radius:8px;padding:16px;margin:16px 0">
+           <p style="color:var(--accent);margin:0 0 8px;font-weight:700">⏳ ${_isPT ? 'A geração demorou mais do que o esperado' : 'La generación tardó más de lo esperado'}</p>
+           <p style="color:var(--text2);margin:0;font-size:0.9rem">${_isPT ? 'O servidor ainda pode estar processando. Aguarde 1-2 minutos e clique em "Regenerar perfil" novamente.' : 'El servidor puede seguir procesando. Espera 1-2 minutos y haz click en "Regenerar perfil" nuevamente.'}</p>
+         </div>`
+      : `<div class="form-error" style="margin:16px 0">${_isPT ? 'Erro ao gerar o perfil' : 'Error al generar el perfil'}: ${e.message}</div>`;
   } finally {
     btn.disabled = false;
     btn.textContent = `✨ ${_isPT ? 'Regenerar perfil' : 'Regenerar perfil'}`;
