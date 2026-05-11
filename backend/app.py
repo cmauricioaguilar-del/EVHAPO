@@ -1273,6 +1273,22 @@ def get_results(session_id):
 @require_auth
 def dashboard():
     db = get_db()
+
+    # ── Verificar acceso antes de devolver datos ───────────────────────────────
+    user_row = db.execute(
+        "SELECT is_admin, coupon_activated_at, subscription_status, subscription_period_end FROM users WHERE id=?",
+        (g.user_id,)
+    ).fetchone()
+    payment_row = db.execute(
+        "SELECT id FROM payments WHERE user_id=? AND status='approved' LIMIT 1", (g.user_id,)
+    ).fetchone()
+    coupon_ok = (_get_coupon_days_remaining(user_row['coupon_activated_at'] if user_row else None) or 0) > 0
+    sub_ok    = _get_subscription_active(user_row)
+    is_admin  = user_row and user_row['is_admin']
+    if not payment_row and not coupon_ok and not sub_ok and not is_admin:
+        return jsonify({'error': 'no_access', 'message': 'Acceso no autorizado'}), 403
+    # ──────────────────────────────────────────────────────────────────────────
+
     sessions = db.execute(
         "SELECT id, test_type, score_total, scores_json, completed_at FROM test_sessions "
         "WHERE user_id=? AND completed=1 ORDER BY completed_at DESC",

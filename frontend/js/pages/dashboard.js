@@ -1,5 +1,13 @@
 async function renderDashboard() {
   if (!Api.isLoggedIn()) { App.go('login'); return; }
+
+  // ── Verificar acceso SIEMPRE antes de renderizar ──────────────────────────
+  try {
+    const me = await Api.me();
+    if (!me.has_payment) { App.go('payment'); return; }
+  } catch { App.go('login'); return; }
+  // ──────────────────────────────────────────────────────────────────────────
+
   const user = Api.currentUser();
   const isPT = I18N.isPT();
 
