@@ -202,7 +202,7 @@ def init_db():
     db.commit()
 
     # Sembrar 100 cupones aleatorios si la tabla está vacía
-    count = db.execute("SELECT COUNT(*) as c FROM coupons").fetchone()['c']
+    count = db.execute("SELECT COUNT(*) FROM coupons").fetchone()[0]
     if count == 0:
         codes = set()
         while len(codes) < 100:
