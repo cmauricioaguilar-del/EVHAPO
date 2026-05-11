@@ -18,6 +18,7 @@ const App = {
       case 'dashboard':         renderDashboard(); break;
       case 'admin-referrals':   renderAdminReferrals(); break;
       case 'admin-users':       renderAdminUsers(); break;
+      case 'admin-coupons':     renderAdminCoupons(); break;
       default: renderLanding();
     }
 
@@ -26,6 +27,17 @@ const App = {
     history.replaceState(null, '', '#' + (hashMap[page] || ''));
   },
 };
+
+function renderCouponBanner() {
+  const coupon = JSON.parse(localStorage.getItem('evhapo_coupon') || 'null');
+  if (!coupon || !coupon.active) return '';
+  const d = coupon.days_remaining;
+  const isPT = I18N.isPT();
+  const txt = isPT
+    ? `⏳ Acesso por tempo limitado — <strong>${d}</strong> dia${d !== 1 ? 's' : ''} restante${d !== 1 ? 's' : ''}`
+    : `⏳ Uso por tiempo limitado — <strong>${d}</strong> día${d !== 1 ? 's' : ''} restante${d !== 1 ? 's' : ''}`;
+  return `<div style="background:linear-gradient(135deg,#92400e,#b45309);color:#fef3c7;text-align:center;padding:9px 16px;font-size:0.85rem;font-weight:600;letter-spacing:0.01em">${txt}</div>`;
+}
 
 function renderNavbar() {
   const user = Api.currentUser();
@@ -69,7 +81,8 @@ function renderNavbar() {
         <img src="${isPT ? '/icons/mindev-logo-pt.svg' : '/icons/mindev-logo-es.svg'}" alt="MindEV" class="nav-logo">
       </div>
       ${rightSide}
-    </nav>`;
+    </nav>
+    ${renderCouponBanner()}`;
 }
 
 function doLogout() {

@@ -32,6 +32,31 @@ async function renderPayment() {
           <div class="price-sub">${isPT ? 'Pagamento único · Acesso permanente · Teste Mental + Técnico' : 'Pago único · Acceso permanente · Test Mental + Técnico'}</div>
         </div>
 
+        <!-- Cupón -->
+        <div style="margin-bottom:16px;text-align:center">
+          <button onclick="toggleCouponSection()"
+            style="background:none;border:none;color:var(--accent);cursor:pointer;font-size:0.9rem;padding:4px 0;text-decoration:underline;text-underline-offset:3px">
+            🎟️ ${isPT ? 'Tenho Cupom' : 'Tengo Cupón'}
+          </button>
+        </div>
+
+        <div id="coupon-section" style="display:none;background:rgba(212,175,55,0.06);border:1px solid rgba(212,175,55,0.3);border-radius:10px;padding:16px;margin-bottom:20px">
+          <p style="margin:0 0 10px;font-size:0.88rem;color:var(--text2);font-weight:600">
+            ${isPT ? 'Código de cupom (6 caracteres)' : 'Código de cupón (6 caracteres)'}
+          </p>
+          <div style="display:flex;gap:8px">
+            <input type="text" id="coupon-input" maxlength="6"
+              placeholder="${isPT ? 'Ex: AB12CD' : 'Ej: AB12CD'}"
+              oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'')"
+              style="flex:1;background:var(--input);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text1);font-size:1.1rem;font-family:monospace;letter-spacing:3px;text-transform:uppercase;text-align:center" />
+            <button onclick="applyCoupon()" id="coupon-apply-btn"
+              style="background:var(--accent);color:#000;border:none;border-radius:8px;padding:10px 20px;font-weight:700;cursor:pointer;font-size:0.9rem;white-space:nowrap">
+              ${isPT ? 'Aplicar' : 'Aplicar'}
+            </button>
+          </div>
+          <div id="coupon-msg" style="margin-top:8px;min-height:20px"></div>
+        </div>
+
         <div id="pay-error"></div>
 
         <h3 style="font-size:0.9rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px">${isPT ? 'Método de pagamento' : 'Método de pago'}</h3>
@@ -79,6 +104,45 @@ function selectMethod(method) {
   });
   document.getElementById('mp-info').style.display     = method === 'mercadopago' ? 'block' : 'none';
   document.getElementById('stripe-info').style.display = method === 'stripe'      ? 'block' : 'none';
+}
+
+function toggleCouponSection() {
+  const sec = document.getElementById('coupon-section');
+  if (sec) sec.style.display = sec.style.display === 'none' ? 'block' : 'none';
+}
+
+async function applyCoupon() {
+  const code = (document.getElementById('coupon-input')?.value || '').trim().toUpperCase();
+  const msgEl  = document.getElementById('coupon-msg');
+  const btn    = document.getElementById('coupon-apply-btn');
+  const isPT   = I18N.isPT();
+
+  if (code.length !== 6) {
+    msgEl.innerHTML = `<span style="color:#ef4444;font-size:0.85rem">
+      ${isPT ? 'O código deve ter exatamente 6 caracteres.' : 'El código debe tener exactamente 6 caracteres.'}
+    </span>`;
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = isPT ? 'Verificando...' : 'Verificando...';
+  msgEl.innerHTML = '';
+
+  try {
+    const result = await Api.post('/api/coupon/apply', { code });
+    if (result.ok) {
+      // Actualizar localStorage con la info del cupón
+      await Api.me();
+      msgEl.innerHTML = `<span style="color:#4ade80;font-size:0.9rem;font-weight:600">
+        ✓ ${isPT ? `Cupom ativado! ${result.days} dias de acesso.` : `¡Cupón activado! ${result.days} días de acceso.`}
+      </span>`;
+      setTimeout(() => App.go('dashboard'), 1500);
+    }
+  } catch (e) {
+    msgEl.innerHTML = `<span style="color:#ef4444;font-size:0.85rem">${e.message}</span>`;
+    btn.disabled = false;
+    btn.textContent = isPT ? 'Aplicar' : 'Aplicar';
+  }
 }
 
 async function doPayment() {

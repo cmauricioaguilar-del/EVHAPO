@@ -159,6 +159,14 @@ def init_db():
             notes TEXT DEFAULT '',
             created_at TEXT DEFAULT CURRENT_TIMESTAMP
         );
+
+        CREATE TABLE IF NOT EXISTS coupons (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            code TEXT UNIQUE NOT NULL,
+            used_by INTEGER REFERENCES users(id),
+            used_at TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
     """)
     db.commit()
     # Migración: agregar columnas nuevas si no existen (para DBs ya creadas)
@@ -176,6 +184,9 @@ def init_db():
         "ALTER TABLE users ADD COLUMN sala_preferida TEXT DEFAULT ''",
         "ALTER TABLE users ADD COLUMN referral_code TEXT DEFAULT ''",
         "ALTER TABLE users ADD COLUMN referral_notified INTEGER DEFAULT 0",
+        "ALTER TABLE users ADD COLUMN coupon_code TEXT DEFAULT ''",
+        "ALTER TABLE users ADD COLUMN coupon_activated_at TEXT",
+        "ALTER TABLE users ADD COLUMN last_coupon_reminder TEXT",
         "ALTER TABLE player_profiles ADD COLUMN status TEXT DEFAULT 'done'",
         "ALTER TABLE player_profiles ADD COLUMN error_msg TEXT",
     ]
@@ -189,6 +200,18 @@ def init_db():
     # Promover cuenta owner a admin
     db.execute("UPDATE users SET is_admin=1 WHERE email='c.mauricio.aguilar@gmail.com'")
     db.commit()
+
+    # Sembrar 100 cupones aleatorios si la tabla está vacía
+    count = db.execute("SELECT COUNT(*) as c FROM coupons").fetchone()['c']
+    if count == 0:
+        codes = set()
+        while len(codes) < 100:
+            c = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+            codes.add(c)
+        for c in sorted(codes):
+            db.execute("INSERT INTO coupons (code) VALUES (?)", (c,))
+        db.commit()
+        print("[COUPONS] 100 códigos generados y guardados en la base de datos")
 
     db.close()
 
@@ -332,12 +355,25 @@ def logout():
     get_db().commit()
     return jsonify({'ok': True})
 
+def _get_coupon_days_remaining(coupon_activated_at):
+    """Retorna los días restantes del cupón (0 si expiró, None si no tiene cupón)."""
+    if not coupon_activated_at:
+        return None
+    try:
+        activated = datetime.datetime.fromisoformat(coupon_activated_at)
+        days_used = (datetime.datetime.utcnow() - activated).days
+        return max(0, 30 - days_used)
+    except Exception:
+        return None
+
+
 @app.route('/api/me', methods=['GET'])
 @require_auth
 def me():
     db = get_db()
     user = db.execute(
-        "SELECT id, nombre, apellido, email, pais, created_at FROM users WHERE id=?", (g.user_id,)
+        "SELECT id, nombre, apellido, email, pais, created_at, coupon_code, coupon_activated_at FROM users WHERE id=?",
+        (g.user_id,)
     ).fetchone()
     sessions = db.execute(
         "SELECT id, score_total, scores_json, completed_at FROM test_sessions "
@@ -346,10 +382,26 @@ def me():
     payment = db.execute(
         "SELECT id FROM payments WHERE user_id=? AND status='approved' LIMIT 1", (g.user_id,)
     ).fetchone()
+
+    # Estado del cupón
+    coupon_info = None
+    days_remaining = _get_coupon_days_remaining(user['coupon_activated_at'])
+    if user['coupon_activated_at']:
+        coupon_info = {
+            'code': user['coupon_code'],
+            'activated_at': user['coupon_activated_at'],
+            'days_remaining': days_remaining,
+            'active': (days_remaining or 0) > 0,
+            'expired': (days_remaining or 0) == 0,
+        }
+
+    has_access = bool(payment) or (coupon_info is not None and coupon_info['active'])
+
     return jsonify({
         'user': dict(user),
         'sessions': [dict(s) for s in sessions],
-        'has_payment': bool(payment)
+        'has_payment': has_access,
+        'coupon': coupon_info,
     })
 
 # ─── Payment routes ───────────────────────────────────────────────────────────
@@ -583,14 +635,16 @@ def new_test_session():
     test_type = data.get('test_type', 'mental')
     db = get_db()
 
-    # Verificar acceso: pago aprobado o es admin
-    user = db.execute("SELECT is_admin FROM users WHERE id=?", (g.user_id,)).fetchone()
+    # Verificar acceso: pago aprobado, cupón activo o es admin
+    user = db.execute("SELECT is_admin, coupon_activated_at FROM users WHERE id=?", (g.user_id,)).fetchone()
     payment = db.execute(
         "SELECT id FROM payments WHERE user_id=? AND status='approved' ORDER BY id DESC LIMIT 1",
         (g.user_id,)
     ).fetchone()
 
-    if not payment and not (user and user['is_admin']):
+    coupon_access = (_get_coupon_days_remaining(user['coupon_activated_at'] if user else None) or 0) > 0
+
+    if not payment and not coupon_access and not (user and user['is_admin']):
         return jsonify({'error': 'no_payment', 'message': 'Necesitas completar el pago para acceder al test'}), 402
 
     payment_id = payment['id'] if payment else None
@@ -832,9 +886,14 @@ def list_users():
         return jsonify({'error': 'Acceso denegado'}), 403
     db = get_db()
     rows = db.execute(
-        "SELECT id, nombre, apellido, email, pais, referral_code, created_at FROM users ORDER BY created_at DESC"
+        "SELECT id, nombre, apellido, email, pais, referral_code, created_at, coupon_activated_at FROM users ORDER BY created_at DESC"
     ).fetchall()
-    return jsonify({'users': [dict(r) for r in rows]})
+    users_data = []
+    for r in rows:
+        u = dict(r)
+        u['coupon_days_remaining'] = _get_coupon_days_remaining(r['coupon_activated_at'])
+        users_data.append(u)
+    return jsonify({'users': users_data})
 
 @app.route('/api/admin/users/<int:user_id>', methods=['DELETE'])
 @require_auth
@@ -994,6 +1053,245 @@ def _send_reset_email(to_email, nombre, temp_pw):
         server.starttls()
         server.login(SMTP_USER, SMTP_PASS)
         server.sendmail(SMTP_USER, to_email, msg.as_string())
+
+# ─── Coupon routes ───────────────────────────────────────────────────────────
+
+@app.route('/api/coupon/apply', methods=['POST'])
+@require_auth
+def apply_coupon():
+    data = request.json or {}
+    code = (data.get('code') or '').strip().upper()
+    if not code or len(code) != 6:
+        return jsonify({'error': 'Código inválido. Debe tener 6 caracteres.'}), 400
+
+    db = get_db()
+
+    # Verificar que el usuario no tenga ya un cupón activo
+    user_row = db.execute(
+        "SELECT coupon_activated_at FROM users WHERE id=?", (g.user_id,)
+    ).fetchone()
+    if user_row and user_row['coupon_activated_at']:
+        days_rem = _get_coupon_days_remaining(user_row['coupon_activated_at'])
+        if (days_rem or 0) > 0:
+            return jsonify({'error': 'Ya tienes un cupón activo.'}), 400
+
+    coupon = db.execute("SELECT * FROM coupons WHERE code=?", (code,)).fetchone()
+    if not coupon:
+        return jsonify({'error': 'Código no válido'}), 400
+    if coupon['used_by']:
+        return jsonify({'error': 'Este código ya fue utilizado'}), 400
+
+    now = datetime.datetime.utcnow().isoformat()
+    db.execute("UPDATE coupons SET used_by=?, used_at=? WHERE code=?", (g.user_id, now, code))
+    db.execute("UPDATE users SET coupon_code=?, coupon_activated_at=? WHERE id=?",
+               (code, now, g.user_id))
+    db.commit()
+
+    return jsonify({'ok': True, 'days': 30, 'activated_at': now})
+
+
+@app.route('/api/admin/coupons', methods=['GET'])
+@require_auth
+def list_coupons():
+    if not g.is_admin:
+        return jsonify({'error': 'Acceso denegado'}), 403
+    db = get_db()
+    rows = db.execute(
+        """SELECT c.id, c.code, c.used_at, c.created_at,
+                  u.nombre, u.apellido, u.email
+           FROM coupons c LEFT JOIN users u ON c.used_by=u.id
+           ORDER BY c.code ASC"""
+    ).fetchall()
+    return jsonify({'coupons': [dict(r) for r in rows]})
+
+
+# ─── Coupon email scheduler ───────────────────────────────────────────────────
+
+_coupon_sample_sent = False
+
+
+def _generate_coupon_email_html(nombre, days_remaining, lang='es'):
+    """Genera el HTML del correo de recordatorio de cupón con párrafo IA."""
+    import requests as _requests
+    api_key = _get_api_key()
+
+    ai_paragraph = ''
+    if api_key:
+        try:
+            lang_word = 'Spanish' if lang == 'es' else 'Brazilian Portuguese'
+            prompt = (
+                f"You are MindEV, a poker improvement platform. Write a SHORT motivational paragraph "
+                f"(2-3 sentences) in {lang_word} for a poker player named {nombre} who has "
+                f"{days_remaining} days left of trial access to the MindEV diagnostic platform. "
+                f"Focus on: the value of continuing to study their mental game, a specific mindset "
+                f"concept relevant to poker improvement, or the cost of unaddressed leaks. "
+                f"Be encouraging, professional, and poker-specific. "
+                f"Do NOT use generic phrases. Write ONLY the paragraph, nothing else."
+            )
+            resp = _requests.post(
+                'https://api.anthropic.com/v1/messages',
+                headers={
+                    'x-api-key': api_key,
+                    'anthropic-version': '2023-06-01',
+                    'content-type': 'application/json',
+                },
+                json={
+                    'model': 'claude-sonnet-4-6',
+                    'max_tokens': 300,
+                    'messages': [{'role': 'user', 'content': prompt}]
+                },
+                timeout=30,
+                verify=False
+            )
+            if resp.status_code == 200:
+                ai_paragraph = resp.json()['content'][0]['text'].strip()
+        except Exception as e:
+            print(f"[COUPON] AI paragraph error: {e}")
+
+    if not ai_paragraph:
+        ai_paragraph = (
+            'Tu acceso a MindEV sigue activo y cada sesión de estudio cuenta. '
+            'Aprovechar estos días para identificar y trabajar tus fugas mentales '
+            'puede marcar la diferencia en tus resultados a largo plazo.'
+            if lang == 'es' else
+            'Seu acesso ao MindEV continua ativo e cada sessão de estudo conta. '
+            'Aproveitar esses dias para identificar e trabalhar suas fugas mentais '
+            'pode fazer a diferença nos seus resultados a longo prazo.'
+        )
+
+    subject_label = (
+        f"Tienes {days_remaining} días restantes en MindEV"
+        if lang == 'es' else
+        f"Você tem {days_remaining} dias restantes no MindEV"
+    )
+    greeting = f"{'Hola' if lang == 'es' else 'Olá'}, {nombre} 👋"
+    cta_text = '→ Acceder a MindEV' if lang == 'es' else '→ Acessar MindEV'
+    footer_text = ('Diagnóstico Mental y Técnico para Poker'
+                   if lang == 'es' else 'Diagnóstico Mental e Técnico para Poker')
+
+    return f"""
+    <div style="font-family:Arial,sans-serif;max-width:540px;margin:0 auto;background:#0a0e1a;color:#e2e8f0;padding:32px;border-radius:12px">
+      <div style="text-align:center;margin-bottom:24px">
+        <span style="font-size:3rem;color:#d4af37">♠</span>
+        <h1 style="color:#d4af37;margin:8px 0 4px">MindEV</h1>
+        <p style="margin:0;color:#94a3b8;font-size:0.9rem">{footer_text}</p>
+      </div>
+      <h2 style="margin-bottom:8px">{greeting}</h2>
+      <div style="background:#1a2235;border-left:4px solid #f59e0b;padding:16px 20px;border-radius:8px;margin:20px 0">
+        <p style="margin:0;font-size:1.05rem;color:#fbbf24;font-weight:700">⏳ {subject_label}</p>
+      </div>
+      <p style="line-height:1.7;color:#cbd5e1">{ai_paragraph}</p>
+      <div style="text-align:center;margin:28px 0">
+        <a href="{BASE_URL}" style="display:inline-block;background:#d4af37;color:#0a0e1a;font-weight:700;font-size:1rem;padding:14px 32px;border-radius:8px;text-decoration:none">
+          {cta_text}
+        </a>
+      </div>
+      <p style="text-align:center;margin-top:24px;color:#475569;font-size:0.8rem">
+        MindEV – {footer_text}<br>
+        <a href="mailto:evhapo@tiburock.cl" style="color:#64748b">evhapo@tiburock.cl</a>
+      </p>
+    </div>
+    """
+
+
+def _send_coupon_reminder_email(user_id, nombre, email, days_remaining, pais):
+    """Envía el correo de recordatorio al usuario con cupón."""
+    if not SMTP_USER or not SMTP_PASS:
+        print(f"[COUPON][DEV] Would send reminder to {email} — {days_remaining} days remaining")
+        return
+    lang = 'pt' if pais and pais.upper() == 'BR' else 'es'
+    html = _generate_coupon_email_html(nombre, days_remaining, lang)
+    subject = (f"Tienes {days_remaining} días restantes en MindEV"
+               if lang == 'es' else
+               f"Você tem {days_remaining} dias restantes no MindEV")
+    msg = MIMEMultipart('alternative')
+    msg['Subject'] = subject
+    msg['From']    = SMTP_USER
+    msg['To']      = email
+    msg.attach(MIMEText(html, 'html'))
+    with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+        server.starttls()
+        server.login(SMTP_USER, SMTP_PASS)
+        server.sendmail(SMTP_USER, email, msg.as_string())
+    print(f"[COUPON] Reminder sent to {email} — {days_remaining} days remaining")
+
+
+def _send_coupon_sample_email():
+    """Envía un correo de muestra al admin para mostrar cómo se ve el recordatorio."""
+    global _coupon_sample_sent
+    if _coupon_sample_sent:
+        return
+    _coupon_sample_sent = True
+    try:
+        if not SMTP_USER or not SMTP_PASS:
+            print("[COUPON][DEV] SMTP not configured — sample email skipped")
+            return
+        nombre = "Mauricio"
+        days_remaining = 23
+        html = _generate_coupon_email_html(nombre, days_remaining, lang='es')
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = f"[MUESTRA] MindEV: Tienes {days_remaining} días restantes en tu cupón"
+        msg['From']    = SMTP_USER
+        msg['To']      = REFERRAL_NOTIFY_EMAIL
+        msg.attach(MIMEText(html, 'html'))
+        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+            server.starttls()
+            server.login(SMTP_USER, SMTP_PASS)
+            server.sendmail(SMTP_USER, REFERRAL_NOTIFY_EMAIL, msg.as_string())
+        print(f"[COUPON] Sample email sent to {REFERRAL_NOTIFY_EMAIL}")
+    except Exception as e:
+        print(f"[COUPON] Error sending sample email: {e}")
+
+
+def _check_coupon_reminders():
+    """Revisa qué usuarios con cupón necesitan recordatorio semanal y los envía."""
+    db = sqlite3.connect(DB_PATH)
+    db.row_factory = sqlite3.Row
+    try:
+        now = datetime.datetime.utcnow()
+        users = db.execute(
+            "SELECT id, nombre, apellido, email, pais, coupon_activated_at, last_coupon_reminder "
+            "FROM users WHERE coupon_activated_at IS NOT NULL AND coupon_activated_at != ''"
+        ).fetchall()
+        for user in users:
+            try:
+                days_remaining = _get_coupon_days_remaining(user['coupon_activated_at'])
+                if (days_remaining or 0) <= 0:
+                    continue  # Expirado, no más correos
+                activated = datetime.datetime.fromisoformat(user['coupon_activated_at'])
+                days_used = (now - activated).days
+                last_reminder = user['last_coupon_reminder']
+                if last_reminder:
+                    last_dt = datetime.datetime.fromisoformat(last_reminder)
+                    if (now - last_dt).days < 7:
+                        continue  # Correo enviado hace menos de 7 días
+                elif days_used < 7:
+                    continue  # Primer correo: esperar al menos 7 días tras activación
+                _send_coupon_reminder_email(
+                    user['id'], user['nombre'], user['email'],
+                    days_remaining, user['pais']
+                )
+                db.execute("UPDATE users SET last_coupon_reminder=? WHERE id=?",
+                           (now.isoformat(), user['id']))
+                db.commit()
+            except Exception as e:
+                print(f"[COUPON] Error processing user {user['id']}: {e}")
+    finally:
+        db.close()
+
+
+def _coupon_email_scheduler():
+    """Hilo daemon que envía recordatorios semanales a usuarios con cupón."""
+    import time
+    time.sleep(20)  # Esperar a que el servidor esté listo
+    _send_coupon_sample_email()
+    while True:
+        try:
+            _check_coupon_reminders()
+        except Exception as e:
+            print(f"[COUPON] Scheduler error: {e}")
+        time.sleep(3600)  # Revisar cada hora
+
 
 # ─── Perfil IA del jugador ────────────────────────────────────────────────────
 
@@ -1784,6 +2082,9 @@ IMPORTANTE FINAL:
 
 # Inicializar BD al importar el módulo (gunicorn no ejecuta __main__)
 init_db()
+
+# Iniciar scheduler de recordatorios de cupones
+threading.Thread(target=_coupon_email_scheduler, daemon=True).start()
 
 # ─── Entry point ──────────────────────────────────────────────────────────────
 

@@ -87,6 +87,7 @@ function renderUsersList(users) {
           <th style="text-align:left;padding:8px;color:var(--text3);font-size:0.78rem;font-weight:600;text-transform:uppercase">Email</th>
           <th style="text-align:left;padding:8px;color:var(--text3);font-size:0.78rem;font-weight:600;text-transform:uppercase">País</th>
           <th style="text-align:left;padding:8px;color:var(--text3);font-size:0.78rem;font-weight:600;text-transform:uppercase">Referido por</th>
+          <th style="text-align:left;padding:8px;color:var(--text3);font-size:0.78rem;font-weight:600;text-transform:uppercase">Usuario Cupón</th>
           <th style="text-align:left;padding:8px;color:var(--text3);font-size:0.78rem;font-weight:600;text-transform:uppercase">Registro</th>
           <th style="width:60px"></th>
         </tr>
@@ -100,6 +101,15 @@ function renderUsersList(users) {
             <td style="padding:10px 8px">
               ${u.referral_code
                 ? `<span style="background:rgba(212,175,55,0.15);color:var(--accent);padding:3px 8px;border-radius:4px;font-size:0.82rem;font-weight:600;font-family:monospace">${escHtml(u.referral_code)}</span>`
+                : `<span style="color:var(--text3);font-size:0.82rem">—</span>`}
+            </td>
+            <td style="padding:10px 8px">
+              ${u.coupon_activated_at
+                ? (() => {
+                    const days = u.coupon_days_remaining;
+                    if (days > 0) return `<span style="background:rgba(251,191,36,0.15);color:#fbbf24;padding:3px 8px;border-radius:4px;font-size:0.82rem;font-weight:600">⏳ ${days}d restantes</span>`;
+                    return `<span style="background:rgba(239,68,68,0.12);color:#f87171;padding:3px 8px;border-radius:4px;font-size:0.82rem">Expirado</span>`;
+                  })()
                 : `<span style="color:var(--text3);font-size:0.82rem">—</span>`}
             </td>
             <td style="padding:10px 8px;color:var(--text3);font-size:0.82rem">${(u.created_at || '').slice(0,10)}</td>

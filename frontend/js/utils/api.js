@@ -45,6 +45,7 @@ const Api = {
     localStorage.removeItem('evhapo_token');
     localStorage.removeItem('evhapo_user');
     localStorage.removeItem('evhapo_session');
+    localStorage.removeItem('evhapo_coupon');
   },
 
   isLoggedIn: () => !!localStorage.getItem('evhapo_token'),
@@ -52,13 +53,15 @@ const Api = {
 
   me: async () => {
     const d = await Api.get('/api/me');
-    // Guardar has_payment en localStorage para acceso rápido
+    // Guardar has_payment y coupon en localStorage para acceso rápido
     if (d && d.user) {
       const u = JSON.parse(localStorage.getItem('evhapo_user') || '{}');
       u.has_payment = d.has_payment;
       u.pais = u.pais || d.user.pais;
       localStorage.setItem('evhapo_user', JSON.stringify(u));
     }
+    // Guardar estado del cupón
+    localStorage.setItem('evhapo_coupon', JSON.stringify(d.coupon || null));
     return d;
   },
 
