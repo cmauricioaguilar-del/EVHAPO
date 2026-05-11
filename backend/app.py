@@ -1095,8 +1095,64 @@ def apply_coupon():
 def send_coupon_sample():
     if not g.is_admin:
         return jsonify({'error': 'Acceso denegado'}), 403
-    threading.Thread(target=_send_coupon_sample_email, kwargs={'force': True}, daemon=True).start()
-    return jsonify({'ok': True, 'message': f'Correo de muestra enviado a {REFERRAL_NOTIFY_EMAIL}'})
+    # Ejecutar de forma síncrona para capturar errores reales
+    smtp_user   = os.environ.get('SMTP_USER', '') or SMTP_USER
+    smtp_pass   = os.environ.get('SMTP_PASS', '') or SMTP_PASS
+    smtp_server = os.environ.get('SMTP_SERVER', 'smtp.gmail.com')
+    smtp_port   = int(os.environ.get('SMTP_PORT', '587'))
+    if not smtp_user or not smtp_pass:
+        return jsonify({'error': f'SMTP no configurado. SMTP_USER={bool(smtp_user)}, SMTP_PASS={bool(smtp_pass)}'}), 500
+    try:
+        nombre = "Mauricio"
+        days_remaining = 23
+        base_url = os.environ.get('BASE_URL', BASE_URL)
+        ai_paragraph = (
+            "Hola Mauricio, llevas 7 días usando MindEV y tu acceso de prueba sigue activo. "
+            "Este es un ejemplo del correo semanal que recibirán tus usuarios con cupón. "
+            "El texto real es generado automáticamente por IA, personalizado con el nombre del jugador "
+            "y un mensaje motivacional sobre su juego de poker."
+        )
+        html = f"""
+        <div style="font-family:Arial,sans-serif;max-width:540px;margin:0 auto;background:#0a0e1a;color:#e2e8f0;padding:32px;border-radius:12px">
+          <div style="text-align:center;margin-bottom:24px">
+            <span style="font-size:3rem;color:#d4af37">&#9824;</span>
+            <h1 style="color:#d4af37;margin:8px 0 4px">MindEV</h1>
+            <p style="margin:0;color:#94a3b8;font-size:0.9rem">Diagnostico Mental y Tecnico para Poker</p>
+          </div>
+          <div style="background:#1a2235;border:1px dashed #d4af37;border-radius:8px;padding:10px 16px;margin-bottom:20px;text-align:center">
+            <p style="margin:0;font-size:0.78rem;color:#d4af37;text-transform:uppercase;letter-spacing:1px">Correo de muestra - MindEV Admin</p>
+          </div>
+          <h2 style="margin-bottom:8px">Hola, {nombre}</h2>
+          <div style="background:#1a2235;border-left:4px solid #f59e0b;padding:16px 20px;border-radius:8px;margin:20px 0">
+            <p style="margin:0;font-size:1.05rem;color:#fbbf24;font-weight:700">Tienes {days_remaining} dias restantes en MindEV</p>
+          </div>
+          <p style="line-height:1.7;color:#cbd5e1">{ai_paragraph}</p>
+          <div style="text-align:center;margin:28px 0">
+            <a href="{base_url}" style="display:inline-block;background:#d4af37;color:#0a0e1a;font-weight:700;font-size:1rem;padding:14px 32px;border-radius:8px;text-decoration:none">
+              Acceder a MindEV
+            </a>
+          </div>
+          <p style="text-align:center;margin-top:24px;color:#475569;font-size:0.8rem">
+            MindEV - evhapo@tiburock.cl
+          </p>
+        </div>
+        """
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = f"[MUESTRA] MindEV - correo semanal de cupon"
+        msg['From']    = smtp_user
+        msg['To']      = REFERRAL_NOTIFY_EMAIL
+        msg.attach(MIMEText(html, 'html'))
+        with smtplib.SMTP(smtp_server, smtp_port, timeout=30) as server:
+            server.ehlo()
+            server.starttls()
+            server.ehlo()
+            server.login(smtp_user, smtp_pass)
+            server.sendmail(smtp_user, REFERRAL_NOTIFY_EMAIL, msg.as_string())
+        print(f"[COUPON] Correo de muestra enviado a {REFERRAL_NOTIFY_EMAIL}")
+        return jsonify({'ok': True, 'message': f'Correo enviado a {REFERRAL_NOTIFY_EMAIL}', 'smtp_user': smtp_user})
+    except Exception as e:
+        print(f"[COUPON] ERROR: {e}")
+        return jsonify({'error': str(e), 'smtp_user': smtp_user, 'smtp_server': smtp_server}), 500
 
 
 @app.route('/api/admin/coupons', methods=['GET'])

@@ -153,12 +153,14 @@ async function sendSampleEmail() {
     setTimeout(() => {
       btn.disabled = false;
       btn.textContent = '✉️ Enviar correo de prueba';
-    }, 4000);
-    alert(`✓ ${res.message}\n\nRevisa tu bandeja de entrada (y spam) en c.mauricio.aguilar@gmail.com`);
+    }, 5000);
+    alert(`✓ ${res.message}\nSMTP: ${res.smtp_user}\n\nRevisa bandeja de entrada Y carpeta SPAM en c.mauricio.aguilar@gmail.com`);
   } catch (e) {
     btn.disabled = false;
     btn.textContent = '✉️ Enviar correo de prueba';
-    alert(`Error: ${e.message}`);
+    // Mostrar error detallado
+    const detail = e.message || 'Error desconocido';
+    alert(`❌ ERROR al enviar:\n\n${detail}\n\nRevisa las variables SMTP_USER y SMTP_PASS en Railway.`);
   }
 }
 
