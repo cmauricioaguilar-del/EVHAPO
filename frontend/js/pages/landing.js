@@ -62,37 +62,14 @@ function renderLanding() {
         : '✓ Disponible en Android y PC · ✓ Informe PDF descargable · ✓ 100% en español'}</div>
 
       <!-- ── Video promo ───────────────────────────────────────────────── -->
-      <div style="margin-top:32px;display:flex;flex-direction:column;align-items:center;gap:12px">
+      <div style="margin-top:32px;display:flex;flex-direction:column;align-items:center;gap:12px;width:100%">
         <p style="font-size:0.82rem;color:var(--text3);letter-spacing:0.08em;text-transform:uppercase;font-weight:600">
           ${isPT ? '▶ Veja como funciona' : '▶ Míralo en acción'}
         </p>
-        <div id="promo-video-wrap" style="position:relative;width:100%;max-width:340px;border-radius:18px;overflow:hidden;box-shadow:0 8px 48px rgba(0,0,0,0.7);border:1px solid rgba(212,175,55,0.2)">
-          <video id="promo-video"
-            autoplay muted loop playsinline
-            style="width:100%;display:block;border-radius:18px">
+        <div style="position:relative;width:100%;max-width:820px;border-radius:18px;overflow:hidden;box-shadow:0 8px 48px rgba(0,0,0,0.7);border:1px solid rgba(212,175,55,0.2)">
+          <video autoplay muted loop playsinline style="width:100%;display:block">
             <source src="/assets/promo.mp4" type="video/mp4">
           </video>
-
-          <!-- Overlay email blur — cubre el campo email (~42–54% desde top) -->
-          <!-- Ajusta top/height si la posición no coincide exactamente -->
-          <div id="email-blur-overlay" style="
-            position:absolute;
-            top:42%; left:8%; width:84%; height:10%;
-            backdrop-filter:blur(18px) saturate(0.4);
-            -webkit-backdrop-filter:blur(18px) saturate(0.4);
-            background:rgba(10,10,20,0.45);
-            border-radius:8px;
-            pointer-events:none">
-          </div>
-
-          <!-- Icono de "privado" sobre el overlay -->
-          <div style="
-            position:absolute;
-            top:42%; left:8%; width:84%; height:10%;
-            display:flex;align-items:center;justify-content:center;
-            pointer-events:none">
-            <span style="font-size:0.7rem;color:rgba(255,255,255,0.35);font-weight:600;letter-spacing:0.05em">● ● ● ● ● ● ●</span>
-          </div>
         </div>
       </div>
       <!-- ── /Video promo ──────────────────────────────────────────────── -->
