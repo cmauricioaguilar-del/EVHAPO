@@ -124,13 +124,13 @@ function renderLanding() {
               💳 ${isPT ? 'Débito · Crédito · Transferência' : 'Débito · Crédito · Transferencia'}
             </span>
             <span style="background:rgba(99,91,255,0.1);border:1px solid rgba(99,91,255,0.3);border-radius:8px;padding:6px 14px;font-size:0.85rem;color:#a78bfa">
-              💳 Stripe · Visa · Mastercard · Amex
+              💳 Visa · Mastercard · Amex · Internacional
             </span>
           </div>
           <div style="font-size:0.82rem;color:var(--text2);line-height:1.6;margin-bottom:10px">
             ${isPT
-              ? `Usuários do <strong style="color:var(--text1)">Chile, Argentina, Brasil, México, Colômbia, Peru e Uruguai</strong> podem pagar com cartão local em moeda local via Mercado Pago. Resto do mundo via Stripe.`
-              : `Usuarios de <strong style="color:var(--text1)">Chile, Argentina, Brasil, México, Colombia, Perú y Uruguay</strong> pueden pagar con tarjeta local en moneda local vía Mercado Pago. Resto del mundo vía Stripe.`}
+              ? `Usuários do <strong style="color:var(--text1)">Chile, Argentina, Brasil, México, Colômbia, Peru e Uruguai</strong> podem pagar com cartão local em moeda local via Mercado Pago. Resto do mundo via checkout internacional seguro.`
+              : `Usuarios de <strong style="color:var(--text1)">Chile, Argentina, Brasil, México, Colombia, Perú y Uruguay</strong> pueden pagar con tarjeta local en moneda local vía Mercado Pago. Resto del mundo vía checkout internacional seguro.`}
           </div>
           <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center">
             ${[['cl','Chile'],['ar','Argentina'],['br','Brasil'],['mx','México'],['co','Colombia'],['pe','Perú'],['uy','Uruguay']].map(([code,name]) =>
