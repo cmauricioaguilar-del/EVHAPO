@@ -8,7 +8,7 @@ async function renderPayment() {
 
   const pais    = (JSON.parse(localStorage.getItem('evhapo_user') || '{}').pais || 'CL').toUpperCase();
   const isLatam = ['CL','AR','MX','CO','PE','UY','BR'].includes(pais);
-  _selectedMethod = 'mercadopago'; // Stripe temporalmente desactivado
+  _selectedMethod = isLatam ? 'mercadopago' : 'paddle';
 
   const priceMap = {
     CL: { unique: '$9.500 CLP', sub: '$4.750 CLP' },
@@ -19,8 +19,8 @@ async function renderPayment() {
     UY: { unique: '$390 UYU',   sub: '$195 UYU'    },
     BR: { unique: 'R$50 BRL',   sub: 'R$25 BRL'    },
   };
-  const prices     = priceMap[pais] || { unique: 'USD $9.90', sub: 'USD $4.90' };
-  const isPT       = I18N.isPT();
+  const prices = priceMap[pais] || { unique: 'USD $9.90', sub: 'USD $4.90' };
+  const isPT   = I18N.isPT();
 
   document.getElementById('app').innerHTML = `${renderNavbar()}
     <div class="auth-container">
@@ -97,10 +97,32 @@ async function renderPayment() {
 
         <div id="pay-error"></div>
 
-        <div id="mp-info" class="alert alert-info" style="margin-bottom:16px;">
+        <!-- Métodos de pago -->
+        <h3 style="font-size:0.9rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px">
+          ${isPT ? 'Método de pagamento' : 'Método de pago'}
+        </h3>
+        <div class="payment-methods">
+          <div class="method-card ${isLatam ? 'selected' : ''}" id="method-mercadopago" onclick="selectMethod('mercadopago')">
+            <span class="method-icon">💙</span>
+            <h3>Mercado Pago</h3>
+            <p>${isPT ? 'Débito · Crédito · Transferência' : 'Débito · Crédito · Transferencia'}</p>
+          </div>
+          <div class="method-card ${!isLatam ? 'selected' : ''}" id="method-paddle" onclick="selectMethod('paddle')">
+            <span class="method-icon">💳</span>
+            <h3>${isPT ? 'Cartão Internacional' : 'Tarjeta Internacional'}</h3>
+            <p>Visa · Mastercard · Amex</p>
+          </div>
+        </div>
+
+        <div id="mp-info" class="alert alert-info" style="margin-bottom:16px;${isLatam ? '' : 'display:none'}">
           ${isPT
             ? '💙 Você será redirecionado para o <strong>Mercado Pago</strong> para concluir o pagamento com segurança. Aceitamos Visa, Mastercard, débito e transferência.'
             : '💙 Serás redirigido a <strong>Mercado Pago</strong> para completar el pago de forma segura. Aceptamos Visa, Mastercard, débito y transferencia.'}
+        </div>
+        <div id="paddle-info" class="alert alert-info" style="margin-bottom:16px;${!isLatam ? '' : 'display:none'}">
+          ${isPT
+            ? '💳 Você será redirecionado ao checkout seguro internacional. Aceita cartões de qualquer país.'
+            : '💳 Serás redirigido al checkout seguro internacional. Acepta tarjetas de cualquier país.'}
         </div>
 
         <button class="btn btn-primary btn-block btn-lg" id="pay-btn" onclick="doPayment()">
@@ -133,7 +155,6 @@ function selectPlan(plan) {
   _selectedPlan = plan;
   const isUnique = plan === 'unique';
 
-  // Estilo plan único
   const cardU  = document.getElementById('plan-unique');
   const checkU = document.getElementById('plan-unique-check');
   if (cardU) {
@@ -142,7 +163,6 @@ function selectPlan(plan) {
   }
   if (checkU) checkU.style.opacity = isUnique ? '1' : '0.3';
 
-  // Estilo plan mensual
   const cardS  = document.getElementById('plan-subscription');
   const checkS = document.getElementById('plan-subscription-check');
   if (cardS) {
@@ -155,18 +175,17 @@ function selectPlan(plan) {
     checkS.style.color      = !isUnique ? '#000' : 'var(--text3)';
   }
 
-  // Actualizar features
   const featEl = document.getElementById('plan-features');
   if (featEl) featEl.innerHTML = _renderPlanFeatures(plan, I18N.isPT());
 }
 
 function selectMethod(method) {
   _selectedMethod = method;
-  ['mercadopago','stripe'].forEach(m => {
+  ['mercadopago','paddle'].forEach(m => {
     document.getElementById(`method-${m}`)?.classList.toggle('selected', m === method);
   });
   document.getElementById('mp-info').style.display     = method === 'mercadopago' ? 'block' : 'none';
-  document.getElementById('stripe-info').style.display = method === 'stripe'      ? 'block' : 'none';
+  document.getElementById('paddle-info').style.display = method === 'paddle'      ? 'block' : 'none';
 }
 
 function toggleCouponSection() {

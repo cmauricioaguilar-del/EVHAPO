@@ -35,6 +35,11 @@ MERCADOPAGO_PUBLIC_KEY   = os.environ.get('MERCADOPAGO_PUBLIC_KEY', '')
 STRIPE_SECRET_KEY        = os.environ.get('STRIPE_SECRET_KEY', '')
 STRIPE_WEBHOOK_SECRET    = os.environ.get('STRIPE_WEBHOOK_SECRET', '')
 STRIPE_SUB_PRICE_ID      = os.environ.get('STRIPE_SUB_PRICE_ID', '')   # opcional: ID de precio ya creado
+PADDLE_API_KEY           = os.environ.get('PADDLE_API_KEY', '')
+PADDLE_PRICE_ONE_TIME    = os.environ.get('PADDLE_PRICE_ONE_TIME', '')
+PADDLE_PRICE_SUBSCRIPTION= os.environ.get('PADDLE_PRICE_SUBSCRIPTION', '')
+PADDLE_WEBHOOK_SECRET    = os.environ.get('PADDLE_WEBHOOK_SECRET', '')
+PADDLE_CLIENT_TOKEN      = os.environ.get('PADDLE_CLIENT_TOKEN', '')
 BASE_URL = os.environ.get('BASE_URL', 'http://localhost:5000')
 
 SMTP_SERVER = os.environ.get('SMTP_SERVER', 'smtp.gmail.com')
@@ -224,6 +229,7 @@ def init_db():
         "ALTER TABLE users ADD COLUMN stripe_subscription_id TEXT DEFAULT NULL",
         "ALTER TABLE users ADD COLUMN stripe_customer_id TEXT DEFAULT NULL",
         "ALTER TABLE users ADD COLUMN mp_subscription_id TEXT DEFAULT NULL",
+        "ALTER TABLE users ADD COLUMN paddle_subscription_id TEXT DEFAULT NULL",
     ]
     for sql in migrations:
         try:
@@ -471,7 +477,7 @@ def me():
     db = get_db()
     user = db.execute(
         """SELECT id, nombre, apellido, email, pais, created_at, coupon_code, coupon_activated_at,
-                  subscription_status, subscription_period_end, stripe_subscription_id
+                  subscription_status, subscription_period_end, stripe_subscription_id, paddle_subscription_id
            FROM users WHERE id=?""",
         (g.user_id,)
     ).fetchone()
@@ -505,6 +511,7 @@ def me():
             'period_end': user['subscription_period_end'],
             'active': sub_active,
             'stripe_subscription_id': user['stripe_subscription_id'],
+            'paddle_subscription_id': user['paddle_subscription_id'],
         }
 
     return jsonify({
@@ -555,6 +562,23 @@ def create_payment():
         return _create_mercadopago_payment(payment_id, local_amount, currency, test_type)
     elif method == 'stripe' and (STRIPE_SECRET_KEY or os.environ.get('STRIPE_SECRET_KEY')):
         return _create_stripe_payment(payment_id)
+    elif method == 'paddle':
+        paddle_key  = os.environ.get('PADDLE_API_KEY') or PADDLE_API_KEY
+        price_id    = os.environ.get('PADDLE_PRICE_ONE_TIME') or PADDLE_PRICE_ONE_TIME
+        if not paddle_key or not price_id:
+            return jsonify({'error': 'Paddle no configurado'}), 400
+        try:
+            user_row = db.execute("SELECT email FROM users WHERE id=?", (g.user_id,)).fetchone()
+            success_url = f"{BASE_URL}/?paddle_result=success&pid={payment_id}"
+            checkout_url, txn_id = _create_paddle_checkout(
+                price_id, user_row['email'], success_url,
+                custom_data={"user_id": str(g.user_id), "payment_id": str(payment_id)}
+            )
+            db.execute("UPDATE payments SET external_id=? WHERE id=?", (txn_id, payment_id))
+            db.commit()
+            return jsonify({'mode': 'paddle', 'checkout_url': checkout_url, 'payment_id': payment_id})
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
     else:
         # Demo mode
         db.execute("UPDATE payments SET status='approved', external_id='DEMO' WHERE id=?", (payment_id,))
@@ -571,6 +595,27 @@ def create_payment():
             'test_type': test_type,
             'message': 'Modo demo activo.'
         })
+
+def _create_paddle_checkout(price_id, user_email, success_url, custom_data=None):
+    """Crea un checkout en Paddle y retorna (checkout_url, transaction_id)."""
+    import requests as _req
+    api_key = os.environ.get('PADDLE_API_KEY') or PADDLE_API_KEY
+    payload = {
+        "items": [{"price_id": price_id, "quantity": 1}],
+        "checkout": {"url": success_url},
+        "customer": {"email": user_email},
+    }
+    if custom_data:
+        payload["custom_data"] = custom_data
+    resp = _req.post(
+        "https://api.paddle.com/transactions",
+        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+        json=payload,
+        timeout=15
+    )
+    resp.raise_for_status()
+    data = resp.json()
+    return data['data']['checkout']['url'], data['data']['id']
 
 def _create_mercadopago_payment(payment_id, amount, currency, test_type='mental'):
     try:
@@ -807,7 +852,177 @@ def create_subscription():
         except Exception as e:
             return jsonify({'error': str(e)}), 500
 
+    elif method == 'paddle':
+        paddle_key = os.environ.get('PADDLE_API_KEY') or PADDLE_API_KEY
+        price_id   = os.environ.get('PADDLE_PRICE_SUBSCRIPTION') or PADDLE_PRICE_SUBSCRIPTION
+        if not paddle_key or not price_id:
+            return jsonify({'error': 'Paddle no configurado'}), 400
+        try:
+            success_url = f"{BASE_URL}/?paddle_result=sub_success"
+            checkout_url, txn_id = _create_paddle_checkout(
+                price_id, user['email'], success_url,
+                custom_data={"user_id": str(g.user_id)}
+            )
+            return jsonify({'mode': 'paddle', 'checkout_url': checkout_url})
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+
     return jsonify({'error': 'Método no soportado'}), 400
+
+
+@app.route('/api/payment/paddle-verify', methods=['POST'])
+@require_auth
+def paddle_verify():
+    """Verifica un pago único de Paddle y activa el acceso."""
+    data           = request.json or {}
+    payment_id     = data.get('payment_id')
+    transaction_id = data.get('transaction_id')
+    if not payment_id:
+        return jsonify({'ok': False, 'error': 'Missing payment_id'}), 400
+    import requests as _req
+    api_key = os.environ.get('PADDLE_API_KEY') or PADDLE_API_KEY
+    db = get_db()
+    try:
+        payment = db.execute(
+            "SELECT * FROM payments WHERE id=? AND user_id=?", (payment_id, g.user_id)
+        ).fetchone()
+        if not payment:
+            return jsonify({'ok': False, 'error': 'Payment not found'}), 404
+        if payment['status'] == 'approved':
+            return jsonify({'ok': True})
+        verified = False
+        if transaction_id:
+            resp = _req.get(
+                f"https://api.paddle.com/transactions/{transaction_id}",
+                headers={"Authorization": f"Bearer {api_key}"},
+                timeout=15
+            )
+            if resp.ok and resp.json().get('data', {}).get('status') == 'completed':
+                verified = True
+        if verified:
+            db.execute("UPDATE payments SET status='approved', external_id=? WHERE id=?",
+                       (transaction_id, payment_id))
+            db.commit()
+            return jsonify({'ok': True})
+        return jsonify({'ok': False, 'error': 'Payment not completed yet'})
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
+
+@app.route('/api/payment/paddle-subscription-verify', methods=['POST'])
+@require_auth
+def paddle_subscription_verify():
+    """Verifica suscripción Paddle al retornar del checkout."""
+    data           = request.json or {}
+    transaction_id = data.get('transaction_id')
+    import requests as _req
+    api_key = os.environ.get('PADDLE_API_KEY') or PADDLE_API_KEY
+    db = get_db()
+    try:
+        if transaction_id:
+            resp = _req.get(
+                f"https://api.paddle.com/transactions/{transaction_id}",
+                headers={"Authorization": f"Bearer {api_key}"},
+                timeout=15
+            )
+            if resp.ok:
+                txn = resp.json().get('data', {})
+                if txn.get('status') == 'completed':
+                    sub_id     = txn.get('subscription_id')
+                    period_end = (datetime.datetime.utcnow() + datetime.timedelta(days=31)).isoformat()
+                    db.execute(
+                        """UPDATE users SET subscription_status='active',
+                           subscription_period_end=?, paddle_subscription_id=? WHERE id=?""",
+                        (period_end, sub_id, g.user_id)
+                    )
+                    db.commit()
+                    return jsonify({'ok': True})
+        return jsonify({'ok': False, 'error': 'No se pudo verificar la suscripción'})
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
+
+@app.route('/api/webhooks/paddle', methods=['POST'])
+def paddle_webhook():
+    """Webhook de Paddle para eventos de pago y suscripción."""
+    wh_secret = os.environ.get('PADDLE_WEBHOOK_SECRET') or PADDLE_WEBHOOK_SECRET
+    if wh_secret:
+        sig_header = request.headers.get('paddle-signature', '')
+        try:
+            parts    = dict(p.split('=', 1) for p in sig_header.split(';') if '=' in p)
+            ts       = parts.get('ts', '')
+            h1       = parts.get('h1', '')
+            payload  = f"{ts}:{request.data.decode('utf-8')}"
+            expected = hmac.new(wh_secret.encode(), payload.encode(), hashlib.sha256).hexdigest()
+            if not hmac.compare_digest(expected, h1):
+                return jsonify({'error': 'Invalid signature'}), 401
+        except Exception as ex:
+            print(f"[PADDLE WH] Signature error: {ex}")
+            return jsonify({'error': 'Signature error'}), 400
+
+    data       = request.json or {}
+    event_type = data.get('event_type', '')
+    event_data = data.get('data', {})
+    db = sqlite3.connect(DB_PATH)
+    db.row_factory = sqlite3.Row
+    try:
+        if event_type == 'transaction.completed':
+            custom = event_data.get('custom_data') or {}
+            uid    = custom.get('user_id')
+            pid    = custom.get('payment_id')
+            txn_id = event_data.get('id')
+            if pid and uid:
+                db.execute("UPDATE payments SET status='approved', external_id=? WHERE id=?", (txn_id, pid))
+                db.commit()
+            sub_id = event_data.get('subscription_id')
+            if sub_id and uid:
+                items      = event_data.get('items', [{}])
+                bp         = (items[0].get('billing_period') or {}) if items else {}
+                period_end = bp.get('ends_at') or (datetime.datetime.utcnow() + datetime.timedelta(days=31)).isoformat()
+                db.execute(
+                    """UPDATE users SET subscription_status='active',
+                       subscription_period_end=?, paddle_subscription_id=? WHERE id=?""",
+                    (period_end, sub_id, uid)
+                )
+                db.commit()
+
+        elif event_type in ('subscription.activated', 'subscription.updated'):
+            sub_id  = event_data.get('id')
+            status  = event_data.get('status', '')
+            cb      = event_data.get('current_billing_period') or {}
+            period_end = cb.get('ends_at') or (datetime.datetime.utcnow() + datetime.timedelta(days=31)).isoformat()
+            custom  = event_data.get('custom_data') or {}
+            uid     = custom.get('user_id')
+            db_status = 'active' if status in ('active', 'trialing') else 'cancelled'
+            if uid:
+                db.execute(
+                    """UPDATE users SET subscription_status=?, subscription_period_end=?,
+                       paddle_subscription_id=? WHERE id=?""",
+                    (db_status, period_end, sub_id, uid)
+                )
+            else:
+                db.execute(
+                    """UPDATE users SET subscription_status=?, subscription_period_end=?
+                       WHERE paddle_subscription_id=?""",
+                    (db_status, period_end, sub_id)
+                )
+            db.commit()
+
+        elif event_type == 'subscription.canceled':
+            sub_id = event_data.get('id')
+            db.execute("UPDATE users SET subscription_status='cancelled' WHERE paddle_subscription_id=?", (sub_id,))
+            db.commit()
+
+        elif event_type == 'subscription.past_due':
+            sub_id = event_data.get('id')
+            db.execute("UPDATE users SET subscription_status='past_due' WHERE paddle_subscription_id=?", (sub_id,))
+            db.commit()
+
+    except Exception as ex:
+        print(f"[PADDLE WH] Error procesando evento {event_type}: {ex}")
+    finally:
+        db.close()
+    return jsonify({'ok': True})
 
 
 @app.route('/api/payment/stripe-subscription-verify', methods=['POST'])
@@ -931,7 +1146,7 @@ def get_subscription_status():
 def cancel_subscription():
     db   = get_db()
     user = db.execute(
-        "SELECT stripe_subscription_id, mp_subscription_id FROM users WHERE id=?",
+        "SELECT stripe_subscription_id, mp_subscription_id, paddle_subscription_id FROM users WHERE id=?",
         (g.user_id,)
     ).fetchone()
     # Cancelar en Stripe
@@ -952,6 +1167,20 @@ def cancel_subscription():
             sdk.preapproval().update(mp_sub_id, {"status": "cancelled"})
         except Exception as e:
             print(f"[MP] Error cancelando suscripción: {e}")
+    # Cancelar en Paddle
+    paddle_sub_id = user['paddle_subscription_id']
+    if paddle_sub_id:
+        try:
+            import requests as _req
+            api_key = os.environ.get('PADDLE_API_KEY') or PADDLE_API_KEY
+            _req.post(
+                f"https://api.paddle.com/subscriptions/{paddle_sub_id}/cancel",
+                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                json={"effective_from": "next_billing_period"},
+                timeout=15
+            )
+        except Exception as e:
+            print(f"[PADDLE] Error cancelando suscripción: {e}")
 
     db.execute("UPDATE users SET subscription_status='cancelled' WHERE id=?", (g.user_id,))
     db.commit()

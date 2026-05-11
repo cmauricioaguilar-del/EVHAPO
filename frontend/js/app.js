@@ -102,7 +102,36 @@ window.addEventListener('load', async () => {
   const mpPayId       = params.get('payment_id');
   const stripeResult  = params.get('stripe_result');
   const stripeSession = params.get('session_id');
-  const stripePid     = params.get('pid');   // mismo nombre que MP
+  const stripePid     = params.get('pid');
+  const paddleResult  = params.get('paddle_result');
+  const paddleTxn     = params.get('_ptxn');
+  const paddlePid     = params.get('pid');
+
+  // ── Retorno desde Paddle ──────────────────────────────────────────────────
+  if (paddleResult) {
+    history.replaceState(null, '', '/');
+    if (!Api.isLoggedIn()) { App.go('landing'); return; }
+
+    if (paddleResult === 'success') {
+      try {
+        const res = await Api.post('/api/payment/paddle-verify', {
+          payment_id:     parseInt(paddlePid),
+          transaction_id: paddleTxn || ''
+        });
+        App.go(res.ok ? 'dashboard' : 'payment');
+      } catch { App.go('payment'); }
+    } else if (paddleResult === 'sub_success') {
+      try {
+        const res = await Api.post('/api/payment/paddle-subscription-verify', {
+          transaction_id: paddleTxn || ''
+        });
+        App.go(res.ok ? 'dashboard' : 'payment');
+      } catch { App.go('payment'); }
+    } else {
+      App.go('payment');
+    }
+    return;
+  }
 
   // ── Retorno desde Stripe ───────────────────────────────────────────────────
   if (stripeResult) {
