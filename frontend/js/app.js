@@ -93,7 +93,14 @@ function renderNavbar() {
   return `
     <nav class="navbar">
       <div class="nav-brand" onclick="App.go(${user ? "'dashboard'" : "'landing'"})">
-        <img src="/icons/mindev-logo.png" alt="MindEV" class="nav-logo">
+        <div style="overflow:hidden;flex-shrink:0;width:150px;height:150px;border-radius:10px;border:1px solid rgba(212,175,55,0.45);box-shadow:0 0 14px rgba(212,175,55,0.28),0 2px 10px rgba(0,0,0,0.5);background:rgba(10,14,26,0.7)">
+          <img src="/icons/mindev-logo.png" alt="MindEV" style="height:150px;width:auto;display:block">
+        </div>
+        <div style="display:flex;flex-direction:column;justify-content:center;gap:3px">
+          <div style="font-weight:800;font-size:1.4rem;letter-spacing:2px;background:linear-gradient(135deg,#d4af37,#f0c040);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">MindEV</div>
+          <div style="font-size:0.78rem;color:#4DB6AC;font-weight:600">${isEN ? 'Your EV+ starts in your mind.' : isPT ? 'Seu EV+ começa na sua mente.' : 'Tu EV+ empieza en tu mente.'}</div>
+          <div style="font-size:0.65rem;color:#d4af37;letter-spacing:0.08em;text-transform:uppercase">${isEN ? 'MENTAL · TECHNICAL · AI' : isPT ? 'MENTAL · TÉCNICO · IA' : 'DIAGNÓSTICO MENTAL · TÉCNICO · IA'}</div>
+        </div>
       </div>
       ${rightSide}
     </nav>
