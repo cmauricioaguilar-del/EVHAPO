@@ -1398,9 +1398,13 @@ async function wbBuildExcel({ lang, playerName, dateStr, mentalSc, techSc, menta
     { key:'area',  width:32 }, { key:'score', width:10 },
     { key:'level', width:14 }, { key:'sp',    width:2  },
     { key:'prog',  width:18 },
+    { key:'gap',   width:4  },              // F — separador
+    { key:'r1', width:11 }, { key:'r2', width:11 },  // G, H
+    { key:'r3', width:11 }, { key:'r4', width:11 },  // I, J
+    { key:'r5', width:11 }, { key:'r6', width:11 },  // K, L
   ];
 
-  addBrandHeader(wsDx, 'E');
+  addBrandHeader(wsDx, 'L');
   let dRow = 4;
 
   function drawScoreSection(ws, entries, labelFn, sectionLabel, barArgb, overall) {
@@ -1457,50 +1461,58 @@ async function wbBuildExcel({ lang, playerName, dateStr, mentalSc, techSc, menta
   const mCats = (typeof I18N !== 'undefined') ? I18N.cats()     : [];
   const tCats = (typeof I18N !== 'undefined') ? I18N.techCats() : [];
 
+  function shortLbl(l) { return l.length > 14 ? l.slice(0, 12) + '..' : l; }
+  const radarImgW = 430; // px — cubre cols G-L (~6 cols × 72px)
+  const rowPx     = 20;  // px por fila (aprox 18pt height)
+
+  // ── Test Mental ──────────────────────────────────────────────────────────────
+  const mentalRowStart = dRow;
   if (hasMental && mCats.length) {
     const entries = mCats.map(c=>[c.key, mentalSc[c.key]||0]).sort((a,b)=>a[1]-b[1]);
     drawScoreSection(wsDx, entries, getMLabel, t.mentalSec, C.teal, mentalOv);
   }
+  const mentalRowEnd = dRow - 1;
+
+  // ── Test Técnico ─────────────────────────────────────────────────────────────
+  const techRowStart = dRow;
   if (hasTech && tCats.length) {
     const entries = tCats.map(c=>[c.key, techSc[c.key]||0]).sort((a,b)=>a[1]-b[1]);
     drawScoreSection(wsDx, entries, getTLabel, t.techSec, C.gold, techOv);
   }
+  const techRowEnd = dRow - 1;
 
-  // ── Gráfico de radar embebido ────────────────────────────────────────────────
-  if ((hasMental && mCats.length) || (hasTech && tCats.length)) {
-    dRow++;
-    addSectionRow(wsDx, dRow, 'E',
-      lang==='en' ? 'SKILL RADAR' : 'RADAR DE HABILIDADES',
-      C.dark, C.gold, 22);
-    dRow++;
+  // ── Radares a la derecha de cada sección (cols G–L) ──────────────────────────
+  const rxlPromises = [
+    (hasMental && mCats.length)
+      ? wbRadarPng(mCats.map(c=>shortLbl(getMLabel(c.key))), mCats.map(c=>mentalSc[c.key]||0),
+          'rgba(77,182,172,0.9)', 'rgba(77,182,172,0.18)', '#0a0e1a')
+      : Promise.resolve(null),
+    (hasTech && tCats.length)
+      ? wbRadarPng(tCats.map(c=>shortLbl(getTLabel(c.key))), tCats.map(c=>techSc[c.key]||0),
+          'rgba(212,175,55,0.9)', 'rgba(212,175,55,0.18)', '#0a0e1a')
+      : Promise.resolve(null),
+  ];
+  const [mRadarPng, tRadarPng] = await Promise.all(rxlPromises);
 
-    function shortLbl(l) { return l.length > 14 ? l.slice(0, 12) + '..' : l; }
-    const imgH = 280, imgW = 355;
-    const imgRowStart = dRow - 1; // ExcelJS usa índice 0-based para filas
-
-    // Reservar filas para que el imagen no tape contenido debajo
-    const reserveRows = 19;
-    for (let r = dRow; r < dRow + reserveRows; r++) wsDx.getRow(r).height = 15;
-    dRow += reserveRows;
-
-    const rxlPromises = [
-      (hasMental && mCats.length)
-        ? wbRadarPng(mCats.map(c=>shortLbl(getMLabel(c.key))), mCats.map(c=>mentalSc[c.key]||0), 'rgba(77,182,172,0.9)', 'rgba(77,182,172,0.18)', '#0a0e1a')
-        : Promise.resolve(null),
-      (hasTech && tCats.length)
-        ? wbRadarPng(tCats.map(c=>shortLbl(getTLabel(c.key))), tCats.map(c=>techSc[c.key]||0), 'rgba(212,175,55,0.9)', 'rgba(212,175,55,0.18)', '#0a0e1a')
-        : Promise.resolve(null),
-    ];
-    const [mRadarPng, tRadarPng] = await Promise.all(rxlPromises);
-
-    if (mRadarPng) {
-      const mId = wb.addImage({ base64: mRadarPng.split(',')[1], extension: 'png' });
-      wsDx.addImage(mId, { tl: { col: 0, row: imgRowStart }, ext: { width: imgW, height: imgH }, editAs: 'oneCell' });
-    }
-    if (tRadarPng) {
-      const tId = wb.addImage({ base64: tRadarPng.split(',')[1], extension: 'png' });
-      wsDx.addImage(tId, { tl: { col: mRadarPng ? 3 : 0, row: imgRowStart }, ext: { width: imgW, height: imgH }, editAs: 'oneCell' });
-    }
+  if (mRadarPng) {
+    const mRows  = mentalRowEnd - mentalRowStart + 1;
+    const mImgH  = mRows * rowPx;
+    const mImgW  = Math.min(radarImgW, Math.round(mImgH * 1.35)); // proporcional
+    const mId    = wb.addImage({ base64: mRadarPng.split(',')[1], extension: 'png' });
+    // centrado vertical: tl en mentalRowStart (0-indexed), br en mentalRowEnd+1
+    wsDx.addImage(mId, {
+      tl: { col: 6, row: mentalRowStart - 1 },
+      br: { col: 12, row: mentalRowEnd },
+      editAs: 'oneCell',
+    });
+  }
+  if (tRadarPng) {
+    const tId = wb.addImage({ base64: tRadarPng.split(',')[1], extension: 'png' });
+    wsDx.addImage(tId, {
+      tl: { col: 6, row: techRowStart - 1 },
+      br: { col: 12, row: techRowEnd },
+      editAs: 'oneCell',
+    });
   }
 
   // Proteger hoja diagnóstico (solo lectura)
