@@ -1,6 +1,64 @@
 // ─── Cuadernillo de Control — Generador de PDF ───────────────────────────────
 // Usa datos reales del usuario autenticado. Lang detectado desde I18N.lang.
 
+// ── Genera PNG de radar chart usando Chart.js (para PDF y Excel) ──────────────
+function wbRadarPng(labels, data, lineRgba, fillRgba, bgHex) {
+  return new Promise(resolve => {
+    const CW = 380, CH = 320;
+    const canvas = document.createElement('canvas');
+    canvas.width = CW; canvas.height = CH;
+    canvas.style.cssText = 'position:fixed;left:-9999px;top:-9999px;';
+    document.body.appendChild(canvas);
+    const ctx = canvas.getContext('2d');
+    const chart = new Chart(ctx, {
+      type: 'radar',
+      data: {
+        labels,
+        datasets: [{
+          data,
+          borderColor: lineRgba,
+          backgroundColor: fillRgba,
+          pointBackgroundColor: lineRgba,
+          pointBorderColor: bgHex || '#0a0e1a',
+          pointBorderWidth: 1,
+          borderWidth: 2,
+          pointRadius: 4,
+        }]
+      },
+      options: {
+        animation: false,
+        responsive: false,
+        scales: {
+          r: {
+            min: 0, max: 100,
+            ticks: { stepSize: 25, color: '#94a3b8', font: { size: 9 }, backdropColor: 'transparent' },
+            grid: { color: 'rgba(148,163,184,0.2)' },
+            pointLabels: { color: '#e2e8f0', font: { size: 9, weight: 'bold' } },
+            angleLines: { color: 'rgba(148,163,184,0.2)' },
+          }
+        },
+        plugins: { legend: { display: false } },
+      },
+      plugins: [{
+        id: 'wbBg',
+        beforeDraw(ch) {
+          const c = ch.canvas.getContext('2d');
+          c.save();
+          c.fillStyle = bgHex || '#0a0e1a';
+          c.fillRect(0, 0, ch.width, ch.height);
+          c.restore();
+        }
+      }]
+    });
+    requestAnimationFrame(() => {
+      const dataUrl = canvas.toDataURL('image/png');
+      chart.destroy();
+      document.body.removeChild(canvas);
+      resolve(dataUrl);
+    });
+  });
+}
+
 const WB_ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
   <rect width="192" height="192" rx="36" fill="#0a0e1a"/>
   <rect x="5" y="5" width="182" height="182" rx="30" fill="none" stroke="#d4af37" stroke-width="4"/>
@@ -981,6 +1039,43 @@ async function wbBuildPDF({ lang, playerName, dateStr, mentalSc, techSc, mentalO
   if (hasMental && mCats.length) drawScoreTable(mentalSc, mCats, t.mentalSec, TEAL, mentalOv);
   if (hasTech   && tCats.length) drawScoreTable(techSc,   tCats, t.techSec,   GOLD, techOv);
 
+  // ── Radar de habilidades ─────────────────────────────────────────────────────
+  if ((hasMental && mCats.length) || (hasTech && tCats.length)) {
+    const radarH = 72, radarW = (TW - 8) / 2;
+    needsPage(radarH + 16);
+
+    doc.setFillColor(...DARK); doc.roundedRect(ML, y, TW, 8, 1.5, 1.5, 'F');
+    doc.setFillColor(...TEAL); doc.roundedRect(ML, y, 3, 8, 1, 1, 'F');
+    txt(lang==='en' ? 'SKILL RADAR' : 'RADAR DE HABILIDADES', ML + 8, y + 5.5, 9, 'bold', GOLD);
+    y += 11;
+
+    function shortLabel(lbl) { return lbl.length > 14 ? lbl.slice(0, 12) + '..' : lbl; }
+
+    const rp = [];
+    rp.push((hasMental && mCats.length)
+      ? wbRadarPng(mCats.map(c => shortLabel(getMentalLabel(c.key))), mCats.map(c => mentalSc[c.key]||0), 'rgba(77,182,172,0.9)', 'rgba(77,182,172,0.18)', '#0a0e1a')
+      : Promise.resolve(null));
+    rp.push((hasTech && tCats.length)
+      ? wbRadarPng(tCats.map(c => shortLabel(getTechLabel(c.key))), tCats.map(c => techSc[c.key]||0), 'rgba(212,175,55,0.9)', 'rgba(212,175,55,0.18)', '#0a0e1a')
+      : Promise.resolve(null));
+
+    const [mPng, tPng] = await Promise.all(rp);
+
+    if (mPng && tPng) {
+      doc.addImage(mPng, 'PNG', ML,              y, radarW, radarH);
+      doc.addImage(tPng, 'PNG', ML + radarW + 8, y, radarW, radarH);
+      txt(t.mentalSec, ML + radarW / 2,              y + radarH + 5, 6.5, 'bold', TEAL, 'center');
+      txt(t.techSec,   ML + radarW + 8 + radarW / 2, y + radarH + 5, 6.5, 'bold', GOLD, 'center');
+    } else if (mPng) {
+      doc.addImage(mPng, 'PNG', ML + TW / 4, y, TW / 2, radarH);
+      txt(t.mentalSec, W / 2, y + radarH + 5, 6.5, 'bold', TEAL, 'center');
+    } else if (tPng) {
+      doc.addImage(tPng, 'PNG', ML + TW / 4, y, TW / 2, radarH);
+      txt(t.techSec,   W / 2, y + radarH + 5, 6.5, 'bold', GOLD, 'center');
+    }
+    y += radarH + 12;
+  }
+
   // ══════════════════════════════════════════════════════════════════════════════
   //  PÁGINAS DE SEMANAS
   // ══════════════════════════════════════════════════════════════════════════════
@@ -1369,6 +1464,43 @@ async function wbBuildExcel({ lang, playerName, dateStr, mentalSc, techSc, menta
   if (hasTech && tCats.length) {
     const entries = tCats.map(c=>[c.key, techSc[c.key]||0]).sort((a,b)=>a[1]-b[1]);
     drawScoreSection(wsDx, entries, getTLabel, t.techSec, C.gold, techOv);
+  }
+
+  // ── Gráfico de radar embebido ────────────────────────────────────────────────
+  if ((hasMental && mCats.length) || (hasTech && tCats.length)) {
+    dRow++;
+    addSectionRow(wsDx, dRow, 'E',
+      lang==='en' ? 'SKILL RADAR' : 'RADAR DE HABILIDADES',
+      C.dark, C.gold, 22);
+    dRow++;
+
+    function shortLbl(l) { return l.length > 14 ? l.slice(0, 12) + '..' : l; }
+    const imgH = 280, imgW = 355;
+    const imgRowStart = dRow - 1; // ExcelJS usa índice 0-based para filas
+
+    // Reservar filas para que el imagen no tape contenido debajo
+    const reserveRows = 19;
+    for (let r = dRow; r < dRow + reserveRows; r++) wsDx.getRow(r).height = 15;
+    dRow += reserveRows;
+
+    const rxlPromises = [
+      (hasMental && mCats.length)
+        ? wbRadarPng(mCats.map(c=>shortLbl(getMLabel(c.key))), mCats.map(c=>mentalSc[c.key]||0), 'rgba(77,182,172,0.9)', 'rgba(77,182,172,0.18)', '#0a0e1a')
+        : Promise.resolve(null),
+      (hasTech && tCats.length)
+        ? wbRadarPng(tCats.map(c=>shortLbl(getTLabel(c.key))), tCats.map(c=>techSc[c.key]||0), 'rgba(212,175,55,0.9)', 'rgba(212,175,55,0.18)', '#0a0e1a')
+        : Promise.resolve(null),
+    ];
+    const [mRadarPng, tRadarPng] = await Promise.all(rxlPromises);
+
+    if (mRadarPng) {
+      const mId = wb.addImage({ base64: mRadarPng.split(',')[1], extension: 'png' });
+      wsDx.addImage(mId, { tl: { col: 0, row: imgRowStart }, ext: { width: imgW, height: imgH }, editAs: 'oneCell' });
+    }
+    if (tRadarPng) {
+      const tId = wb.addImage({ base64: tRadarPng.split(',')[1], extension: 'png' });
+      wsDx.addImage(tId, { tl: { col: mRadarPng ? 3 : 0, row: imgRowStart }, ext: { width: imgW, height: imgH }, editAs: 'oneCell' });
+    }
   }
 
   // Proteger hoja diagnóstico (solo lectura)
