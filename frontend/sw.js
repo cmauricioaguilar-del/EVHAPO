@@ -1,9 +1,9 @@
 // ─── MindEV-IA Service Worker ─────────────────────────────────────────────────
 // Versión: incrementar al hacer cambios importantes para forzar actualización
 
-const CACHE_NAME   = 'mindev-v26';
-const STATIC_CACHE = 'mindev-static-v26';
-const API_CACHE    = 'mindev-api-v26';
+const CACHE_NAME   = 'mindev-v27';
+const STATIC_CACHE = 'mindev-static-v27';
+const API_CACHE    = 'mindev-api-v27';
 
 // Archivos que se cachean al instalar (shell de la app)
 const SHELL_FILES = [
@@ -43,6 +43,7 @@ const SHELL_FILES = [
   'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js',
   'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
   'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js',
+  'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js',
 ];
 
 // ─── Instalación: cachear shell ───────────────────────────────────────────────

@@ -30,7 +30,11 @@ async function renderDashboard() {
           ${user.is_admin ? `<button class="btn btn-secondary" onclick="App.go('admin-coupons')" style="border-color:var(--accent);color:var(--accent)">🎟️ ${isEN ? 'Coupons' : isPT ? 'Cupons' : 'Cupones'}</button>` : ''}
           <button class="btn btn-secondary" onclick="startNewTest('mental')">🧠 ${isEN ? 'Mental Test' : isPT ? 'Teste Mental' : 'Test Mental'}</button>
           <button class="btn btn-primary"   onclick="startNewTest('technical')">⚙️ ${isEN ? 'Technical Test' : isPT ? 'Teste Técnico' : 'Test Técnico'}</button>
-          <button id="wb-download-btn" class="btn btn-secondary" onclick="generateWorkbook()" style="border-color:#d4af37;color:#d4af37;font-weight:700;border-width:2px;background:rgba(212,175,55,0.1);box-shadow:0 0 16px rgba(212,175,55,0.28)">📋&nbsp;${isEN ? 'Control Workbook' : isPT ? 'Caderno de Controle' : 'Cuadernillo de Control'}</button>
+          <div style="display:inline-flex;border:2px solid #d4af37;border-radius:10px;overflow:hidden;box-shadow:0 0 16px rgba(212,175,55,0.28);background:rgba(212,175,55,0.08)">
+            <button id="wb-pdf-btn" onclick="generateWorkbook()" style="border:none;background:none;color:#d4af37;font-weight:700;cursor:pointer;padding:8px 14px;font-size:0.85rem">📋 PDF</button>
+            <div style="width:1px;background:rgba(212,175,55,0.35);align-self:stretch"></div>
+            <button id="wb-excel-btn" onclick="generateWorkbookExcel()" style="border:none;background:none;color:#d4af37;font-weight:700;cursor:pointer;padding:8px 14px;font-size:0.85rem">📊 Excel</button>
+          </div>
         </div>
       </div>
       <div id="dashboard-content"><div style="text-align:center;padding:60px"><div class="spinner" style="margin:0 auto"></div></div></div>

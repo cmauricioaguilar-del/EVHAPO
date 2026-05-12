@@ -631,28 +631,84 @@ function wbGetWeeks(lang) {
   return weeks[lang] || weeks.es;
 }
 
-// ── Entrada pública desde el dashboard ───────────────────────────────────────
+// ── Helper compartido: obtiene datos del usuario para PDF y Excel ─────────────
+async function _wbGetUserData() {
+  const lang = (typeof I18N !== 'undefined') ? (I18N.lang || 'es') : 'es';
+  const user = (typeof Api !== 'undefined') ? Api.currentUser() : null;
+
+  let mentalSc = (typeof _dashMentalSc !== 'undefined') ? _dashMentalSc : null;
+  let techSc   = (typeof _dashTechSc   !== 'undefined') ? _dashTechSc   : null;
+
+  if (!mentalSc && !techSc && typeof Api !== 'undefined') {
+    try {
+      const data = await Api.get('/api/dashboard');
+      const history = data.history || [];
+      const mh = history.filter(s => !s.test_type || s.test_type === 'mental');
+      const th = history.filter(s => s.test_type === 'technical');
+      const gs = s => s ? (typeof s.scores === 'string' ? JSON.parse(s.scores) : s.scores) : null;
+      mentalSc = gs(mh[0] || null);
+      techSc   = gs(th[0] || null);
+    } catch (e) { console.warn('[Workbook] No se pudieron obtener scores:', e); }
+  }
+
+  const mentalOv = (mentalSc && typeof getOverallScore === 'function')         ? getOverallScore(mentalSc)        : null;
+  const techOv   = (techSc   && typeof getTechnicalOverallScore === 'function') ? getTechnicalOverallScore(techSc) : null;
+
+  const now = new Date();
+  const dateMap = {
+    es: now.toLocaleDateString('es-ES', { day:'numeric', month:'long', year:'numeric' }),
+    pt: now.toLocaleDateString('pt-BR', { day:'numeric', month:'long', year:'numeric' }),
+    en: now.toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' }),
+  };
+
+  return {
+    lang,
+    playerName: ((user?.nombre || user?.name || 'Usuario').toUpperCase()),
+    dateStr:    dateMap[lang] || dateMap.es,
+    mentalSc:   mentalSc || {},
+    techSc:     techSc   || {},
+    mentalOv:   mentalOv !== null ? mentalOv : 0,
+    techOv:     techOv   !== null ? techOv   : 0,
+    hasMental:  !!mentalSc,
+    hasTech:    !!techSc,
+  };
+}
+
+// ── Entrada pública — PDF ─────────────────────────────────────────────────────
 async function generateWorkbook() {
-  const btn = document.getElementById('wb-download-btn');
-  if (btn) { btn.disabled = true; btn.innerHTML = '⏳&nbsp;' + (I18N.isEN() ? 'Generating...' : I18N.isPT() ? 'Gerando...' : 'Generando...'); }
+  const btn = document.getElementById('wb-pdf-btn');
+  if (btn) { btn.disabled = true; btn.innerHTML = '⏳ PDF'; }
   try {
-    await _wbGenerate();
+    const d = await _wbGetUserData();
+    await wbBuildPDF(d);
   } catch (e) {
-    console.error('[Workbook]', e);
+    console.error('[Workbook PDF]', e);
     alert(I18N.isEN() ? 'Error generating PDF. Please try again.' : I18N.isPT() ? 'Erro ao gerar PDF. Tente novamente.' : 'Error al generar el PDF. Intenta de nuevo.');
   } finally {
-    if (btn) {
-      btn.disabled = false;
-      btn.innerHTML = '📋&nbsp;' + (I18N.isEN() ? 'Control Workbook' : I18N.isPT() ? 'Caderno de Controle' : 'Cuadernillo de Control');
-    }
+    if (btn) { btn.disabled = false; btn.innerHTML = '📋 PDF'; }
   }
 }
 
+// ── Entrada pública — Excel ───────────────────────────────────────────────────
+async function generateWorkbookExcel() {
+  const btn = document.getElementById('wb-excel-btn');
+  if (btn) { btn.disabled = true; btn.innerHTML = '⏳ Excel'; }
+  try {
+    const d = await _wbGetUserData();
+    await wbBuildExcel(d);
+  } catch (e) {
+    console.error('[Workbook Excel]', e);
+    alert(I18N.isEN() ? 'Error generating Excel. Please try again.' : I18N.isPT() ? 'Erro ao gerar Excel. Tente novamente.' : 'Error al generar el Excel. Intenta de nuevo.');
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = '📊 Excel'; }
+  }
+}
+
+// (mantener compatibilidad con código viejo que busque wb-download-btn)
 async function _wbGenerate() {
   const lang = (typeof I18N !== 'undefined') ? (I18N.lang || 'es') : 'es';
   const user = (typeof Api !== 'undefined') ? Api.currentUser() : null;
 
-  // Intentar usar scores ya cargados en el dashboard (evita petición extra)
   let mentalSc = (typeof _dashMentalSc !== 'undefined') ? _dashMentalSc : null;
   let techSc   = (typeof _dashTechSc   !== 'undefined') ? _dashTechSc   : null;
 
@@ -1122,4 +1178,422 @@ async function wbBuildPDF({ lang, playerName, dateStr, mentalSc, techSc, mentalO
     : lang==='pt' ? `MindEV_Caderno_Controle_${playerName.split(' ')[0]}.pdf`
     : `MindEV_Cuadernillo_Control_${playerName.split(' ')[0]}.pdf`;
   doc.save(fileName);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+//  GENERADOR DE EXCEL (ExcelJS)
+// ═════════════════════════════════════════════════════════════════════════════
+async function wbBuildExcel({ lang, playerName, dateStr, mentalSc, techSc, mentalOv, techOv, hasMental, hasTech }) {
+  const t     = WB_T[lang] || WB_T.es;
+  const weeks = wbGetWeeks(lang);
+
+  // ── Colores ARGB ──
+  const C = {
+    dark:     'FF0A0E1A', navy:     'FF0F172A', gold:     'FFD4AF37',
+    teal:     'FF4DB6AC', purple:   'FF818CF8', green:    'FF4ADE80',
+    red:      'FFEF4444', amber:    'FFF59E0B', yellow:   'FFFBBF24',
+    white:    'FFFFFFFF', black:    'FF1A1A2E', muted:    'FF64748B',
+    lightBg:  'FFF5F7FA', altBg:    'FFEEF0F5', readOnly: 'FFEBF0F8',
+    mentalBg: 'FFE4F5F4', techBg:   'FFFDF4E0', intBg:    'FFF0EEFF',
+    noteBg:   'FFFAFBFF',
+    lvlCrit:  'FFFFE4E4', lvlLow:   'FFFFF3E4', lvlMed:   'FFFFF9D0',
+    lvlHigh:  'FFE4F5F4', lvlExc:   'FFE4FFE9',
+    lvlCritT: 'FFB91C1C', lvlLowT:  'FFB45309', lvlMedT:  'FF854D0E',
+    lvlHighT: 'FF0D6E6A', lvlExcT:  'FF166534',
+  };
+
+  function phaseColor(color) {
+    return color==='mental' ? C.teal : color==='technical' ? C.gold : C.purple;
+  }
+  function phaseBg(color) {
+    return color==='mental' ? C.mentalBg : color==='technical' ? C.techBg : C.intBg;
+  }
+  function tabColor(color) {
+    return color==='mental' ? { argb: C.teal } : color==='technical' ? { argb: C.gold } : { argb: C.purple };
+  }
+
+  function levelColors(v) {
+    if (v < 55) return { bg: C.lvlCrit, fg: C.lvlCritT, lbl: t.lvlCrit };
+    if (v < 65) return { bg: C.lvlLow,  fg: C.lvlLowT,  lbl: t.lvlLow  };
+    if (v < 75) return { bg: C.lvlMed,  fg: C.lvlMedT,  lbl: t.lvlMed  };
+    if (v < 88) return { bg: C.lvlHigh, fg: C.lvlHighT, lbl: t.lvlHigh };
+    return              { bg: C.lvlExc,  fg: C.lvlExcT,  lbl: t.lvlExc  };
+  }
+
+  // ── Ayudas de estilo ──
+  function fill(argb) { return { type:'pattern', pattern:'solid', fgColor:{ argb } }; }
+  function font(bold, size, argb, italic) { return { bold:!!bold, size:size||10, color:{ argb }, italic:!!italic }; }
+  function border(clr) {
+    const s = { style:'thin', color:{ argb: clr||C.muted } };
+    return { top:s, left:s, bottom:s, right:s };
+  }
+  function align(h, v, wrap) { return { horizontal:h||'left', vertical:v||'middle', wrapText:!!wrap }; }
+
+  // ── Aplica estilo básico a una celda ──
+  function sc(cell, opts) {
+    if (opts.fill)   cell.fill      = opts.fill;
+    if (opts.font)   cell.font      = opts.font;
+    if (opts.border) cell.border    = opts.border;
+    if (opts.align)  cell.alignment = opts.align;
+  }
+
+  // ── Fila de encabezado de marca en cada hoja ──
+  function addBrandHeader(ws, lastCol) {
+    const cols = lastCol || 'E';
+    // Fila 1: fondo oscuro, "MindEV IA" dorado
+    ws.mergeCells(`A1:${cols}1`);
+    const h1 = ws.getCell('A1');
+    h1.value = `MindEV IA  |  ${WB_SLOGANS[lang]}`;
+    sc(h1, { fill:fill(C.dark), font:font(true,13,C.gold), align:align('center','middle') });
+    ws.getRow(1).height = 26;
+    // Fila 2: datos del jugador (teal tenue)
+    ws.mergeCells(`A2:${cols}2`);
+    const h2 = ws.getCell('A2');
+    h2.value = `${t.player}: ${playerName}   |   ${t.generated}: ${dateStr}`;
+    sc(h2, { fill:fill(C.navy), font:font(false,9,C.teal), align:align('center','middle') });
+    ws.getRow(2).height = 18;
+  }
+
+  // ── Fila de sección (título de bloque) ──
+  function addSectionRow(ws, row, lastCol, text, bgArgb, fgArgb, height) {
+    ws.mergeCells(`A${row}:${lastCol}${row}`);
+    const cell = ws.getCell(`A${row}`);
+    cell.value = text;
+    sc(cell, { fill:fill(bgArgb), font:font(true,10,fgArgb), align:align('center','middle') });
+    ws.getRow(row).height = height || 20;
+  }
+
+  // ── Dropdown de estado (celda editable, desbloqueada) ──
+  function addStatusDropdown(cell, defaultVal) {
+    cell.value = defaultVal || (lang==='en' ? '○ Pending' : lang==='pt' ? '○ Pendente' : '○ Pendiente');
+    cell.dataValidation = {
+      type: 'list',
+      allowBlank: false,
+      formulae: [lang==='en' ? '"✓ Done,○ Pending"'
+                : lang==='pt' ? '"✓ Concluido,○ Pendente"'
+                : '"✓ Ejecutado,○ Pendiente"'],
+    };
+    sc(cell, { fill:fill(C.noteBg), font:font(false,9,C.muted), align:align('center','middle'), border:border(C.muted) });
+    cell.protection = { locked: false };
+  }
+
+  // ── Etiquetas de categorías ──
+  function getMLabel(key) {
+    if (typeof I18N !== 'undefined') { const c = I18N.cats().find(x=>x.key===key); if(c) return c.label; }
+    return key;
+  }
+  function getTLabel(key) {
+    if (typeof I18N !== 'undefined') { const c = I18N.techCats().find(x=>x.key===key); if(c) return c.label; }
+    return key;
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  const wb = new ExcelJS.Workbook();
+  wb.creator = 'MindEV IA';
+  wb.created = new Date();
+
+  // ══════════════════════════════════════════════════════════════════════════
+  //  HOJA 1 — DIAGNÓSTICO
+  // ══════════════════════════════════════════════════════════════════════════
+  const wsDx = wb.addWorksheet(
+    lang==='en' ? 'Diagnostic' : lang==='pt' ? 'Diagnostico' : 'Diagnostico',
+    { properties:{ tabColor:{ argb: C.gold } } }
+  );
+  wsDx.columns = [
+    { key:'area',  width:32 }, { key:'score', width:10 },
+    { key:'level', width:14 }, { key:'sp',    width:2  },
+    { key:'prog',  width:18 },
+  ];
+
+  addBrandHeader(wsDx, 'E');
+  let dRow = 4;
+
+  function drawScoreSection(ws, entries, labelFn, sectionLabel, barArgb, overall) {
+    // Cabecera sección
+    addSectionRow(ws, dRow, 'E', `${sectionLabel}  |  ${t.overall}: ${overall !== null ? overall+'%' : '—'}`, C.navy, barArgb, 22);
+    dRow++;
+    // Encabezados columna
+    ['area','score','level','sp','prog'].forEach((k,i) => {
+      const cell = ws.getRow(dRow).getCell(i+1);
+      cell.value = [t.area, t.score, t.level, '', ''][i].toUpperCase();
+      sc(cell, { fill:fill(C.dark), font:font(true,8,'FFE2E8F0'), align:align('center','middle'), border:border(C.gold) });
+    });
+    ws.getRow(dRow).height = 16;
+    dRow++;
+    // Filas de scores
+    entries.forEach(([key, val], idx) => {
+      const lv  = levelColors(val);
+      const bg  = idx%2===0 ? C.lightBg : C.altBg;
+      const row = ws.getRow(dRow);
+      row.height = 18;
+      // Area
+      const cArea = row.getCell(1);
+      cArea.value = labelFn(key);
+      sc(cArea, { fill:fill(bg), font:font(false,9,C.black), align:align('left','middle'), border:border(C.muted) });
+      // Score
+      const cScore = row.getCell(2);
+      cScore.value = val;
+      cScore.numFmt = '0.0"%"';
+      sc(cScore, { fill:fill(lv.bg), font:font(true,9,lv.fg), align:align('center','middle'), border:border(C.muted) });
+      // Level badge
+      const cLevel = row.getCell(3);
+      cLevel.value = lv.lbl;
+      sc(cLevel, { fill:fill(lv.bg), font:font(true,8,lv.fg), align:align('center','middle'), border:border(C.muted) });
+      // Progress (text bar)
+      const cProg = row.getCell(5);
+      const bars = Math.round(val/100*16);
+      cProg.value = '█'.repeat(bars) + '░'.repeat(16-bars) + ` ${val.toFixed(0)}%`;
+      sc(cProg, { fill:fill(bg), font:font(false,8,lv.fg), align:align('left','middle') });
+      dRow++;
+    });
+    // Fila promedio
+    const rowOv = ws.getRow(dRow);
+    rowOv.height = 18;
+    const cOvLabel = rowOv.getCell(1);
+    cOvLabel.value = t.overall.toUpperCase();
+    sc(cOvLabel, { fill:fill(C.navy), font:font(true,9,barArgb), align:align('left','middle'), border:border(barArgb) });
+    const cOvVal = rowOv.getCell(2);
+    cOvVal.value = overall;
+    cOvVal.numFmt = '0.0"%"';
+    sc(cOvVal, { fill:fill(C.navy), font:font(true,10,barArgb), align:align('center','middle'), border:border(barArgb) });
+    dRow += 2;
+  }
+
+  const mCats = (typeof I18N !== 'undefined') ? I18N.cats()     : [];
+  const tCats = (typeof I18N !== 'undefined') ? I18N.techCats() : [];
+
+  if (hasMental && mCats.length) {
+    const entries = mCats.map(c=>[c.key, mentalSc[c.key]||0]).sort((a,b)=>a[1]-b[1]);
+    drawScoreSection(wsDx, entries, getMLabel, t.mentalSec, C.teal, mentalOv);
+  }
+  if (hasTech && tCats.length) {
+    const entries = tCats.map(c=>[c.key, techSc[c.key]||0]).sort((a,b)=>a[1]-b[1]);
+    drawScoreSection(wsDx, entries, getTLabel, t.techSec, C.gold, techOv);
+  }
+
+  // Proteger hoja diagnóstico (solo lectura)
+  wsDx.protect('', { selectLockedCells:true, selectUnlockedCells:false });
+
+  // ══════════════════════════════════════════════════════════════════════════
+  //  HOJAS DE SEMANAS
+  // ══════════════════════════════════════════════════════════════════════════
+  const dayColHdr   = lang==='en' ? 'DAY'   : lang==='pt' ? 'DIA'    : 'DIA';
+  const timeColHdr  = lang==='en' ? 'MIN'   : lang==='pt' ? 'MIN'    : 'MIN';
+  const taskColHdr  = lang==='en' ? 'TASK / ACTIVITY' : lang==='pt' ? 'TAREFA / ATIVIDADE' : 'TAREA / ACTIVIDAD';
+  const statusColHdr= lang==='en' ? 'STATUS' : lang==='pt' ? 'ESTADO' : 'ESTADO';
+
+  weeks.forEach(wk => {
+    const phCol  = phaseColor(wk.color);
+    const phBgC  = phaseBg(wk.color);
+    const tabC   = tabColor(wk.color);
+    const sheetName = (lang==='en' ? `Wk.` : `Sem.`) + String(wk.n).padStart(2,'0');
+
+    const ws = wb.addWorksheet(sheetName, { properties:{ tabColor: tabC } });
+    ws.columns = [
+      { key:'day',    width:8  },
+      { key:'min',    width:6  },
+      { key:'task',   width:52 },
+      { key:'status', width:16 },
+    ];
+
+    // ── Encabezado marca ──
+    addBrandHeader(ws, 'D');
+
+    // ── Banda de fase ──
+    addSectionRow(ws, 3, 'D', wk.phase.toUpperCase(), C.navy, phCol, 16);
+
+    // ── Semana + Tema ──
+    ws.mergeCells('A4:D4');
+    const hWk = ws.getCell('A4');
+    hWk.value = `${t.wkLabel} ${wk.n}  —  ${wk.theme.toUpperCase()}`;
+    sc(hWk, { fill:fill(phBgC), font:font(true,11,phCol), align:align('center','middle') });
+    ws.getRow(4).height = 24;
+
+    // ── Focus ──
+    ws.mergeCells('A5:D5');
+    const hFocus = ws.getCell('A5');
+    hFocus.value = wk.focus;
+    sc(hFocus, { fill:fill(C.navy), font:font(false,9,phCol,true), align:align('center','middle') });
+    ws.getRow(5).height = 16;
+
+    // ── Objetivo (solo lectura) ──
+    ws.mergeCells('A6:D6');
+    const hObjLabel = ws.getCell('A6');
+    hObjLabel.value = `${t.objective.toUpperCase()}: ${wk.obj}`;
+    sc(hObjLabel, { fill:fill(C.readOnly), font:font(false,9,C.black), align:align('left','middle',true), border:border(phCol) });
+    ws.getRow(6).height = 36;
+
+    // ── Encabezados tabla de tareas ──
+    const hdrRow = ws.getRow(7);
+    hdrRow.height = 18;
+    [dayColHdr, timeColHdr, taskColHdr, statusColHdr].forEach((lbl,i) => {
+      const cell = hdrRow.getCell(i+1);
+      cell.value = lbl;
+      sc(cell, { fill:fill(C.dark), font:font(true,9,'FFE2E8F0'), align:align('center','middle'), border:border(C.gold) });
+    });
+    // Congelar encabezado
+    ws.views = [{ state:'frozen', xSplit:0, ySplit:7 }];
+
+    // ── Filas de tareas ──
+    wk.days.forEach((day, idx) => {
+      const r   = 8 + idx;
+      const row = ws.getRow(r);
+      row.height = 22;
+      const bg  = idx%2===0 ? C.lightBg : C.altBg;
+
+      // Día
+      const cDay = row.getCell(1);
+      cDay.value = day.d;
+      sc(cDay, { fill:fill(phBgC), font:font(true,9,phCol), align:align('center','middle'), border:border(C.muted) });
+
+      // Tiempo
+      const cMin = row.getCell(2);
+      cMin.value = day.t;
+      cMin.numFmt = '0';
+      sc(cMin, { fill:fill(bg), font:font(false,9,C.muted), align:align('center','middle'), border:border(C.muted) });
+
+      // Tarea (solo lectura)
+      const cTask = row.getCell(3);
+      cTask.value = day.task;
+      cTask.alignment = align('left','middle',true);
+      sc(cTask, { fill:fill(bg), font:font(false,9,C.black), align:align('left','middle',true), border:border(C.muted) });
+
+      // Estado — dropdown EDITABLE
+      addStatusDropdown(row.getCell(4));
+    });
+
+    const afterTasks = 8 + wk.days.length; // row 15
+
+    // ── Recursos (solo lectura) ──
+    const resStartRow = afterTasks + 1;
+    addSectionRow(ws, resStartRow, 'D', t.resources.toUpperCase(), C.teal+'44', C.teal, 16);
+    wk.res.forEach((r, i) => {
+      const rr = resStartRow + 1 + i;
+      ws.mergeCells(`A${rr}:D${rr}`);
+      const cell = ws.getCell(`A${rr}`);
+      cell.value = '+ ' + r;
+      sc(cell, { fill:fill(C.readOnly), font:font(false,9,C.black), align:align('left','middle',true), border:border(C.teal) });
+      ws.getRow(rr).height = 20;
+    });
+
+    // ── Meta de la semana (solo lectura) ──
+    const msRow = resStartRow + 1 + wk.res.length + 1;
+    addSectionRow(ws, msRow, 'D', ('> '+t.milestone).toUpperCase(), 'FF166534'+'44', 'FF166534', 16);
+    const msContentRow = msRow + 1;
+    ws.mergeCells(`A${msContentRow}:D${msContentRow}`);
+    const msCont = ws.getCell(`A${msContentRow}`);
+    msCont.value = wk.milestone;
+    sc(msCont, { fill:fill('FFE4FFE9'), font:font(false,9,'FF166534'), align:align('left','middle',true), border:border('FF166534') });
+    ws.getRow(msContentRow).height = 30;
+
+    // ── Notas y reflexiones (EDITABLE) ──
+    const notesHdrRow = msContentRow + 2;
+    addSectionRow(ws, notesHdrRow, 'D', t.notes.toUpperCase(), C.navy, C.muted, 16);
+    for (let nr = notesHdrRow+1; nr <= notesHdrRow+4; nr++) {
+      ws.mergeCells(`A${nr}:D${nr}`);
+      const ncell = ws.getCell(`A${nr}`);
+      ncell.value = '';
+      sc(ncell, { fill:fill(C.noteBg), border:border(C.muted), align:align('left','middle',true) });
+      ws.getRow(nr).height = 22;
+      ncell.protection = { locked: false };
+    }
+
+    // Proteger hoja (status + notas quedan desbloqueados, el resto solo lectura)
+    ws.protect('', { selectLockedCells:true, selectUnlockedCells:true,
+      formatCells:false, insertRows:false, deleteRows:false });
+  });
+
+  // ══════════════════════════════════════════════════════════════════════════
+  //  HOJA FINAL — SEGUIMIENTO GLOBAL
+  // ══════════════════════════════════════════════════════════════════════════
+  const trackerName = lang==='en' ? 'Tracker' : lang==='pt' ? 'Acompanhamento' : 'Seguimiento';
+  const wsTk = wb.addWorksheet(trackerName, { properties:{ tabColor:{ argb: C.purple } } });
+
+  const dayHdrs = t.days; // ['LUN','MAR','MIE','JUE','VIE','SAB','DOM']
+  wsTk.columns = [
+    { key:'wk',     width:6  },
+    { key:'theme',  width:32 },
+    { key:'phase',  width:14 },
+    ...dayHdrs.map(() => ({ width:12 })),
+  ];
+
+  addBrandHeader(wsTk, String.fromCharCode(67 + dayHdrs.length)); // A..J
+
+  const tkTitle = lang==='en' ? 'GLOBAL PROGRESS TRACKER'
+    : lang==='pt' ? 'ACOMPANHAMENTO GLOBAL DE PROGRESSO'
+    : 'SEGUIMIENTO GLOBAL DE PROGRESO';
+  addSectionRow(wsTk, 3, String.fromCharCode(67+dayHdrs.length), tkTitle, C.dark, C.gold, 22);
+
+  // Encabezados columna
+  const tkHdrRow = wsTk.getRow(4);
+  tkHdrRow.height = 18;
+  [t.wkLabel, t.themeLabel, lang==='en'?'PHASE':lang==='pt'?'FASE':'FASE', ...dayHdrs].forEach((h,i) => {
+    const cell = tkHdrRow.getCell(i+1);
+    cell.value = h;
+    sc(cell, { fill:fill(C.navy), font:font(true,9,'FFE2E8F0'), align:align('center','middle'), border:border(C.gold) });
+  });
+  wsTk.views = [{ state:'frozen', xSplit:0, ySplit:4 }];
+
+  // Filas de semanas
+  weeks.forEach((wk, idx) => {
+    const r   = 5 + idx;
+    const row = wsTk.getRow(r);
+    row.height = 20;
+    const phCol = phaseColor(wk.color);
+    const bg    = idx%2===0 ? C.lightBg : C.altBg;
+
+    // Num semana
+    const cN = row.getCell(1);
+    cN.value = wk.n;
+    sc(cN, { fill:fill(phaseBg(wk.color)), font:font(true,9,phCol), align:align('center','middle'), border:border(C.muted) });
+
+    // Tema
+    const cTh = row.getCell(2);
+    cTh.value = wk.theme;
+    sc(cTh, { fill:fill(bg), font:font(false,9,C.black), align:align('left','middle'), border:border(C.muted) });
+
+    // Fase
+    const cPh = row.getCell(3);
+    cPh.value = wk.color==='mental' ? (lang==='en'?'Mental':lang==='pt'?'Mental':'Mental')
+      : wk.color==='technical' ? (lang==='en'?'Technical':lang==='pt'?'Tecnico':'Tecnico')
+      : (lang==='en'?'Integration':lang==='pt'?'Integracao':'Integracion');
+    sc(cPh, { fill:fill(phaseBg(wk.color)), font:font(false,8,phCol), align:align('center','middle'), border:border(C.muted) });
+
+    // 7 dropdowns de días
+    for (let d=0; d<7; d++) {
+      addStatusDropdown(row.getCell(4+d));
+    }
+  });
+
+  // Fila de re-test
+  const reTestRow = 5 + weeks.length + 1;
+  const lastTkCol = String.fromCharCode(67+dayHdrs.length);
+  wsTk.mergeCells(`A${reTestRow}:${lastTkCol}${reTestRow}`);
+  const reCell = wsTk.getCell(`A${reTestRow}`);
+  const reNote = lang==='en'
+    ? 'Week 12 RE-TEST — Complete the Mental + Technical tests on MindEV-IA and compare with your initial results.'
+    : lang==='pt'
+    ? 'RE-TESTE Semana 12 — Complete os testes Mental + Tecnico no MindEV-IA e compare com seus resultados iniciais.'
+    : 'RE-TEST Semana 12 — Completa los tests Mental + Tecnico en MindEV-IA y compara con tus resultados iniciales.';
+  reCell.value = reNote;
+  sc(reCell, { fill:fill('FF1A2E1A'), font:font(false,9,'FF4ADE80'), align:align('left','middle',true), border:border('FF4ADE80') });
+  wsTk.getRow(reTestRow).height = 30;
+  reCell.protection = { locked: false };
+
+  wsTk.protect('', { selectLockedCells:true, selectUnlockedCells:true,
+    formatCells:false, insertRows:false, deleteRows:false });
+
+  // ── Descargar ──
+  const buffer = await wb.xlsx.writeBuffer();
+  const blob   = new Blob([buffer], { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const url    = URL.createObjectURL(blob);
+  const a      = document.createElement('a');
+  a.href     = url;
+  a.download = lang==='en' ? `MindEV_Control_Workbook_${playerName.split(' ')[0]}.xlsx`
+    : lang==='pt' ? `MindEV_Caderno_Controle_${playerName.split(' ')[0]}.xlsx`
+    : `MindEV_Cuadernillo_Control_${playerName.split(' ')[0]}.xlsx`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
