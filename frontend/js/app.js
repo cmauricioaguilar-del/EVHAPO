@@ -93,7 +93,7 @@ function renderNavbar() {
   return `
     <nav class="navbar">
       <div class="nav-brand" onclick="App.go(${user ? "'dashboard'" : "'landing'"})">
-        <img src="${isEN ? '/icons/mindev-logo-en.svg' : isPT ? '/icons/mindev-logo-pt.svg' : '/icons/mindev-logo-es.svg'}" alt="MindEV" class="nav-logo">
+        <img src="/icons/mindev-logo.png" alt="MindEV" class="nav-logo">
       </div>
       ${rightSide}
     </nav>
