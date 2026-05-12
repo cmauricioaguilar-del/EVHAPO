@@ -71,11 +71,19 @@ function renderLanding() {
 
       <div class="hero-cta">
         <button class="btn btn-primary btn-lg" onclick="App.go('register')">
-          ♠ ${isEN ? 'Start my diagnosis — USD $9.90' : isPT ? 'Começar meu diagnóstico — USD $9.90' : 'Comenzar mi diagnóstico — USD $9.90'}
+          ♠ ${isEN ? 'Start my diagnosis' : isPT ? 'Começar meu diagnóstico' : 'Comenzar mi diagnóstico'}
         </button>
         <button class="btn btn-secondary btn-lg" onclick="App.go('login')">
           ${isEN ? 'I already have an account' : isPT ? 'Já tenho conta' : 'Ya tengo cuenta'}
         </button>
+      </div>
+      <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:10px">
+        <span style="background:rgba(212,175,55,0.12);border:1px solid rgba(212,175,55,0.3);color:#d4af37;border-radius:20px;padding:5px 14px;font-size:0.82rem;font-weight:700">
+          ♾️ ${isEN ? 'Lifetime · USD $9.90' : isPT ? 'Permanente · USD $9.90' : 'Permanente · USD $9.90'}
+        </span>
+        <span style="background:rgba(129,140,248,0.12);border:1px solid rgba(129,140,248,0.3);color:#818cf8;border-radius:20px;padding:5px 14px;font-size:0.82rem;font-weight:700">
+          📅 ${isEN ? '30 days · USD $4.90' : isPT ? '30 dias · USD $4.90' : '30 días · USD $4.90'}
+        </span>
       </div>
 
       <!-- Botón de instalación PWA (solo aparece cuando el navegador lo permite) -->
@@ -124,8 +132,50 @@ function renderLanding() {
       </div>
 
       <div class="price-banner">
-        <div class="price">USD $9.90</div>
-        <div class="price-sub">${isEN ? 'One-time payment · Permanent access to your results and future comparisons' : isPT ? 'Pagamento único · Acesso permanente aos seus resultados e comparações futuras' : 'Pago único · Acceso permanente a tus resultados y futuras comparaciones'}</div>
+        <!-- ── Dos planes ── -->
+        <div style="margin-bottom:6px;font-size:0.75rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;text-align:center">
+          ${isEN ? 'Choose your plan' : isPT ? 'Escolha seu plano' : 'Elige tu plan'}
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px">
+
+          <!-- Plan Permanente -->
+          <div style="border:2px solid var(--accent);border-radius:14px;padding:18px 14px;background:rgba(212,175,55,0.07);text-align:center;cursor:pointer" onclick="App.go('register')">
+            <div style="font-size:0.7rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px">
+              ${isEN ? 'One-Time · Lifetime' : isPT ? 'Pagamento Único' : 'Pago Único · Permanente'}
+            </div>
+            <div style="font-size:1.9rem;font-weight:900;color:var(--accent);line-height:1">$9.90</div>
+            <div style="font-size:0.7rem;color:var(--text3);margin-top:2px">USD</div>
+            <div style="margin-top:10px;font-size:0.78rem;color:var(--text2);line-height:1.5">
+              ✓ ${isEN ? 'Permanent access' : isPT ? 'Acesso permanente' : 'Acceso permanente'}<br>
+              ✓ ${isEN ? 'All features included' : isPT ? 'Todos os recursos' : 'Todas las funciones'}<br>
+              ✓ ${isEN ? 'PDF report' : isPT ? 'Relatório PDF' : 'Informe PDF'}
+            </div>
+            <button class="btn btn-primary" style="margin-top:14px;width:100%;padding:8px" onclick="App.go('register')">
+              ${isEN ? 'Get started →' : isPT ? 'Começar →' : 'Comenzar →'}
+            </button>
+          </div>
+
+          <!-- Plan 30 días -->
+          <div style="border:2px solid #818cf8;border-radius:14px;padding:18px 14px;background:rgba(129,140,248,0.07);text-align:center;position:relative;cursor:pointer" onclick="App.go('register')">
+            <div style="position:absolute;top:-11px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#818cf8,#6366f1);color:#fff;font-size:0.65rem;font-weight:800;padding:2px 12px;border-radius:20px;white-space:nowrap;text-transform:uppercase;letter-spacing:0.05em">
+              🔥 ${isEN ? 'Most popular' : isPT ? 'Mais popular' : 'Más popular'}
+            </div>
+            <div style="font-size:0.7rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px">
+              ${isEN ? 'Monthly · 30 days' : isPT ? 'Mensal · 30 dias' : 'Mensual · 30 días'}
+            </div>
+            <div style="font-size:1.9rem;font-weight:900;color:#818cf8;line-height:1">$4.90</div>
+            <div style="font-size:0.7rem;color:var(--text3);margin-top:2px">USD / ${isEN ? 'month' : isPT ? 'mês' : 'mes'}</div>
+            <div style="margin-top:10px;font-size:0.78rem;color:var(--text2);line-height:1.5">
+              ✓ ${isEN ? 'Full 30-day access' : isPT ? 'Acesso por 30 dias' : 'Acceso por 30 días'}<br>
+              ✓ ${isEN ? 'All features included' : isPT ? 'Todos os recursos' : 'Todas las funciones'}<br>
+              ✓ ${isEN ? 'Cancel anytime' : isPT ? 'Cancela quando quiser' : 'Cancela cuando quieras'}
+            </div>
+            <button style="margin-top:14px;width:100%;padding:8px;background:rgba(129,140,248,0.15);border:2px solid #818cf8;color:#818cf8;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.85rem" onclick="App.go('register')">
+              ${isEN ? 'Get started →' : isPT ? 'Começar →' : 'Comenzar →'}
+            </button>
+          </div>
+
+        </div>
 
         <!-- Métodos de pago y países -->
         <div style="margin-top:24px;padding:20px;background:rgba(0,0,0,0.2);border-radius:12px;border:1px solid rgba(212,175,55,0.2)">
@@ -280,11 +330,13 @@ function renderLanding() {
         <!-- CTA final -->
         <div style="text-align:center;margin-top:32px">
           <button class="btn btn-primary btn-lg" onclick="App.go('register')">
-            ♠ ${isEN ? 'I want my diagnosis — USD $9.90' : isPT ? 'Quero meu diagnóstico — USD $9.90' : 'Quiero mi diagnóstico — USD $9.90'}
+            ♠ ${isEN ? 'I want my diagnosis' : isPT ? 'Quero meu diagnóstico' : 'Quiero mi diagnóstico'}
           </button>
-          <p style="margin:10px 0 0;color:var(--text3);font-size:0.78rem">
-            ${isEN ? 'One-time payment · Permanent access' : isPT ? 'Pagamento único · Acesso permanente' : 'Pago único · Acceso permanente'}
-          </p>
+          <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:10px">
+            <span style="font-size:0.8rem;color:var(--accent);font-weight:700">♾️ ${isEN ? 'Lifetime $9.90 USD' : isPT ? 'Permanente $9.90 USD' : 'Permanente $9.90 USD'}</span>
+            <span style="font-size:0.8rem;color:var(--text3)">·</span>
+            <span style="font-size:0.8rem;color:#818cf8;font-weight:700">📅 ${isEN ? '30 days $4.90 USD/mo' : isPT ? '30 dias $4.90 USD/mês' : '30 días $4.90 USD/mes'}</span>
+          </div>
         </div>
       </div>
       <!-- ── /Testimonios ───────────────────────────────────────────────── -->
