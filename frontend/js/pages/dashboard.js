@@ -51,7 +51,6 @@ function renderDashboardContent(data, user) {
 
   // Resetear flags de carga para que los tabs siempre recarguen su contenido guardado
   _profileAlreadyLoaded    = false;
-  _tournamentAlreadyLoaded = false;
 
   // Separar historial por tipo de test
   const mentalHistory    = history.filter(s => !s.test_type || s.test_type === 'mental');
@@ -655,7 +654,6 @@ function dashTab(tab) {
 // ─── Perfil IA ────────────────────────────────────────────────────────────────
 
 let _profileAlreadyLoaded  = false;
-let _tournamentAlreadyLoaded = false;
 
 // Scores globales para dibujar radares al cambiar de tab
 let _dashMentalSc  = null;
@@ -956,22 +954,32 @@ async function downloadProfilePDF(userName) {
 // ─── Último análisis de torneo ────────────────────────────────────────────────
 
 async function loadLastTournament() {
-  if (_tournamentAlreadyLoaded) return;
+  // Sin flag — siempre consulta al servidor para sincronizar entre dispositivos
   const resultEl = document.getElementById('tourn-result');
   if (!resultEl) return;
 
-  try {
-    const res = await Api.get('/api/tournament/last');
-    if (!res.analysis || !res.analysis.report_html) return; // sin análisis guardado
+  // Mostrar spinner mientras carga
+  resultEl.style.display = 'block';
+  resultEl.innerHTML = `<div style="text-align:center;padding:24px"><div class="spinner" style="margin:0 auto 10px"></div><p style="color:var(--text3);font-size:0.85rem">${I18N.isEN() ? 'Loading last analysis…' : I18N.isPT() ? 'Carregando última análise…' : 'Cargando último análisis…'}</p></div>`;
 
-    _tournamentAlreadyLoaded = true;
-    const a   = res.analysis;
+  try {
+    const res = await Api.get('/api/tournament/last?t=' + Date.now()); // cache-bust
     const isEN = I18N.isEN();
     const isPT = I18N.isPT();
+
+    if (!res.analysis || !res.analysis.report_html) {
+      // Sin análisis — mostrar zona de upload
+      resultEl.style.display = 'none';
+      const uploadArea = document.getElementById('tourn-upload-area');
+      if (uploadArea) uploadArea.style.display = 'block';
+      return;
+    }
+
+    const a   = res.analysis;
     const dateLocale = isEN ? 'en-GB' : isPT ? 'pt-BR' : 'es-ES';
     const dt  = new Date(a.created_at).toLocaleDateString(dateLocale, { day:'numeric', month:'short', year:'numeric' });
 
-    // Ocultar zona de upload y mostrar el último análisis directamente
+    // Ocultar zona de upload y mostrar el último análisis
     const uploadArea = document.getElementById('tourn-upload-area');
     const fileInfo   = document.getElementById('tourn-file-info');
     if (uploadArea) uploadArea.style.display = 'none';
@@ -981,9 +989,12 @@ async function loadLastTournament() {
     resultEl.innerHTML = `
       <div class="alert alert-info" style="margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
         <span>📂 ${isEN ? 'Last analysis generated on' : isPT ? 'Último análise gerado em' : 'Último análisis generado el'} <strong>${dt}</strong></span>
-        <button class="btn btn-secondary btn-sm" onclick="tournClearFile();loadLastTournament._shown=false;document.getElementById('tourn-upload-area').style.display='block'">
-          ${isEN ? '+ Analyse new hands' : isPT ? '+ Analisar novas mãos' : '+ Analizar nuevas manos'}
-        </button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-secondary btn-sm" onclick="loadLastTournament()" title="${isEN ? 'Refresh' : isPT ? 'Atualizar' : 'Actualizar'}">🔄</button>
+          <button class="btn btn-secondary btn-sm" onclick="tournClearFile();document.getElementById('tourn-result').style.display='none';document.getElementById('tourn-upload-area').style.display='block'">
+            ${isEN ? '+ Analyse new hands' : isPT ? '+ Analisar novas mãos' : '+ Analizar nuevas manos'}
+          </button>
+        </div>
       </div>
       <div class="card" style="margin-bottom:20px">
         <div class="card-header">
@@ -1002,15 +1013,21 @@ async function loadLastTournament() {
         <div id="tourn-report-content">${a.report_html}</div>
       </div>
       <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap">
-        <button class="btn btn-secondary btn-sm" onclick="
-          _tournamentAlreadyLoaded=false;
-          document.getElementById('tourn-result').style.display='none';
-          document.getElementById('tourn-upload-area').style.display='block';
-        ">🔄 ${isEN ? 'Analyse other hands' : isPT ? 'Analisar outras mãos' : 'Analizar otras manos'}</button>
+        <button class="btn btn-secondary btn-sm" onclick="tournClearFile();document.getElementById('tourn-result').style.display='none';document.getElementById('tourn-upload-area').style.display='block'">
+          🔄 ${isEN ? 'Analyse other hands' : isPT ? 'Analisar outras mãos' : 'Analizar otras manos'}
+        </button>
         <button class="btn btn-primary btn-sm" onclick="tournDownloadPDF()">📄 ${isEN ? 'Download PDF' : isPT ? 'Baixar PDF' : 'Descargar PDF'}</button>
       </div>`;
   } catch (e) {
-    // Sin análisis guardado — no mostrar error, el formulario de upload ya está visible
+    // Error de red o autenticación — mostrar opción de reintento
+    const isEN = I18N.isEN();
+    const isPT = I18N.isPT();
+    resultEl.innerHTML = `
+      <div style="text-align:center;padding:20px;background:rgba(239,68,68,0.07);border:1px solid rgba(239,68,68,0.2);border-radius:10px">
+        <p style="color:#f87171;font-size:0.85rem;margin-bottom:10px">⚠️ ${isEN ? 'Could not load analysis. Check your connection.' : isPT ? 'Não foi possível carregar a análise. Verifique sua conexão.' : 'No se pudo cargar el análisis. Verifica tu conexión.'}</p>
+        <button class="btn btn-secondary btn-sm" onclick="loadLastTournament()">🔄 ${isEN ? 'Retry' : isPT ? 'Tentar novamente' : 'Reintentar'}</button>
+      </div>`;
+    console.error('[Tournament] Error cargando último análisis:', e.message);
   }
 }
 
