@@ -1,9 +1,9 @@
-// ─── EVHAPO Service Worker ────────────────────────────────────────────────────
+// ─── MindEV-IA Service Worker ─────────────────────────────────────────────────
 // Versión: incrementar al hacer cambios importantes para forzar actualización
 
-const CACHE_NAME   = 'evhapo-v23';
-const STATIC_CACHE = 'evhapo-static-v20';
-const API_CACHE    = 'evhapo-api-v20';
+const CACHE_NAME   = 'mindev-v25';
+const STATIC_CACHE = 'mindev-static-v25';
+const API_CACHE    = 'mindev-api-v25';
 
 // Archivos que se cachean al instalar (shell de la app)
 const SHELL_FILES = [
@@ -97,9 +97,36 @@ self.addEventListener('fetch', event => {
     return;
   }
 
+  // Navegación HTML (index.html): siempre network first para cargar última versión
+  if (request.mode === 'navigate') {
+    event.respondWith(networkFirstHtml(request));
+    return;
+  }
+
   // Recursos estáticos: cache first, network fallback
   event.respondWith(cacheFirstStatic(request));
 });
+
+// ─── Estrategia: Network First (HTML navigation) ─────────────────────────────
+// Siempre busca en red primero para obtener la última versión del HTML.
+// El index.html tiene version strings en los scripts, así que si el HTML es fresco,
+// todos los JS/CSS también lo serán.
+async function networkFirstHtml(request) {
+  try {
+    const response = await fetch(request);
+    if (response.ok) {
+      const cache = await caches.open(STATIC_CACHE);
+      cache.put(request, response.clone());
+    }
+    return response;
+  } catch {
+    const cached = await caches.match(request);
+    if (cached) return cached;
+    return new Response(offlinePage(), {
+      headers: { 'Content-Type': 'text/html; charset=utf-8' }
+    });
+  }
+}
 
 // ─── Estrategia: Cache First (recursos estáticos) ─────────────────────────────
 async function cacheFirstStatic(request) {
@@ -150,7 +177,7 @@ function offlinePage() {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>EVHAPO – Sin conexión</title>
+  <title>MindEV-IA – Sin conexión</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { background: #0a0e1a; color: #e2e8f0; font-family: 'Segoe UI', sans-serif;
@@ -167,7 +194,7 @@ function offlinePage() {
   <div class="container">
     <div class="icon">♠</div>
     <h1>Sin conexión</h1>
-    <p>EVHAPO necesita conexión a internet para sincronizar tus resultados. Conéctate y vuelve a intentarlo.</p>
+    <p>MindEV-IA necesita conexión a internet para sincronizar tus resultados. Conéctate y vuelve a intentarlo.</p>
     <button onclick="window.location.reload()">🔄 Reintentar</button>
   </div>
 </body>

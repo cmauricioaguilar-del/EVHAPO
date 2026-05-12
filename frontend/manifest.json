@@ -7,7 +7,7 @@
   "display": "standalone",
   "background_color": "#0a0e1a",
   "theme_color": "#d4af37",
-  "orientation": "portrait-primary",
+  "orientation": "any",
   "lang": "es",
   "categories": ["sports", "education", "games"],
   "icons": [
