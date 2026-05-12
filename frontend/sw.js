@@ -1,9 +1,9 @@
 // ─── MindEV-IA Service Worker ─────────────────────────────────────────────────
 // Versión: incrementar al hacer cambios importantes para forzar actualización
 
-const CACHE_NAME   = 'mindev-v25';
-const STATIC_CACHE = 'mindev-static-v25';
-const API_CACHE    = 'mindev-api-v25';
+const CACHE_NAME   = 'mindev-v26';
+const STATIC_CACHE = 'mindev-static-v26';
+const API_CACHE    = 'mindev-api-v26';
 
 // Archivos que se cachean al instalar (shell de la app)
 const SHELL_FILES = [
@@ -27,11 +27,9 @@ const SHELL_FILES = [
   '/js/pages/dashboard.js',
   '/js/pages/tournament.js',
   '/js/app.js',
-  '/icons/icon-192.svg',
-  '/icons/icon-512.svg',
+  '/icons/icon-192-v2.svg',
+  '/icons/icon-512-v2.svg',
   '/icons/mindev-logo.png',
-  '/icons/mindev-logo-es.svg',
-  '/icons/mindev-logo-pt.svg',
   '/icons/flags/es.svg',
   '/icons/flags/cl.png',
   '/icons/flags/ar.png',
