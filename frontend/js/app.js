@@ -37,7 +37,10 @@ function renderCouponBanner() {
   if (!coupon || !coupon.active) return '';
   const d = coupon.days_remaining;
   const isPT = I18N.isPT();
-  const txt = isPT
+  const isEN = I18N.isEN();
+  const txt = isEN
+    ? `⏳ Limited-time access — <strong>${d}</strong> day${d !== 1 ? 's' : ''} remaining`
+    : isPT
     ? `⏳ Acesso por tempo limitado — <strong>${d}</strong> dia${d !== 1 ? 's' : ''} restante${d !== 1 ? 's' : ''}`
     : `⏳ Uso por tiempo limitado — <strong>${d}</strong> día${d !== 1 ? 's' : ''} restante${d !== 1 ? 's' : ''}`;
   return `<div style="background:linear-gradient(135deg,#92400e,#b45309);color:#fef3c7;text-align:center;padding:9px 16px;font-size:0.85rem;font-weight:600;letter-spacing:0.01em">${txt}</div>`;
@@ -47,17 +50,25 @@ function renderNavbar() {
   const user = Api.currentUser();
   const initials = user ? (user.nombre || 'U')[0].toUpperCase() : '';
   const isPT = I18N.isPT();
+  const isEN = I18N.isEN();
 
   // Banderas CSS puras — sin archivos externos, siempre disponibles
   const flagES = `<span style="display:inline-block;flex-shrink:0;width:22px;height:15px;border-radius:2px;background:linear-gradient(to bottom,#c60b1e 25%,#ffc400 25%,#ffc400 75%,#c60b1e 75%)"></span>`;
   const flagBR = `<span style="display:inline-block;flex-shrink:0;width:22px;height:15px;border-radius:2px;background:#009c3b;position:relative;overflow:hidden"><span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:14px;height:10px;background:#FFDF00;clip-path:polygon(50% 0%,100% 50%,50% 100%,0% 50%)"></span></span>`;
+  const flagEN = `<span style="display:inline-block;flex-shrink:0;width:22px;height:15px;border-radius:2px;background:#012169;position:relative;overflow:hidden"><span style="position:absolute;top:0;left:0;width:100%;height:100%;background:linear-gradient(to bottom right,transparent calc(50% - 1.5px),#fff calc(50% - 1.5px),#fff calc(50% + 1.5px),transparent calc(50% + 1.5px)),linear-gradient(to top right,transparent calc(50% - 1.5px),#fff calc(50% - 1.5px),#fff calc(50% + 1.5px),transparent calc(50% + 1.5px))"></span><span style="position:absolute;top:50%;left:0;transform:translateY(-50%);width:100%;height:20%;background:#fff"></span><span style="position:absolute;top:50%;left:0;transform:translateY(-50%);width:100%;height:12%;background:#C8102E"></span><span style="position:absolute;top:0;left:50%;transform:translateX(-50%);width:20%;height:100%;background:#fff"></span><span style="position:absolute;top:0;left:50%;transform:translateX(-50%);width:12%;height:100%;background:#C8102E"></span></span>`;
 
+  const langActive   = isEN ? 'en' : isPT ? 'pt' : 'es';
   const langToggle = `
     <div style="display:flex;gap:4px;align-items:center;margin-right:8px">
+      <button onclick="I18N.set('en')" title="English"
+        style="display:flex;align-items:center;gap:5px;background:${isEN ? 'var(--accent)' : 'transparent'};border:2px solid ${isEN ? 'var(--accent)' : 'var(--border)'};border-radius:8px;padding:4px 8px;cursor:pointer;opacity:${isEN ? '1' : '0.6'};transition:all 0.15s">
+        ${flagEN}
+        <span style="font-size:0.72rem;font-weight:700;color:${isEN ? '#000' : 'var(--text2)'}">EN</span>
+      </button>
       <button onclick="I18N.set('es')" title="Español"
-        style="display:flex;align-items:center;gap:5px;background:${!isPT ? 'var(--accent)' : 'transparent'};border:2px solid ${!isPT ? 'var(--accent)' : 'var(--border)'};border-radius:8px;padding:4px 8px;cursor:pointer;opacity:${!isPT ? '1' : '0.6'};transition:all 0.15s">
+        style="display:flex;align-items:center;gap:5px;background:${langActive === 'es' ? 'var(--accent)' : 'transparent'};border:2px solid ${langActive === 'es' ? 'var(--accent)' : 'var(--border)'};border-radius:8px;padding:4px 8px;cursor:pointer;opacity:${langActive === 'es' ? '1' : '0.6'};transition:all 0.15s">
         ${flagES}
-        <span style="font-size:0.72rem;font-weight:700;color:${!isPT ? '#000' : 'var(--text2)'}">ES</span>
+        <span style="font-size:0.72rem;font-weight:700;color:${langActive === 'es' ? '#000' : 'var(--text2)'}">ES</span>
       </button>
       <button onclick="I18N.set('pt')" title="Português"
         style="display:flex;align-items:center;gap:5px;background:${isPT ? 'var(--accent)' : 'transparent'};border:2px solid ${isPT ? 'var(--accent)' : 'var(--border)'};border-radius:8px;padding:4px 8px;cursor:pointer;opacity:${isPT ? '1' : '0.6'};transition:all 0.15s">
@@ -69,20 +80,20 @@ function renderNavbar() {
   const rightSide = user
     ? `<div class="nav-user">
         ${langToggle}
-        <button class="nav-btn" onclick="App.go('dashboard')">📊 ${isPT ? 'Meu Painel' : 'Mi Dashboard'}</button>
+        <button class="nav-btn" onclick="App.go('dashboard')">📊 ${isEN ? 'My Dashboard' : isPT ? 'Meu Painel' : 'Mi Dashboard'}</button>
         <div class="nav-avatar" title="${user.nombre}" onclick="App.go('dashboard')">${initials}</div>
-        <button class="nav-btn" onclick="doLogout()">${isPT ? 'Sair' : 'Salir'}</button>
+        <button class="nav-btn" onclick="doLogout()">${isEN ? 'Sign out' : isPT ? 'Sair' : 'Salir'}</button>
       </div>`
     : `<div class="nav-links">
         ${langToggle}
-        <button class="nav-btn" onclick="App.go('login')">${isPT ? 'Entrar' : 'Iniciar sesión'}</button>
-        <button class="nav-btn primary" onclick="App.go('register')">${isPT ? 'Começar →' : 'Comenzar →'}</button>
+        <button class="nav-btn" onclick="App.go('login')">${isEN ? 'Sign in' : isPT ? 'Entrar' : 'Iniciar sesión'}</button>
+        <button class="nav-btn primary" onclick="App.go('register')">${isEN ? 'Get started →' : isPT ? 'Começar →' : 'Comenzar →'}</button>
       </div>`;
 
   return `
     <nav class="navbar">
       <div class="nav-brand" onclick="App.go(${user ? "'dashboard'" : "'landing'"})">
-        <img src="${isPT ? '/icons/mindev-logo-pt.svg' : '/icons/mindev-logo-es.svg'}" alt="MindEV" class="nav-logo">
+        <img src="${isEN ? '/icons/mindev-logo-en.svg' : isPT ? '/icons/mindev-logo-pt.svg' : '/icons/mindev-logo-es.svg'}" alt="MindEV" class="nav-logo">
       </div>
       ${rightSide}
     </nav>

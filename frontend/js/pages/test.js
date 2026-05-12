@@ -7,7 +7,7 @@ let _testState = {
 };
 
 function renderTest() {
-  if (!Api.isLoggedIn()) { App.go('login', I18N.isPT() ? 'Entre para continuar' : 'Inicia sesión para continuar'); return; }
+  if (!Api.isLoggedIn()) { App.go('login', I18N.isEN() ? 'Sign in to continue' : I18N.isPT() ? 'Entre para continuar' : 'Inicia sesión para continuar'); return; }
   const sid = localStorage.getItem('evhapo_session');
   if (!sid) { App.go('payment'); return; }
   const testType = localStorage.getItem('evhapo_test_type') || 'mental';
@@ -27,11 +27,12 @@ function renderTestSection() {
   const pct = Math.round((answeredSoFar / totalQ) * 100);
 
   const isPT = I18N.isPT();
+  const isEN = I18N.isEN();
   let questionsHtml = cat.questions.map((q, qi) => {
     const ans = answers[q.id];
     return `
       <div class="question-card ${ans ? 'answered' : ''}" id="qcard-${q.id}">
-        <div class="question-num">${isPT ? 'Pergunta' : 'Pregunta'} ${qi + 1} ${isPT ? 'de' : 'de'} ${cat.questions.length}</div>
+        <div class="question-num">${isEN ? 'Question' : isPT ? 'Pergunta' : 'Pregunta'} ${qi + 1} ${isEN ? 'of' : isPT ? 'de' : 'de'} ${cat.questions.length}</div>
         <div class="question-text">${q.text}</div>
         <div class="options-grid">
           ${q.options.map(opt => `
@@ -56,14 +57,14 @@ function renderTestSection() {
         <img src="/icons/mindev-logo.png" alt="MindEV" class="nav-logo">
       </div>
       <div style="color:var(--text2);font-size:0.875rem">
-        ${answeredSoFar} ${isPT ? 'de' : 'de'} ${totalQ} ${isPT ? 'perguntas respondidas' : 'preguntas respondidas'}
+        ${answeredSoFar} ${isEN ? 'of' : isPT ? 'de' : 'de'} ${totalQ} ${isEN ? 'questions answered' : isPT ? 'perguntas respondidas' : 'preguntas respondidas'}
       </div>
     </div>
 
     <div class="test-header">
       <div class="test-meta">
         <div class="test-category">${cat.icon} ${cat.label}</div>
-        <div class="test-counter">${isPT ? 'Seção' : 'Sección'} ${catIdx + 1} ${isPT ? 'de' : 'de'} ${_testState.categories.length} · ${catAnswered}/${catTotal} ${isPT ? 'respondidas' : 'respondidas'}</div>
+        <div class="test-counter">${isEN ? 'Section' : isPT ? 'Seção' : 'Sección'} ${catIdx + 1} ${isEN ? 'of' : isPT ? 'de' : 'de'} ${_testState.categories.length} · ${catAnswered}/${catTotal} ${isEN ? 'answered' : isPT ? 'respondidas' : 'respondidas'}</div>
       </div>
       <div class="progress-bar">
         <div class="progress-fill" style="width:${pct}%"></div>
@@ -84,14 +85,14 @@ function renderTestSection() {
     <div class="test-nav">
       <div>
         ${catIdx > 0
-          ? `<button class="btn btn-secondary" onclick="navSection(-1)">← ${isPT ? 'Anterior' : 'Anterior'}</button>`
-          : `<button class="btn btn-secondary" onclick="App.go('landing')">← ${isPT ? 'Sair' : 'Salir'}</button>`}
+          ? `<button class="btn btn-secondary" onclick="navSection(-1)">← ${isEN ? 'Previous' : isPT ? 'Anterior' : 'Anterior'}</button>`
+          : `<button class="btn btn-secondary" onclick="App.go('landing')">← ${isEN ? 'Exit' : isPT ? 'Sair' : 'Salir'}</button>`}
       </div>
       <div>
-        <button class="btn btn-outline" onclick="confirmDashboard()" style="margin-right:8px">🏠 ${isPT ? 'Meu Painel' : 'Mi Dashboard'}</button>
+        <button class="btn btn-outline" onclick="confirmDashboard()" style="margin-right:8px">🏠 ${isEN ? 'My Dashboard' : isPT ? 'Meu Painel' : 'Mi Dashboard'}</button>
         ${isLast
-          ? `<button class="btn btn-primary" id="submit-btn" onclick="submitTest()">✓ ${isPT ? 'Ver meus resultados' : 'Ver mis resultados'}</button>`
-          : `<button class="btn btn-primary" onclick="navSection(1)">${isPT ? 'Próxima seção →' : 'Siguiente sección →'}</button>`}
+          ? `<button class="btn btn-primary" id="submit-btn" onclick="submitTest()">✓ ${isEN ? 'See my results' : isPT ? 'Ver meus resultados' : 'Ver mis resultados'}</button>`
+          : `<button class="btn btn-primary" onclick="navSection(1)">${isEN ? 'Next section →' : isPT ? 'Próxima seção →' : 'Siguiente sección →'}</button>`}
       </div>
     </div>`;
 }
@@ -114,10 +115,11 @@ function selectAnswer(qid, value, btn) {
   const catAnswered = cat.questions.filter(q => _testState.answers[q.id] !== undefined).length;
   const counter = document.querySelector('.test-counter');
   const _isPT = I18N.isPT();
-  if (counter) counter.textContent = `${_isPT ? 'Seção' : 'Sección'} ${_testState.catIdx + 1} ${_isPT ? 'de' : 'de'} ${_testState.categories.length} · ${catAnswered}/${cat.questions.length} ${_isPT ? 'respondidas' : 'respondidas'}`;
+  const _isEN = I18N.isEN();
+  if (counter) counter.textContent = `${_isEN ? 'Section' : _isPT ? 'Seção' : 'Sección'} ${_testState.catIdx + 1} ${_isEN ? 'of' : _isPT ? 'de' : 'de'} ${_testState.categories.length} · ${catAnswered}/${cat.questions.length} ${_isEN ? 'answered' : _isPT ? 'respondidas' : 'respondidas'}`;
 
   const navbar = document.querySelector('.navbar div:last-child');
-  if (navbar) navbar.textContent = `${answeredSoFar} ${_isPT ? 'de' : 'de'} ${totalQ} ${_isPT ? 'perguntas respondidas' : 'preguntas respondidas'}`;
+  if (navbar) navbar.textContent = `${answeredSoFar} ${_isEN ? 'of' : _isPT ? 'de' : 'de'} ${totalQ} ${_isEN ? 'questions answered' : _isPT ? 'perguntas respondidas' : 'preguntas respondidas'}`;
 }
 
 function navSection(dir) {
@@ -127,8 +129,9 @@ function navSection(dir) {
   if (dir > 0 && unanswered.length > 0) {
     const w = document.getElementById('unanswered-warn');
     const _isPT2 = I18N.isPT();
+    const _isEN2 = I18N.isEN();
     if (w) {
-      w.innerHTML = `<div class="unanswered-warning">⚠️ ${_isPT2 ? `Por favor responda todas as perguntas desta seção antes de continuar. Faltam ${unanswered.length} resposta(s).` : `Por favor responde todas las preguntas de esta sección antes de continuar. Faltan ${unanswered.length} respuesta(s).`}</div>`;
+      w.innerHTML = `<div class="unanswered-warning">⚠️ ${_isEN2 ? `Please answer all questions in this section before continuing. ${unanswered.length} answer(s) remaining.` : _isPT2 ? `Por favor responda todas as perguntas desta seção antes de continuar. Faltam ${unanswered.length} resposta(s).` : `Por favor responde todas las preguntas de esta sección antes de continuar. Faltan ${unanswered.length} respuesta(s).`}</div>`;
       // Highlight unanswered
       unanswered.forEach(q => {
         const card = document.getElementById(`qcard-${q.id}`);
@@ -147,8 +150,11 @@ function confirmDashboard() {
   const answered = Object.keys(_testState.answers).length;
   const total = _testState.categories.reduce((s, c) => s + c.questions.length, 0);
   const _isPT3 = I18N.isPT();
+  const _isEN3 = I18N.isEN();
   if (answered > 0 && answered < total) {
-    const msg = _isPT3
+    const msg = _isEN3
+      ? `Exit to dashboard? You will lose your progress (${answered} of ${total} questions answered).`
+      : _isPT3
       ? `Sair para o painel? Você perderá seu progresso (${answered} de ${total} perguntas respondidas).`
       : `¿Salir al dashboard? Perderás tu progreso (${answered} de ${total} preguntas respondidas).`;
     if (!confirm(msg)) return;
@@ -157,11 +163,13 @@ function confirmDashboard() {
 }
 
 async function submitTest() {
+  const _isPT5 = I18N.isPT();
+  const _isEN5 = I18N.isEN();
+
   const allQ = _testState.categories.flatMap(c => c.questions);
   const unanswered = allQ.filter(q => _testState.answers[q.id] === undefined);
 
   if (unanswered.length > 0) {
-    // Find which section has unanswered
     for (let i = 0; i < _testState.categories.length; i++) {
       const cat = _testState.categories[i];
       if (cat.questions.some(q => _testState.answers[q.id] === undefined)) {
@@ -169,17 +177,15 @@ async function submitTest() {
         renderTestSection();
         setTimeout(() => {
           const w = document.getElementById('unanswered-warn');
-          const _isPT4 = I18N.isPT();
-          if (w) w.innerHTML = `<div class="unanswered-warning">⚠️ ${_isPT4 ? `Faltam ${unanswered.length} perguntas por responder no teste completo.` : `Faltan ${unanswered.length} preguntas por responder en el test completo.`}</div>`;
+          if (w) w.innerHTML = `<div class="unanswered-warning">⚠️ ${_isEN5 ? `${unanswered.length} unanswered question(s) remaining in the full test.` : _isPT5 ? `Faltam ${unanswered.length} perguntas por responder no teste completo.` : `Faltan ${unanswered.length} preguntas por responder en el test completo.`}</div>`;
         }, 100);
         return;
       }
     }
   }
 
-  const _isPT5 = I18N.isPT();
   const btn = document.getElementById('submit-btn');
-  if (btn) { btn.disabled = true; btn.textContent = _isPT5 ? 'Calculando resultados...' : 'Calculando resultados...'; }
+  if (btn) { btn.disabled = true; btn.textContent = _isEN5 ? 'Calculating results...' : _isPT5 ? 'Calculando resultados...' : 'Calculando resultados...'; }
 
   try {
     const result = await Api.submitTest(_testState.sessionId, _testState.answers);
@@ -187,7 +193,7 @@ async function submitTest() {
     localStorage.setItem('evhapo_session', _testState.sessionId);
     App.go('results', _testState.sessionId);
   } catch (e) {
-    alert((_isPT5 ? 'Erro ao enviar: ' : 'Error al enviar: ') + e.message);
-    if (btn) { btn.disabled = false; btn.textContent = `✓ ${_isPT5 ? 'Ver meus resultados' : 'Ver mis resultados'}`; }
+    alert((_isEN5 ? 'Error submitting: ' : _isPT5 ? 'Erro ao enviar: ' : 'Error al enviar: ') + e.message);
+    if (btn) { btn.disabled = false; btn.textContent = `✓ ${_isEN5 ? 'See my results' : _isPT5 ? 'Ver meus resultados' : 'Ver mis resultados'}`; }
   }
 }

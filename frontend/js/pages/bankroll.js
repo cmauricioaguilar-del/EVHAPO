@@ -10,12 +10,13 @@ const BRM = {
 };
 
 function renderBankroll() {
+  const isEN = I18N.isEN();
   const isPT = I18N.isPT();
   document.getElementById('app').innerHTML = `${renderNavbar()}
     <div style="max-width:720px;margin:32px auto;padding:0 16px">
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
         <button onclick="App.go('dashboard')" style="background:none;border:none;color:var(--text2);cursor:pointer;font-size:1.2rem">←</button>
-        <h2 style="margin:0;color:var(--accent)">💰 Calculadora de Bankroll</h2>
+        <h2 style="margin:0;color:var(--accent)">💰 ${isEN ? 'Bankroll Calculator' : isPT ? 'Calculadora de Bankroll' : 'Calculadora de Bankroll'}</h2>
       </div>
 
       <!-- Formulario -->
@@ -23,7 +24,7 @@ function renderBankroll() {
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px">
 
           <div>
-            <label style="font-size:0.78rem;color:var(--text3);display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em">Formato de juego</label>
+            <label style="font-size:0.78rem;color:var(--text3);display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em">${isEN ? 'Game format' : isPT ? 'Formato de jogo' : 'Formato de juego'}</label>
             <select id="brm-format" onchange="calcBankroll()"
               style="width:100%;background:var(--input);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text1);font-size:0.95rem">
               ${Object.keys(BRM).map(f => `<option value="${f}">${f}</option>`).join('')}
@@ -35,15 +36,15 @@ function renderBankroll() {
             <label style="font-size:0.78rem;color:var(--text3);display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em">Buy-in ($)</label>
             <input type="number" id="brm-buyin" value="10" min="0.01" step="0.01" oninput="calcBankroll()"
               style="width:100%;box-sizing:border-box;background:var(--input);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text1);font-size:0.95rem"
-              placeholder="Ej: 10">
-            <div style="font-size:0.75rem;color:var(--text3);margin-top:4px">Ej: NL10 → $10 · NL25 → $25</div>
+              placeholder="${isEN ? 'e.g. 10' : 'Ej: 10'}">
+            <div style="font-size:0.75rem;color:var(--text3);margin-top:4px">${isEN ? 'e.g. NL10 → $10 · NL25 → $25' : 'Ej: NL10 → $10 · NL25 → $25'}</div>
           </div>
 
           <div>
-            <label style="font-size:0.78rem;color:var(--text3);display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em">Mi bankroll actual ($)</label>
+            <label style="font-size:0.78rem;color:var(--text3);display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em">${isEN ? 'My current bankroll ($)' : isPT ? 'Meu bankroll atual ($)' : 'Mi bankroll actual ($)'}</label>
             <input type="number" id="brm-bankroll" value="200" min="0" step="1" oninput="calcBankroll()"
               style="width:100%;box-sizing:border-box;background:var(--input);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text1);font-size:0.95rem"
-              placeholder="Ej: 200">
+              placeholder="${isEN ? 'e.g. 200' : 'Ej: 200'}">
           </div>
 
         </div>
@@ -54,12 +55,12 @@ function renderBankroll() {
 
       <!-- Tabla de referencia -->
       <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px;margin-top:24px">
-        <h3 style="margin:0 0 14px;color:var(--text2);font-size:0.9rem">📖 Guía de BRM por formato</h3>
+        <h3 style="margin:0 0 14px;color:var(--text2);font-size:0.9rem">📖 ${isEN ? 'BRM guide by format' : isPT ? 'Guia de BRM por formato' : 'Guía de BRM por formato'}</h3>
         <div style="overflow-x:auto">
         <table style="width:100%;border-collapse:collapse;min-width:420px;font-size:0.83rem">
           <thead>
             <tr style="border-bottom:1px solid var(--border)">
-              ${['Formato','Mínimo','Seguro','Para subir','Bajar si'].map(h =>
+              ${(isEN ? ['Format','Minimum','Safe','To move up','Move down if'] : isPT ? ['Formato','Mínimo','Seguro','Para subir','Baixar se'] : ['Formato','Mínimo','Seguro','Para subir','Bajar si']).map(h =>
                 `<th style="text-align:left;padding:7px 8px;color:var(--text3);font-weight:600;text-transform:uppercase;font-size:0.72rem">${h}</th>`
               ).join('')}
             </tr>
@@ -76,7 +77,7 @@ function renderBankroll() {
           </tbody>
         </table>
         </div>
-        <p style="margin:10px 0 0;color:var(--text3);font-size:0.75rem">bi = buy-ins · Recomendaciones conservadoras para minimizar riesgo de quiebra.</p>
+        <p style="margin:10px 0 0;color:var(--text3);font-size:0.75rem">bi = buy-ins · ${isEN ? 'Conservative recommendations to minimise risk of ruin.' : isPT ? 'Recomendações conservadoras para minimizar risco de ruína.' : 'Recomendaciones conservadoras para minimizar riesgo de quiebra.'}</p>
       </div>
     </div>`;
 
@@ -84,6 +85,8 @@ function renderBankroll() {
 }
 
 function calcBankroll() {
+  const isEN = I18N.isEN();
+  const isPT = I18N.isPT();
   const fmt      = document.getElementById('brm-format')?.value || 'Cash Game';
   const buyIn    = parseFloat(document.getElementById('brm-buyin')?.value || 0);
   const bankroll = parseFloat(document.getElementById('brm-bankroll')?.value || 0);
@@ -104,25 +107,50 @@ function calcBankroll() {
   // Estado
   let status, statusColor, statusIcon, statusMsg, recommendation;
   if (numBi < brm.moveDown) {
-    status = 'PELIGRO';        statusColor = '#ef4444'; statusIcon = '🔴';
-    statusMsg = 'Bankroll insuficiente. Alto riesgo de quiebra.';
-    recommendation = `Baja de límites. Con $${bankroll.toFixed(0)} deberías jugar buy-ins de máximo $${(bankroll / brm.min).toFixed(2)}.`;
+    status = isEN ? 'DANGER' : isPT ? 'PERIGO' : 'PELIGRO';
+    statusColor = '#ef4444'; statusIcon = '🔴';
+    statusMsg = isEN ? 'Insufficient bankroll. High risk of ruin.' : isPT ? 'Bankroll insuficiente. Alto risco de ruína.' : 'Bankroll insuficiente. Alto riesgo de quiebra.';
+    recommendation = isEN
+      ? `Move down in stakes. With $${bankroll.toFixed(0)} you should play buy-ins of at most $${(bankroll / brm.min).toFixed(2)}.`
+      : isPT
+      ? `Baixe de limite. Com $${bankroll.toFixed(0)} você deveria jogar buy-ins de no máximo $${(bankroll / brm.min).toFixed(2)}.`
+      : `Baja de límites. Con $${bankroll.toFixed(0)} deberías jugar buy-ins de máximo $${(bankroll / brm.min).toFixed(2)}.`;
   } else if (numBi < brm.min) {
-    status = 'PRECAUCIÓN';     statusColor = '#f97316'; statusIcon = '🟠';
-    statusMsg = 'Por debajo del mínimo recomendado para este formato.';
-    recommendation = `Necesitas al menos $${(brm.min * buyIn).toFixed(0)} para ${brm.min} buy-ins. Te faltan $${((brm.min * buyIn) - bankroll).toFixed(0)}.`;
+    status = isEN ? 'CAUTION' : isPT ? 'PRECAUÇÃO' : 'PRECAUCIÓN';
+    statusColor = '#f97316'; statusIcon = '🟠';
+    statusMsg = isEN ? 'Below the recommended minimum for this format.' : isPT ? 'Abaixo do mínimo recomendado para este formato.' : 'Por debajo del mínimo recomendado para este formato.';
+    recommendation = isEN
+      ? `You need at least $${(brm.min * buyIn).toFixed(0)} for ${brm.min} buy-ins. You're $${((brm.min * buyIn) - bankroll).toFixed(0)} short.`
+      : isPT
+      ? `Você precisa de pelo menos $${(brm.min * buyIn).toFixed(0)} para ${brm.min} buy-ins. Faltam $${((brm.min * buyIn) - bankroll).toFixed(0)}.`
+      : `Necesitas al menos $${(brm.min * buyIn).toFixed(0)} para ${brm.min} buy-ins. Te faltan $${((brm.min * buyIn) - bankroll).toFixed(0)}.`;
   } else if (numBi < brm.safe) {
-    status = 'ACEPTABLE';      statusColor = '#fbbf24'; statusIcon = '🟡';
-    statusMsg = 'Estás en el mínimo. Puedes jugar, pero con cuidado.';
-    recommendation = `Para jugar cómodo necesitas ${brm.safe} buy-ins ($${(brm.safe * buyIn).toFixed(0)}). Te faltan $${((brm.safe * buyIn) - bankroll).toFixed(0)}.`;
+    status = isEN ? 'ACCEPTABLE' : isPT ? 'ACEITÁVEL' : 'ACEPTABLE';
+    statusColor = '#fbbf24'; statusIcon = '🟡';
+    statusMsg = isEN ? "You're at the minimum. You can play, but be careful." : isPT ? 'Estás no mínimo. Você pode jogar, mas com cuidado.' : 'Estás en el mínimo. Puedes jugar, pero con cuidado.';
+    recommendation = isEN
+      ? `For comfortable play you need ${brm.safe} buy-ins ($${(brm.safe * buyIn).toFixed(0)}). You're $${((brm.safe * buyIn) - bankroll).toFixed(0)} short.`
+      : isPT
+      ? `Para jogar confortável você precisa de ${brm.safe} buy-ins ($${(brm.safe * buyIn).toFixed(0)}). Faltam $${((brm.safe * buyIn) - bankroll).toFixed(0)}.`
+      : `Para jugar cómodo necesitas ${brm.safe} buy-ins ($${(brm.safe * buyIn).toFixed(0)}). Te faltan $${((brm.safe * buyIn) - bankroll).toFixed(0)}.`;
   } else if (numBi < brm.comfortable) {
-    status = 'SALUDABLE';      statusColor = '#4ade80'; statusIcon = '🟢';
-    statusMsg = 'Buen bankroll para este formato. Sigue construyendo.';
-    recommendation = `Para subir al siguiente nivel necesitas ${brm.comfortable} buy-ins ($${(brm.comfortable * buyIn).toFixed(0)}). Te faltan $${((brm.comfortable * buyIn) - bankroll).toFixed(0)}.`;
+    status = isEN ? 'HEALTHY' : isPT ? 'SAUDÁVEL' : 'SALUDABLE';
+    statusColor = '#4ade80'; statusIcon = '🟢';
+    statusMsg = isEN ? 'Good bankroll for this format. Keep building.' : isPT ? 'Bom bankroll para este formato. Continue construindo.' : 'Buen bankroll para este formato. Sigue construyendo.';
+    recommendation = isEN
+      ? `To move up you need ${brm.comfortable} buy-ins ($${(brm.comfortable * buyIn).toFixed(0)}). You're $${((brm.comfortable * buyIn) - bankroll).toFixed(0)} short.`
+      : isPT
+      ? `Para subir de nível você precisa de ${brm.comfortable} buy-ins ($${(brm.comfortable * buyIn).toFixed(0)}). Faltam $${((brm.comfortable * buyIn) - bankroll).toFixed(0)}.`
+      : `Para subir al siguiente nivel necesitas ${brm.comfortable} buy-ins ($${(brm.comfortable * buyIn).toFixed(0)}). Te faltan $${((brm.comfortable * buyIn) - bankroll).toFixed(0)}.`;
   } else {
-    status = 'EXCELENTE';      statusColor = '#4DB6AC'; statusIcon = '💎';
-    statusMsg = '¡Bankroll sólido! Listo para considerar subir de límites.';
-    recommendation = `Con ${Math.floor(numBi)} buy-ins en ${fmt}, tienes un colchón muy saludable. Considera subir al siguiente stake si tu win rate lo justifica.`;
+    status = isEN ? 'EXCELLENT' : isPT ? 'EXCELENTE' : 'EXCELENTE';
+    statusColor = '#4DB6AC'; statusIcon = '💎';
+    statusMsg = isEN ? 'Solid bankroll! Ready to consider moving up in stakes.' : isPT ? 'Bankroll sólido! Pronto para considerar subir de limite.' : '¡Bankroll sólido! Listo para considerar subir de límites.';
+    recommendation = isEN
+      ? `With ${Math.floor(numBi)} buy-ins in ${fmt}, you have a very healthy cushion. Consider moving up if your win rate justifies it.`
+      : isPT
+      ? `Com ${Math.floor(numBi)} buy-ins em ${fmt}, você tem uma margem muito saudável. Considere subir de stake se seu win rate justificar.`
+      : `Con ${Math.floor(numBi)} buy-ins en ${fmt}, tienes un colchón muy saludable. Considera subir al siguiente stake si tu win rate lo justifica.`;
   }
 
   // Riesgo de quiebra (simplificado)
@@ -133,11 +161,7 @@ function calcBankroll() {
   else if (numBi < brm.comfortable) { rorText = '5–10%'; rorColor = '#a3e635'; }
   else                         { rorText = '< 5%';  rorColor = '#4ade80'; }
 
-  // ¿Cuánto para subir al siguiente nivel?
-  const nextLevelBi  = brm.comfortable;
-  const neededForUp  = Math.max(0, (nextLevelBi * buyIn) - bankroll);
-  const nextBuyin    = buyIn * 2.5; // stake siguiente aproximado
-  const safeNextBi   = brm.safe * nextBuyin;
+  const neededForUp  = Math.max(0, (brm.comfortable * buyIn) - bankroll);
 
   resultEl.innerHTML = `
     <!-- Badge de estado -->
@@ -159,23 +183,23 @@ function calcBankroll() {
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:16px">
 
       <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px">
-        <div style="font-size:0.72rem;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px">Riesgo de quiebra</div>
+        <div style="font-size:0.72rem;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px">${isEN ? 'Risk of ruin' : isPT ? 'Risco de ruína' : 'Riesgo de quiebra'}</div>
         <div style="font-size:1.6rem;font-weight:800;color:${rorColor}">${rorText}</div>
-        <div style="font-size:0.75rem;color:var(--text3);margin-top:2px">Estimado, asumiendo juego promedio</div>
+        <div style="font-size:0.75rem;color:var(--text3);margin-top:2px">${isEN ? 'Estimate assuming average play' : isPT ? 'Estimado, assumindo jogo médio' : 'Estimado, asumiendo juego promedio'}</div>
       </div>
 
       <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px">
-        <div style="font-size:0.72rem;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px">Para subir de límite</div>
+        <div style="font-size:0.72rem;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px">${isEN ? 'To move up' : isPT ? 'Para subir de limite' : 'Para subir de límite'}</div>
         <div style="font-size:1.6rem;font-weight:800;color:var(--accent)">
-          ${neededForUp <= 0 ? '¡Listo!' : '+$' + neededForUp.toFixed(0)}
+          ${neededForUp <= 0 ? (isEN ? 'Ready!' : isPT ? 'Pronto!' : '¡Listo!') : '+$' + neededForUp.toFixed(0)}
         </div>
-        <div style="font-size:0.75rem;color:var(--text3);margin-top:2px">${brm.comfortable} buy-ins de $${buyIn} = $${(brm.comfortable * buyIn).toFixed(0)}</div>
+        <div style="font-size:0.75rem;color:var(--text3);margin-top:2px">${brm.comfortable} buy-ins @ $${buyIn} = $${(brm.comfortable * buyIn).toFixed(0)}</div>
       </div>
 
       <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px">
-        <div style="font-size:0.72rem;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px">Bajar si llegas a</div>
+        <div style="font-size:0.72rem;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px">${isEN ? 'Move down if you reach' : isPT ? 'Baixar se chegar em' : 'Bajar si llegas a'}</div>
         <div style="font-size:1.6rem;font-weight:800;color:#f87171">$${(brm.moveDown * buyIn).toFixed(0)}</div>
-        <div style="font-size:0.75rem;color:var(--text3);margin-top:2px">${brm.moveDown} buy-ins — stop-loss de BRM</div>
+        <div style="font-size:0.75rem;color:var(--text3);margin-top:2px">${brm.moveDown} buy-ins — BRM stop-loss</div>
       </div>
 
     </div>
@@ -184,9 +208,9 @@ function calcBankroll() {
     <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:16px">
       <div style="display:flex;justify-content:space-between;font-size:0.8rem;color:var(--text3);margin-bottom:8px">
         <span>0 bi</span>
-        <span style="color:#f97316">${brm.min} mín</span>
-        <span style="color:#fbbf24">${brm.safe} seg</span>
-        <span style="color:#4ade80">${brm.comfortable} excelente</span>
+        <span style="color:#f97316">${brm.min} ${isEN ? 'min' : 'mín'}</span>
+        <span style="color:#fbbf24">${brm.safe} ${isEN ? 'safe' : isPT ? 'seg' : 'seg'}</span>
+        <span style="color:#4ade80">${brm.comfortable} ${isEN ? 'excellent' : 'excelente'}</span>
       </div>
       <div style="background:var(--border);border-radius:6px;height:12px;position:relative;overflow:hidden">
         <div style="position:absolute;left:0;top:0;height:100%;width:${Math.min(100, (numBi / brm.comfortable) * 100)}%;background:linear-gradient(90deg,#ef4444,#f97316,#fbbf24,#4ade80);border-radius:6px;transition:width 0.5s"></div>
@@ -195,13 +219,13 @@ function calcBankroll() {
         <div style="position:absolute;top:0;left:${(brm.safe/brm.comfortable)*100}%;height:100%;width:2px;background:#fbbf24;opacity:0.8"></div>
       </div>
       <div style="text-align:center;margin-top:8px;font-size:0.8rem;color:var(--text2)">
-        ${Math.floor(numBi)} / ${brm.comfortable} buy-ins (${Math.min(100, Math.round((numBi/brm.comfortable)*100))}% del objetivo)
+        ${Math.floor(numBi)} / ${brm.comfortable} buy-ins (${Math.min(100, Math.round((numBi/brm.comfortable)*100))}% ${isEN ? 'of target' : isPT ? 'do objetivo' : 'del objetivo'})
       </div>
     </div>
 
     <!-- Recomendación -->
     <div style="background:#1e2d45;border-left:4px solid ${statusColor};padding:14px 18px;border-radius:0 8px 8px 0">
-      <div style="font-size:0.78rem;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px">💡 Recomendación</div>
+      <div style="font-size:0.78rem;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px">💡 ${isEN ? 'Recommendation' : isPT ? 'Recomendação' : 'Recomendación'}</div>
       <p style="margin:0;color:#cbd5e1;font-size:0.92rem;line-height:1.6">${recommendation}</p>
     </div>`;
 }

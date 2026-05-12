@@ -12,19 +12,20 @@ function downloadPDF() {
 // Devuelve las categorías y funciones correctas según el tipo de test
 function getTestMeta(testType) {
   const isPT = I18N.isPT();
+  const isEN = I18N.isEN();
   if (testType === 'technical') {
     return {
       categories: I18N.techCats(),
       getScore: getTechnicalOverallScore,
       getLevel: getTechnicalLevel,
-      label: isPT ? '⚙️ Técnico' : '⚙️ Técnico',
+      label: isEN ? '⚙️ Technical' : isPT ? '⚙️ Técnico' : '⚙️ Técnico',
     };
   }
   return {
     categories: I18N.cats(),
     getScore: getOverallScore,
     getLevel: getLevel,
-    label: isPT ? '🧠 Mental' : '🧠 Mental',
+    label: isEN ? '🧠 Mental' : isPT ? '🧠 Mental' : '🧠 Mental',
   };
 }
 
@@ -32,7 +33,8 @@ async function renderResults(sessionId) {
   if (!Api.isLoggedIn()) { App.go('login'); return; }
 
   const isPT = I18N.isPT();
-  document.getElementById('app').innerHTML = `${renderNavbar()}<div class="page"><div style="text-align:center;padding:60px"><div class="spinner" style="margin:0 auto"></div><p style="margin-top:16px;color:var(--text2)">${isPT ? 'Calculando seu diagnóstico...' : 'Calculando tu diagnóstico...'}</p></div></div>`;
+  const isEN = I18N.isEN();
+  document.getElementById('app').innerHTML = `${renderNavbar()}<div class="page"><div style="text-align:center;padding:60px"><div class="spinner" style="margin:0 auto"></div><p style="margin-top:16px;color:var(--text2)">${isEN ? 'Calculating your diagnosis...' : isPT ? 'Calculando seu diagnóstico...' : 'Calculando tu diagnóstico...'}</p></div></div>`;
 
   try {
     const sid = sessionId || localStorage.getItem('evhapo_session');
@@ -71,23 +73,23 @@ async function renderResults(sessionId) {
             <div class="cat-score-fill" style="width:${c.pct}%;background:${color}"></div>
           </div>
           ${needsFocus
-            ? `<span class="cat-tag foco">▲ ${isPT ? 'Área de melhoria' : 'Área de mejora'}</span>`
-            : `<span class="cat-tag ok">✓ ${isPT ? 'Ponto forte consolidado' : 'Fortaleza consolidada'}</span>`}
+            ? `<span class="cat-tag foco">▲ ${isEN ? 'Area for improvement' : isPT ? 'Área de melhoria' : 'Área de mejora'}</span>`
+            : `<span class="cat-tag ok">✓ ${isEN ? 'Consolidated strength' : isPT ? 'Ponto forte consolidado' : 'Fortaleza consolidada'}</span>`}
         </div>`;
     }).join('');
 
     const testBadge = testType === 'technical'
-      ? `<span class="chip" style="background:rgba(0,105,92,0.3);color:#4DB6AC">⚙️ ${isPT ? 'Diagnóstico Técnico' : 'Diagnóstico Técnico'}</span>`
-      : `<span class="chip" style="background:rgba(63,81,181,0.3);color:#9FA8DA">🧠 ${isPT ? 'Diagnóstico Mental' : 'Diagnóstico Mental'}</span>`;
+      ? `<span class="chip" style="background:rgba(0,105,92,0.3);color:#4DB6AC">⚙️ ${isEN ? 'Technical Diagnosis' : isPT ? 'Diagnóstico Técnico' : 'Diagnóstico Técnico'}</span>`
+      : `<span class="chip" style="background:rgba(63,81,181,0.3);color:#9FA8DA">🧠 ${isEN ? 'Mental Diagnosis' : isPT ? 'Diagnóstico Mental' : 'Diagnóstico Mental'}</span>`;
 
     document.getElementById('app').innerHTML = `
       ${renderNavbar()}
       <div class="results-hero">
         <div style="display:flex;gap:8px;justify-content:center;margin-bottom:16px">
           ${testBadge}
-          <div class="chip">♠ ${new Date(data.completed_at).toLocaleDateString(isPT ? 'pt-BR' : 'es-ES', {day:'numeric',month:'long',year:'numeric'})}</div>
+          <div class="chip">♠ ${new Date(data.completed_at).toLocaleDateString(isEN ? 'en-GB' : isPT ? 'pt-BR' : 'es-ES', {day:'numeric',month:'long',year:'numeric'})}</div>
         </div>
-        <h1>${isPT ? `Seu diagnóstico está pronto, ${data.nombre}!` : `¡Tu diagnóstico está listo, ${data.nombre}!`}</h1>
+        <h1>${isEN ? `Your diagnosis is ready, ${data.nombre}!` : isPT ? `Seu diagnóstico está pronto, ${data.nombre}!` : `¡Tu diagnóstico está listo, ${data.nombre}!`}</h1>
         <div class="results-hero" style="padding:0">
           <div class="results-level ${level.cls}">${level.label}</div>
           <div class="score-circle" style="--pct:${overall}">
@@ -102,17 +104,17 @@ async function renderResults(sessionId) {
 
       <div class="page">
         <div class="export-bar">
-          <button class="btn btn-secondary btn-sm" onclick="App.go('dashboard')">← ${isPT ? 'Meu painel' : 'Mi dashboard'}</button>
+          <button class="btn btn-secondary btn-sm" onclick="App.go('dashboard')">← ${isEN ? 'My dashboard' : isPT ? 'Meu painel' : 'Mi dashboard'}</button>
           <button class="btn btn-primary btn-sm" onclick="downloadPDF()">
-            ↓ ${isPT ? 'Baixar relatório PDF' : 'Descargar informe PDF'}
+            ↓ ${isEN ? 'Download PDF report' : isPT ? 'Baixar relatório PDF' : 'Descargar informe PDF'}
           </button>
         </div>
 
         <div class="tabs">
-          <button class="tab-btn active" onclick="switchTab('radar')">🕸️ ${isPT ? 'Gráfico Aranha' : 'Gráfico Telaraña'}</button>
-          <button class="tab-btn" onclick="switchTab('scores')">📊 ${isPT ? 'Pontuações' : 'Puntajes'}</button>
-          <button class="tab-btn" onclick="switchTab('report')">📋 ${isPT ? 'Relatório' : 'Informe'}</button>
-          <button class="tab-btn" onclick="switchTab('plan')">🗓️ ${isPT ? 'Plano de Trabalho' : 'Plan de Trabajo'}</button>
+          <button class="tab-btn active" onclick="switchTab('radar')">🕸️ ${isEN ? 'Spider Chart' : isPT ? 'Gráfico Aranha' : 'Gráfico Telaraña'}</button>
+          <button class="tab-btn" onclick="switchTab('scores')">📊 ${isEN ? 'Scores' : isPT ? 'Pontuações' : 'Puntajes'}</button>
+          <button class="tab-btn" onclick="switchTab('report')">📋 ${isEN ? 'Report' : isPT ? 'Relatório' : 'Informe'}</button>
+          <button class="tab-btn" onclick="switchTab('plan')">🗓️ ${isEN ? 'Work Plan' : isPT ? 'Plano de Trabalho' : 'Plan de Trabajo'}</button>
         </div>
 
         <!-- TAB: Radar -->
@@ -121,8 +123,8 @@ async function renderResults(sessionId) {
             <div class="card-header">
               <span class="card-icon">🕸️</span>
               <div>
-                <h2>${isPT ? 'Mapa de Habilidades' : 'Mapa de Habilidades'} ${meta.label}</h2>
-                <div class="card-sub">${isPT ? 'Quanto mais perto da borda exterior, maior é seu desenvolvimento em cada área' : 'Cuánto más cerca del borde exterior, mayor es tu desarrollo en cada área'}</div>
+                <h2>${isEN ? 'Skills Map' : isPT ? 'Mapa de Habilidades' : 'Mapa de Habilidades'} ${meta.label}</h2>
+                <div class="card-sub">${isEN ? 'The closer to the outer edge, the greater your development in each area' : isPT ? 'Quanto mais perto da borda exterior, maior é seu desenvolvimento em cada área' : 'Cuánto más cerca del borde exterior, mayor es tu desarrollo en cada área'}</div>
               </div>
             </div>
             <div class="radar-container">
@@ -132,10 +134,10 @@ async function renderResults(sessionId) {
 
           <!-- Leyenda de colores -->
           <div class="radar-legend">
-            <span><span class="legend-dot" style="background:#22c55e"></span> ${isPT ? 'Ponto forte (≥80%)' : 'Fortaleza (≥80%)'}</span>
-            <span><span class="legend-dot" style="background:#f59e0b"></span> ${isPT ? 'Em desenvolvimento (60–79%)' : 'En desarrollo (60–79%)'}</span>
-            <span><span class="legend-dot" style="background:#f97316"></span> ${isPT ? 'Área de melhoria (40–59%)' : 'Área de mejora (40–59%)'}</span>
-            <span><span class="legend-dot" style="background:#ef4444"></span> ${isPT ? 'Crítico (&lt;40%)' : 'Crítico (&lt;40%)'}</span>
+            <span><span class="legend-dot" style="background:#22c55e"></span> ${isEN ? 'Strength (≥80%)' : isPT ? 'Ponto forte (≥80%)' : 'Fortaleza (≥80%)'}</span>
+            <span><span class="legend-dot" style="background:#f59e0b"></span> ${isEN ? 'Developing (60–79%)' : isPT ? 'Em desenvolvimento (60–79%)' : 'En desarrollo (60–79%)'}</span>
+            <span><span class="legend-dot" style="background:#f97316"></span> ${isEN ? 'Area for improvement (40–59%)' : isPT ? 'Área de melhoria (40–59%)' : 'Área de mejora (40–59%)'}</span>
+            <span><span class="legend-dot" style="background:#ef4444"></span> ${isEN ? 'Critical (&lt;40%)' : isPT ? 'Crítico (&lt;40%)' : 'Crítico (&lt;40%)'}</span>
           </div>
         </div>
 
@@ -157,8 +159,8 @@ async function renderResults(sessionId) {
             <div class="card-header">
               <span class="card-icon">🗓️</span>
               <div>
-                <h2>${isPT ? 'Seu Plano de Trabalho' : 'Tu Plan de Trabajo'}</h2>
-                <div class="card-sub">${isPT ? 'Programa de melhoria personalizado semana a semana com base em suas lacunas' : 'Programa de mejora personalizado semana a semana basado en tus brechas'}</div>
+                <h2>${isEN ? 'Your Work Plan' : isPT ? 'Seu Plano de Trabalho' : 'Tu Plan de Trabajo'}</h2>
+                <div class="card-sub">${isEN ? 'Personalised week-by-week improvement programme based on your gaps' : isPT ? 'Programa de melhoria personalizado semana a semana com base em suas lacunas' : 'Programa de mejora personalizado semana a semana basado en tus brechas'}</div>
               </div>
             </div>
             <div id="workplan-content">
@@ -168,9 +170,9 @@ async function renderResults(sessionId) {
         </div>
 
         <div class="export-bar" style="margin-top:32px">
-          <button class="btn btn-outline" onclick="App.go('dashboard')">← ${isPT ? 'Voltar ao painel' : 'Volver al dashboard'}</button>
+          <button class="btn btn-outline" onclick="App.go('dashboard')">← ${isEN ? 'Back to dashboard' : isPT ? 'Voltar ao painel' : 'Volver al dashboard'}</button>
           <button class="btn btn-primary" onclick="downloadPDF()">
-            ↓ ${isPT ? 'Baixar relatório PDF' : 'Descargar informe PDF'}
+            ↓ ${isEN ? 'Download PDF report' : isPT ? 'Baixar relatório PDF' : 'Descargar informe PDF'}
           </button>
         </div>
       </div>`;
@@ -180,7 +182,8 @@ async function renderResults(sessionId) {
 
   } catch (e) {
     const _isPT = I18N.isPT();
-    document.getElementById('app').innerHTML = `${renderNavbar()}<div class="page"><div class="form-error">${_isPT ? 'Erro ao carregar resultados' : 'Error al cargar resultados'}: ${e.message}</div><button class="btn btn-secondary mt-4" onclick="App.go('dashboard')">← ${_isPT ? 'Painel' : 'Dashboard'}</button></div>`;
+    const _isEN = I18N.isEN();
+    document.getElementById('app').innerHTML = `${renderNavbar()}<div class="page"><div class="form-error">${_isEN ? 'Error loading results' : _isPT ? 'Erro ao carregar resultados' : 'Error al cargar resultados'}: ${e.message}</div><button class="btn btn-secondary mt-4" onclick="App.go('dashboard')">← ${_isEN ? 'Dashboard' : _isPT ? 'Painel' : 'Dashboard'}</button></div>`;
   }
 }
 
@@ -205,7 +208,7 @@ function drawRadarChart(catData, canvasId = 'radarChart', testLabel = '') {
       labels: catData.map(c => c.label),
       datasets: [
         {
-          label: `${testLabel || (I18N && I18N.isPT() ? 'Seu nível' : 'Tu nivel')} (%)`,
+          label: `${testLabel || (I18N && I18N.isEN() ? 'Your level' : I18N && I18N.isPT() ? 'Seu nível' : 'Tu nivel')} (%)`,
           data: catData.map(c => c.pct),
           backgroundColor: bgColor,
           borderColor: accentColor,
@@ -218,7 +221,7 @@ function drawRadarChart(catData, canvasId = 'radarChart', testLabel = '') {
           pointHoverRadius: 7,
         },
         {
-          label: (I18N && I18N.isPT()) ? 'Meta elite (80%)' : 'Objetivo élite (80%)',
+          label: (I18N && I18N.isEN()) ? 'Elite target (80%)' : (I18N && I18N.isPT()) ? 'Meta elite (80%)' : 'Objetivo élite (80%)',
           data: catData.map(() => 80),
           backgroundColor: 'rgba(59,130,246,0.04)',
           borderColor: 'rgba(59,130,246,0.35)',

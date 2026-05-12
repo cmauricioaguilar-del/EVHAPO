@@ -6,14 +6,16 @@ let _sessionsChart = null;
 const SESSION_FORMATS = ['Cash Game', 'MTT', 'SNG', 'Spin & Go', 'Live', 'Home Game'];
 
 async function renderSessions() {
+  const isEN = I18N.isEN();
+  const isPT = I18N.isPT();
   document.getElementById('app').innerHTML = `${renderNavbar()}
     <div style="max-width:960px;margin:32px auto;padding:0 16px">
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;flex-wrap:wrap">
         <button onclick="App.go('dashboard')" style="background:none;border:none;color:var(--text2);cursor:pointer;font-size:1.2rem">←</button>
-        <h2 style="margin:0;color:var(--accent)">🃏 Tracker de Sesiones</h2>
+        <h2 style="margin:0;color:var(--accent)">🃏 ${isEN ? 'Session Tracker' : isPT ? 'Tracker de Sessões' : 'Tracker de Sesiones'}</h2>
         <button onclick="toggleSessionForm()" id="new-session-btn"
           class="btn btn-primary btn-sm" style="margin-left:auto">
-          + Nueva Sesión
+          + ${isEN ? 'New Session' : isPT ? 'Nova Sessão' : 'Nueva Sesión'}
         </button>
       </div>
 
@@ -32,20 +34,22 @@ async function renderSessions() {
 }
 
 function renderSessionForm(prefill = {}) {
+  const isEN = I18N.isEN();
+  const isPT = I18N.isPT();
   const today = new Date().toISOString().slice(0, 10);
   return `
     <div style="background:var(--card);border:1px solid var(--accent);border-radius:12px;padding:24px">
-      <h3 style="margin:0 0 20px;color:var(--accent);font-size:1rem">+ Registrar sesión</h3>
+      <h3 style="margin:0 0 20px;color:var(--accent);font-size:1rem">+ ${isEN ? 'Log session' : isPT ? 'Registrar sessão' : 'Registrar sesión'}</h3>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px">
 
         <div>
-          <label style="font-size:0.78rem;color:var(--text3);display:block;margin-bottom:4px">FECHA *</label>
+          <label style="font-size:0.78rem;color:var(--text3);display:block;margin-bottom:4px">${isEN ? 'DATE *' : isPT ? 'DATA *' : 'FECHA *'}</label>
           <input type="date" id="sf-date" value="${prefill.date || today}"
             style="width:100%;box-sizing:border-box;background:var(--input);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text1);font-size:0.9rem">
         </div>
 
         <div>
-          <label style="font-size:0.78rem;color:var(--text3);display:block;margin-bottom:4px">FORMATO *</label>
+          <label style="font-size:0.78rem;color:var(--text3);display:block;margin-bottom:4px">${isEN ? 'FORMAT *' : isPT ? 'FORMATO *' : 'FORMATO *'}</label>
           <select id="sf-format"
             style="width:100%;box-sizing:border-box;background:var(--input);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text1);font-size:0.9rem">
             ${SESSION_FORMATS.map(f => `<option value="${f}" ${prefill.format === f ? 'selected' : ''}>${f}</option>`).join('')}
@@ -53,25 +57,25 @@ function renderSessionForm(prefill = {}) {
         </div>
 
         <div>
-          <label style="font-size:0.78rem;color:var(--text3);display:block;margin-bottom:4px">NIVEL / STAKES *</label>
+          <label style="font-size:0.78rem;color:var(--text3);display:block;margin-bottom:4px">${isEN ? 'LEVEL / STAKES *' : isPT ? 'NÍVEL / STAKES *' : 'NIVEL / STAKES *'}</label>
           <input type="text" id="sf-stakes" placeholder="NL10, $5 MTT, $1/$2..." value="${prefill.stakes || ''}"
             style="width:100%;box-sizing:border-box;background:var(--input);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text1);font-size:0.9rem">
         </div>
 
         <div>
-          <label style="font-size:0.78rem;color:var(--text3);display:block;margin-bottom:4px">HORAS JUGADAS *</label>
+          <label style="font-size:0.78rem;color:var(--text3);display:block;margin-bottom:4px">${isEN ? 'HOURS PLAYED *' : isPT ? 'HORAS JOGADAS *' : 'HORAS JUGADAS *'}</label>
           <input type="number" id="sf-hours" min="0.5" max="24" step="0.5" placeholder="2.5" value="${prefill.hours || ''}"
             style="width:100%;box-sizing:border-box;background:var(--input);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text1);font-size:0.9rem">
         </div>
 
         <div>
-          <label style="font-size:0.78rem;color:var(--text3);display:block;margin-bottom:4px">RESULTADO ($) *</label>
-          <input type="number" id="sf-profit" step="0.01" placeholder="-15.50 o +120" value="${prefill.profit_loss != null ? prefill.profit_loss : ''}"
+          <label style="font-size:0.78rem;color:var(--text3);display:block;margin-bottom:4px">${isEN ? 'RESULT ($) *' : isPT ? 'RESULTADO ($) *' : 'RESULTADO ($) *'}</label>
+          <input type="number" id="sf-profit" step="0.01" placeholder="${isEN ? '-15.50 or +120' : '-15.50 o +120'}" value="${prefill.profit_loss != null ? prefill.profit_loss : ''}"
             style="width:100%;box-sizing:border-box;background:var(--input);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text1);font-size:0.9rem">
         </div>
 
         <div>
-          <label style="font-size:0.78rem;color:var(--text3);display:block;margin-bottom:4px">ESTADO MENTAL (1–10) *</label>
+          <label style="font-size:0.78rem;color:var(--text3);display:block;margin-bottom:4px">${isEN ? 'MENTAL STATE (1–10) *' : isPT ? 'ESTADO MENTAL (1–10) *' : 'ESTADO MENTAL (1–10) *'}</label>
           <div style="display:flex;align-items:center;gap:10px;margin-top:4px">
             <input type="range" id="sf-mental" min="1" max="10" step="1" value="${prefill.mental_state || 7}"
               oninput="document.getElementById('sf-mental-val').textContent=this.value"
@@ -79,33 +83,37 @@ function renderSessionForm(prefill = {}) {
             <span id="sf-mental-val" style="font-weight:700;color:var(--accent);min-width:20px;text-align:center">${prefill.mental_state || 7}</span>
           </div>
           <div style="display:flex;justify-content:space-between;font-size:0.7rem;color:var(--text3);margin-top:2px">
-            <span>😤 Inclinado</span><span>😎 Óptimo</span>
+            <span>😤 ${isEN ? 'Tilted' : isPT ? 'Em tilt' : 'Inclinado'}</span><span>😎 ${isEN ? 'Optimal' : isPT ? 'Ótimo' : 'Óptimo'}</span>
           </div>
         </div>
 
       </div>
 
       <div style="margin-top:14px">
-        <label style="font-size:0.78rem;color:var(--text3);display:block;margin-bottom:4px">NOTAS (opcional)</label>
-        <textarea id="sf-notes" placeholder="¿Algo notable de esta sesión?" rows="2"
+        <label style="font-size:0.78rem;color:var(--text3);display:block;margin-bottom:4px">${isEN ? 'NOTES (optional)' : isPT ? 'NOTAS (opcional)' : 'NOTAS (opcional)'}</label>
+        <textarea id="sf-notes" placeholder="${isEN ? 'Anything notable about this session?' : isPT ? 'Algo de notável nesta sessão?' : '¿Algo notable de esta sesión?'}" rows="2"
           style="width:100%;box-sizing:border-box;background:var(--input);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text1);font-size:0.9rem;resize:vertical">${prefill.notes || ''}</textarea>
       </div>
 
       <div style="display:flex;gap:10px;margin-top:16px">
-        <button class="btn btn-primary" onclick="saveSession()" style="flex:1">💾 Guardar sesión</button>
-        <button class="btn btn-secondary" onclick="toggleSessionForm()">Cancelar</button>
+        <button class="btn btn-primary" onclick="saveSession()" style="flex:1">💾 ${isEN ? 'Save session' : isPT ? 'Salvar sessão' : 'Guardar sesión'}</button>
+        <button class="btn btn-secondary" onclick="toggleSessionForm()">${isEN ? 'Cancel' : isPT ? 'Cancelar' : 'Cancelar'}</button>
       </div>
       <div id="sf-error" style="color:#ef4444;font-size:0.85rem;margin-top:8px;display:none"></div>
     </div>`;
 }
 
 function toggleSessionForm() {
+  const isEN = I18N.isEN();
+  const isPT = I18N.isPT();
   const wrap = document.getElementById('session-form-wrap');
   const btn  = document.getElementById('new-session-btn');
   if (!wrap) return;
   const open = wrap.style.display === 'none';
   wrap.style.display = open ? 'block' : 'none';
-  if (btn) btn.textContent = open ? '✕ Cancelar' : '+ Nueva Sesión';
+  if (btn) btn.textContent = open
+    ? `✕ ${isEN ? 'Cancel' : isPT ? 'Cancelar' : 'Cancelar'}`
+    : `+ ${isEN ? 'New Session' : isPT ? 'Nova Sessão' : 'Nueva Sesión'}`;
   if (open) wrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
@@ -147,6 +155,7 @@ async function loadSessions() {
 }
 
 function renderSessionsContent({ stats, chart }) {
+  const isEN = I18N.isEN();
   const isPT = I18N.isPT();
   let html = '';
 
@@ -154,8 +163,8 @@ function renderSessionsContent({ stats, chart }) {
     html = `
       <div class="card" style="text-align:center;padding:48px">
         <div style="font-size:3rem;margin-bottom:12px">🃏</div>
-        <h3 style="color:var(--text2);margin:0 0 8px">${isPT ? 'Nenhuma sessão registrada' : 'Aún no hay sesiones registradas'}</h3>
-        <p style="color:var(--text3);font-size:0.9rem">${isPT ? 'Clique em "+ Nova Sessão" para começar a registrar.' : 'Haz clic en "+ Nueva Sesión" para empezar a registrar.'}</p>
+        <h3 style="color:var(--text2);margin:0 0 8px">${isEN ? 'No sessions logged yet' : isPT ? 'Nenhuma sessão registrada' : 'Aún no hay sesiones registradas'}</h3>
+        <p style="color:var(--text3);font-size:0.9rem">${isEN ? 'Click "+ New Session" to start logging.' : isPT ? 'Clique em "+ Nova Sessão" para começar a registrar.' : 'Haz clic en "+ Nueva Sesión" para empezar a registrar.'}</p>
       </div>`;
     document.getElementById('sessions-content').innerHTML = html;
     return;
@@ -166,31 +175,37 @@ function renderSessionsContent({ stats, chart }) {
   const rateColor   = stats.hourly_rate  >= 0 ? '#4ade80' : '#f87171';
 
   html += `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:24px">
-    ${statCard(stats.total_sessions, isPT ? 'Sessões totais' : 'Sesiones totales', 'var(--accent)', `${stats.sessions_30d} últimos 30d`)}
-    ${statCard((stats.total_profit >= 0 ? '+' : '') + '$' + stats.total_profit.toFixed(2), isPT ? 'Resultado total' : 'Resultado total', profitColor)}
-    ${statCard('$' + stats.hourly_rate.toFixed(2) + '/h', isPT ? 'Taxa horária' : 'Tasa por hora', rateColor, `${stats.total_hours}h totales`)}
-    ${statCard(stats.avg_mental + '/10', isPT ? 'Mental promedio' : 'Mental promedio', '#fbbf24')}
-    ${stats.best_format ? statCard(stats.best_format, isPT ? 'Mejor formato' : 'Mejor formato', '#4DB6AC', '$' + (stats.fmt_profit[stats.best_format] || 0).toFixed(2)) : ''}
+    ${statCard(stats.total_sessions, isEN ? 'Total sessions' : isPT ? 'Sessões totais' : 'Sesiones totales', 'var(--accent)', `${stats.sessions_30d} ${isEN ? 'last 30d' : 'últimos 30d'}`)}
+    ${statCard((stats.total_profit >= 0 ? '+' : '') + '$' + stats.total_profit.toFixed(2), isEN ? 'Total result' : isPT ? 'Resultado total' : 'Resultado total', profitColor)}
+    ${statCard('$' + stats.hourly_rate.toFixed(2) + '/h', isEN ? 'Hourly rate' : isPT ? 'Taxa horária' : 'Tasa por hora', rateColor, `${stats.total_hours}h ${isEN ? 'total' : 'totales'}`)}
+    ${statCard(stats.avg_mental + '/10', isEN ? 'Avg mental state' : isPT ? 'Mental médio' : 'Mental promedio', '#fbbf24')}
+    ${stats.best_format ? statCard(stats.best_format, isEN ? 'Best format' : isPT ? 'Mejor formato' : 'Mejor formato', '#4DB6AC', '$' + (stats.fmt_profit[stats.best_format] || 0).toFixed(2)) : ''}
   </div>`;
 
   // ── Gráfico de profit acumulado ──
   if (chart && chart.length > 1) {
     html += `
       <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:24px">
-        <h3 style="margin:0 0 14px;color:var(--text2);font-size:0.95rem">📈 Profit acumulado</h3>
+        <h3 style="margin:0 0 14px;color:var(--text2);font-size:0.95rem">📈 ${isEN ? 'Cumulative profit' : isPT ? 'Profit acumulado' : 'Profit acumulado'}</h3>
         <canvas id="sessions-chart" style="max-height:200px"></canvas>
       </div>`;
   }
 
   // ── Tabla de sesiones ──
+  const tableHeaders = isEN
+    ? ['Date','Format','Stakes','Hours','Result','Mental','Notes','']
+    : isPT
+    ? ['Data','Formato','Stakes','Horas','Resultado','Mental','Notas','']
+    : ['Fecha','Formato','Stakes','Horas','Resultado','Mental','Notas',''];
+
   html += `
     <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px">
-      <h3 style="margin:0 0 14px;color:var(--text2);font-size:0.95rem">📋 Historial de sesiones</h3>
+      <h3 style="margin:0 0 14px;color:var(--text2);font-size:0.95rem">📋 ${isEN ? 'Session history' : isPT ? 'Histórico de sessões' : 'Historial de sesiones'}</h3>
       <div style="overflow-x:auto">
       <table style="width:100%;border-collapse:collapse;min-width:600px">
         <thead>
           <tr style="border-bottom:1px solid var(--border)">
-            ${['Fecha','Formato','Stakes','Horas','Resultado','Mental','Notas',''].map(h =>
+            ${tableHeaders.map(h =>
               `<th style="text-align:left;padding:8px;color:var(--text3);font-size:0.75rem;font-weight:600;text-transform:uppercase">${h}</th>`
             ).join('')}
           </tr>
@@ -219,7 +234,7 @@ function renderSessionsContent({ stats, chart }) {
         </tbody>
       </table>
       </div>
-      <p style="margin:10px 0 0;color:var(--text3);font-size:0.78rem">${_allSessions.length} sesión${_allSessions.length !== 1 ? 'es' : ''}</p>
+      <p style="margin:10px 0 0;color:var(--text3);font-size:0.78rem">${_allSessions.length} ${isEN ? `session${_allSessions.length !== 1 ? 's' : ''}` : isPT ? `sessão${_allSessions.length !== 1 ? 'ões' : ''}` : `sesión${_allSessions.length !== 1 ? 'es' : ''}`}</p>
     </div>`;
 
   document.getElementById('sessions-content').innerHTML = html;
@@ -240,6 +255,8 @@ function statCard(val, label, color, sub = '') {
 }
 
 function buildSessionsChart(chart) {
+  const isEN = I18N.isEN();
+  const isPT = I18N.isPT();
   const ctx = document.getElementById('sessions-chart');
   if (!ctx) return;
   if (_sessionsChart) { _sessionsChart.destroy(); _sessionsChart = null; }
@@ -253,7 +270,7 @@ function buildSessionsChart(chart) {
     data: {
       labels,
       datasets: [{
-        label: 'Profit acumulado ($)',
+        label: isEN ? 'Cumulative profit ($)' : isPT ? 'Profit acumulado ($)' : 'Profit acumulado ($)',
         data,
         borderColor: data[data.length - 1] >= 0 ? '#4ade80' : '#f87171',
         backgroundColor: data[data.length - 1] >= 0 ? 'rgba(74,222,128,0.08)' : 'rgba(248,113,113,0.08)',
@@ -270,7 +287,10 @@ function buildSessionsChart(chart) {
           callbacks: {
             label: ctx => {
               const r = chart[ctx.dataIndex];
-              return [`Acumulado: ${r.cumulative >= 0 ? '+' : ''}$${r.cumulative}`, `Sesión: ${r.profit_loss >= 0 ? '+' : ''}$${r.profit_loss}`, `Fecha: ${r.date}`];
+              const cumLabel = isEN ? 'Cumulative' : isPT ? 'Acumulado' : 'Acumulado';
+              const sessLabel = isEN ? 'Session' : isPT ? 'Sessão' : 'Sesión';
+              const dateLabel = isEN ? 'Date' : 'Fecha';
+              return [`${cumLabel}: ${r.cumulative >= 0 ? '+' : ''}$${r.cumulative}`, `${sessLabel}: ${r.profit_loss >= 0 ? '+' : ''}$${r.profit_loss}`, `${dateLabel}: ${r.date}`];
             }
           }
         }
@@ -285,7 +305,9 @@ function buildSessionsChart(chart) {
 }
 
 async function deletePokerSession(sid) {
-  if (!confirm('¿Eliminar esta sesión?')) return;
+  const isEN = I18N.isEN();
+  const isPT = I18N.isPT();
+  if (!confirm(isEN ? 'Delete this session?' : isPT ? 'Excluir esta sessão?' : '¿Eliminar esta sesión?')) return;
   try {
     await Api._req('DELETE', `/api/sessions/${sid}`);
     _allSessions = _allSessions.filter(s => s.id !== sid);

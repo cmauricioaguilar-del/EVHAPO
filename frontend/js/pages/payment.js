@@ -21,14 +21,15 @@ async function renderPayment() {
   };
   const prices = priceMap[pais] || { unique: 'USD $9.90', sub: 'USD $4.90' };
   const isPT   = I18N.isPT();
+  const isEN   = I18N.isEN();
 
   document.getElementById('app').innerHTML = `${renderNavbar()}
     <div class="auth-container">
       <div class="auth-card" style="max-width:560px">
         <div style="text-align:center;margin-bottom:24px">
           <div style="font-size:2.5rem;color:var(--accent)">♠</div>
-          <h1>${isPT ? 'Escolha seu plano' : 'Elige tu plan'}</h1>
-          <p class="auth-sub">${isPT ? `Olá ${user.nombre}. Um último passo.` : `Hola ${user.nombre}. Un último paso.`}</p>
+          <h1>${isEN ? 'Choose your plan' : isPT ? 'Escolha seu plano' : 'Elige tu plan'}</h1>
+          <p class="auth-sub">${isEN ? `Hi ${user.nombre}. One last step.` : isPT ? `Olá ${user.nombre}. Um último passo.` : `Hola ${user.nombre}. Un último paso.`}</p>
         </div>
 
         <!-- ── Selector de plan ────────────────────────────────────────── -->
@@ -39,10 +40,10 @@ async function renderPayment() {
             border:2px solid var(--accent);border-radius:12px;padding:16px 14px;cursor:pointer;
             background:rgba(212,175,55,0.08);transition:all 0.15s;position:relative">
             <div style="font-size:0.72rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px">
-              ${isPT ? 'Pagamento Único' : 'Pago Único'}
+              ${isEN ? 'One-Time Payment' : isPT ? 'Pagamento Único' : 'Pago Único'}
             </div>
             <div style="font-size:1.5rem;font-weight:900;color:var(--accent);line-height:1">${prices.unique}</div>
-            <div style="font-size:0.75rem;color:var(--text3);margin-top:4px">${isPT ? 'acesso permanente' : 'acceso permanente'}</div>
+            <div style="font-size:0.75rem;color:var(--text3);margin-top:4px">${isEN ? 'lifetime access' : isPT ? 'acesso permanente' : 'acceso permanente'}</div>
             <div id="plan-unique-check" style="position:absolute;top:10px;right:10px;width:18px;height:18px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:0.65rem;color:#000;font-weight:800">✓</div>
           </div>
 
@@ -53,13 +54,13 @@ async function renderPayment() {
             <div style="position:absolute;top:-10px;left:50%;transform:translateX(-50%);
               background:linear-gradient(135deg,#818cf8,#6366f1);color:#fff;font-size:0.65rem;
               font-weight:800;padding:2px 10px;border-radius:20px;white-space:nowrap;text-transform:uppercase;letter-spacing:0.05em">
-              ${isPT ? '🔥 Mais popular' : '🔥 Más popular'}
+              ${isEN ? '🔥 Most popular' : isPT ? '🔥 Mais popular' : '🔥 Más popular'}
             </div>
             <div style="font-size:0.72rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px">
-              ${isPT ? 'Assinatura Mensal' : 'Suscripción Mensual'}
+              ${isEN ? 'Monthly Subscription' : isPT ? 'Assinatura Mensal' : 'Suscripción Mensual'}
             </div>
             <div style="font-size:1.5rem;font-weight:900;color:#818cf8;line-height:1">${prices.sub}</div>
-            <div style="font-size:0.75rem;color:var(--text3);margin-top:4px">${isPT ? 'por mês · cancela quando quiser' : 'al mes · cancela cuando quieras'}</div>
+            <div style="font-size:0.75rem;color:var(--text3);margin-top:4px">${isEN ? 'per month · cancel anytime' : isPT ? 'por mês · cancela quando quiser' : 'al mes · cancela cuando quieras'}</div>
             <div id="plan-subscription-check" style="position:absolute;top:10px;right:10px;width:18px;height:18px;border-radius:50%;background:var(--border);display:flex;align-items:center;justify-content:center;font-size:0.65rem;color:var(--text3);font-weight:800;opacity:0.4">✓</div>
           </div>
 
@@ -67,29 +68,29 @@ async function renderPayment() {
 
         <!-- Comparación de planes -->
         <div id="plan-features" style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-bottom:20px;font-size:0.82rem;color:var(--text2)">
-          ${_renderPlanFeatures('unique', isPT)}
+          ${_renderPlanFeatures('unique', isPT, isEN)}
         </div>
 
         <!-- Cupón -->
         <div style="margin-bottom:16px;text-align:center">
           <button onclick="toggleCouponSection()"
             style="background:none;border:none;color:var(--accent);cursor:pointer;font-size:0.9rem;padding:4px 0;text-decoration:underline;text-underline-offset:3px">
-            🎟️ ${isPT ? 'Tenho Cupom' : 'Tengo Cupón'}
+            🎟️ ${isEN ? 'I have a Coupon' : isPT ? 'Tenho Cupom' : 'Tengo Cupón'}
           </button>
         </div>
 
         <div id="coupon-section" style="display:none;background:rgba(212,175,55,0.06);border:1px solid rgba(212,175,55,0.3);border-radius:10px;padding:16px;margin-bottom:20px">
           <p style="margin:0 0 10px;font-size:0.88rem;color:var(--text2);font-weight:600">
-            ${isPT ? 'Código de cupom (6 caracteres)' : 'Código de cupón (6 caracteres)'}
+            ${isEN ? 'Coupon code (6 characters)' : isPT ? 'Código de cupom (6 caracteres)' : 'Código de cupón (6 caracteres)'}
           </p>
           <div style="display:flex;gap:8px">
             <input type="text" id="coupon-input" maxlength="6"
-              placeholder="${isPT ? 'Ex: AB12CD' : 'Ej: AB12CD'}"
+              placeholder="${isEN ? 'e.g. AB12CD' : isPT ? 'Ex: AB12CD' : 'Ej: AB12CD'}"
               oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'')"
               style="flex:1;background:var(--input);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text1);font-size:1.1rem;font-family:monospace;letter-spacing:3px;text-transform:uppercase;text-align:center" />
             <button onclick="applyCoupon()" id="coupon-apply-btn"
               style="background:var(--accent);color:#000;border:none;border-radius:8px;padding:10px 20px;font-weight:700;cursor:pointer;font-size:0.9rem;white-space:nowrap">
-              ${isPT ? 'Aplicar' : 'Aplicar'}
+              ${isEN ? 'Apply' : isPT ? 'Aplicar' : 'Aplicar'}
             </button>
           </div>
           <div id="coupon-msg" style="margin-top:8px;min-height:20px"></div>
@@ -99,52 +100,62 @@ async function renderPayment() {
 
         <!-- Métodos de pago -->
         <h3 style="font-size:0.9rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px">
-          ${isPT ? 'Método de pagamento' : 'Método de pago'}
+          ${isEN ? 'Payment method' : isPT ? 'Método de pagamento' : 'Método de pago'}
         </h3>
         <div class="payment-methods">
           <div class="method-card ${isLatam ? 'selected' : ''}" id="method-mercadopago" onclick="selectMethod('mercadopago')">
             <span class="method-icon">💙</span>
             <h3>Mercado Pago</h3>
-            <p>${isPT ? 'Débito · Crédito · Transferência' : 'Débito · Crédito · Transferencia'}</p>
+            <p>${isEN ? 'Debit · Credit · Transfer' : isPT ? 'Débito · Crédito · Transferência' : 'Débito · Crédito · Transferencia'}</p>
           </div>
           <div class="method-card ${!isLatam ? 'selected' : ''}" id="method-paddle" onclick="selectMethod('paddle')">
             <span class="method-icon">💳</span>
-            <h3>${isPT ? 'Cartão Internacional' : 'Tarjeta Internacional'}</h3>
+            <h3>${isEN ? 'International Card' : isPT ? 'Cartão Internacional' : 'Tarjeta Internacional'}</h3>
             <p>Visa · Mastercard · Amex</p>
           </div>
         </div>
 
         <div id="mp-info" class="alert alert-info" style="margin-bottom:16px;${isLatam ? '' : 'display:none'}">
-          ${isPT
+          ${isEN
+            ? '💙 You will be redirected to <strong>Mercado Pago</strong> to complete your payment securely. We accept Visa, Mastercard, debit and bank transfer.'
+            : isPT
             ? '💙 Você será redirecionado para o <strong>Mercado Pago</strong> para concluir o pagamento com segurança. Aceitamos Visa, Mastercard, débito e transferência.'
             : '💙 Serás redirigido a <strong>Mercado Pago</strong> para completar el pago de forma segura. Aceptamos Visa, Mastercard, débito y transferencia.'}
         </div>
         <div id="paddle-info" class="alert alert-info" style="margin-bottom:16px;${!isLatam ? '' : 'display:none'}">
-          ${isPT
+          ${isEN
+            ? '💳 You will be redirected to our secure international checkout. Accepts cards from any country.'
+            : isPT
             ? '💳 Você será redirecionado ao checkout seguro internacional. Aceita cartões de qualquer país.'
             : '💳 Serás redirigido al checkout seguro internacional. Acepta tarjetas de cualquier país.'}
         </div>
 
         <button class="btn btn-primary btn-block btn-lg" id="pay-btn" onclick="doPayment()">
-          ♠ ${isPT ? 'Pagar e começar' : 'Pagar y comenzar'}
+          ♠ ${isEN ? 'Pay and start' : isPT ? 'Pagar e começar' : 'Pagar y comenzar'}
         </button>
 
         <p style="text-align:center;margin-top:16px;font-size:0.8rem;color:var(--text3)">
-          🔒 ${isPT ? 'Pagamento 100% seguro' : 'Pago 100% seguro'}
+          🔒 ${isEN ? '100% secure payment' : isPT ? 'Pagamento 100% seguro' : 'Pago 100% seguro'}
         </p>
       </div>
     </div>`;
 }
 
-function _renderPlanFeatures(plan, isPT) {
+function _renderPlanFeatures(plan, isPT, isEN) {
   if (plan === 'unique') {
-    return isPT
+    return isEN
+      ? `<strong style="color:var(--text1)">One-time payment — lifetime access</strong><br>
+         ✓ Unlimited Mental + Technical tests &nbsp;·&nbsp; ✓ AI Profile &nbsp;·&nbsp; ✓ Study Plan &nbsp;·&nbsp; ✓ Hand Analysis &nbsp;·&nbsp; ✓ Tracker + Bankroll`
+      : isPT
       ? `<strong style="color:var(--text1)">Pagamento único — acesso permanente</strong><br>
          ✓ Testes Mental + Técnico ilimitados &nbsp;·&nbsp; ✓ Perfil IA &nbsp;·&nbsp; ✓ Plano de Estudo &nbsp;·&nbsp; ✓ Análise de Mãos &nbsp;·&nbsp; ✓ Tracker + Bankroll`
       : `<strong style="color:var(--text1)">Pago único — acceso permanente</strong><br>
          ✓ Tests Mental + Técnico ilimitados &nbsp;·&nbsp; ✓ Perfil IA &nbsp;·&nbsp; ✓ Plan de Estudio &nbsp;·&nbsp; ✓ Análisis de Manos &nbsp;·&nbsp; ✓ Tracker + Bankroll`;
   }
-  return isPT
+  return isEN
+    ? `<strong style="color:#818cf8">Subscription — everything included, cancel anytime</strong><br>
+       ✓ Everything in the one-time plan &nbsp;·&nbsp; ✓ Access while active &nbsp;·&nbsp; ✓ Automatic monthly billing &nbsp;·&nbsp; <span style="color:#fbbf24">★ Half the price</span>`
+    : isPT
     ? `<strong style="color:#818cf8">Assinatura — tudo incluído, cancele quando quiser</strong><br>
        ✓ Tudo do plano único &nbsp;·&nbsp; ✓ Acesso enquanto ativo &nbsp;·&nbsp; ✓ Cobrança automática mensal &nbsp;·&nbsp; <span style="color:#fbbf24">★ Metade do preço</span>`
     : `<strong style="color:#818cf8">Suscripción — todo incluido, cancela cuando quieras</strong><br>
@@ -176,7 +187,7 @@ function selectPlan(plan) {
   }
 
   const featEl = document.getElementById('plan-features');
-  if (featEl) featEl.innerHTML = _renderPlanFeatures(plan, I18N.isPT());
+  if (featEl) featEl.innerHTML = _renderPlanFeatures(plan, I18N.isPT(), I18N.isEN());
 }
 
 function selectMethod(method) {
@@ -198,15 +209,16 @@ async function applyCoupon() {
   const msgEl = document.getElementById('coupon-msg');
   const btn   = document.getElementById('coupon-apply-btn');
   const isPT  = I18N.isPT();
+  const isEN  = I18N.isEN();
 
   if (code.length !== 6) {
     msgEl.innerHTML = `<span style="color:#ef4444;font-size:0.85rem">
-      ${isPT ? 'O código deve ter exatamente 6 caracteres.' : 'El código debe tener exactamente 6 caracteres.'}
+      ${isEN ? 'The code must be exactly 6 characters.' : isPT ? 'O código deve ter exatamente 6 caracteres.' : 'El código debe tener exactamente 6 caracteres.'}
     </span>`;
     return;
   }
   btn.disabled    = true;
-  btn.textContent = isPT ? 'Verificando...' : 'Verificando...';
+  btn.textContent = 'Verificando...';
   msgEl.innerHTML = '';
 
   try {
@@ -214,14 +226,14 @@ async function applyCoupon() {
     if (result.ok) {
       await Api.me();
       msgEl.innerHTML = `<span style="color:#4ade80;font-size:0.9rem;font-weight:600">
-        ✓ ${isPT ? `Cupom ativado! ${result.days} dias de acesso.` : `¡Cupón activado! ${result.days} días de acceso.`}
+        ✓ ${isEN ? `Coupon activated! ${result.days} days of access.` : isPT ? `Cupom ativado! ${result.days} dias de acesso.` : `¡Cupón activado! ${result.days} días de acceso.`}
       </span>`;
       setTimeout(() => App.go('dashboard'), 1500);
     }
   } catch (e) {
     msgEl.innerHTML = `<span style="color:#ef4444;font-size:0.85rem">${e.message}</span>`;
     btn.disabled    = false;
-    btn.textContent = isPT ? 'Aplicar' : 'Aplicar';
+    btn.textContent = isEN ? 'Apply' : isPT ? 'Aplicar' : 'Aplicar';
   }
 }
 
@@ -230,10 +242,11 @@ async function doPayment() {
   const errEl = document.getElementById('pay-error');
   const pais  = (JSON.parse(localStorage.getItem('evhapo_user') || '{}').pais || 'CL').toUpperCase();
   const isPT  = I18N.isPT();
+  const isEN  = I18N.isEN();
 
   errEl.innerHTML = '';
   btn.disabled    = true;
-  btn.textContent = isPT ? 'Processando...' : 'Procesando...';
+  btn.textContent = isEN ? 'Processing...' : isPT ? 'Processando...' : 'Procesando...';
 
   try {
     const endpoint = _selectedPlan === 'subscription'
@@ -249,10 +262,10 @@ async function doPayment() {
       return;
     }
 
-    throw new Error(result.error || (isPT ? 'Resposta inesperada' : 'Respuesta inesperada'));
+    throw new Error(result.error || (isEN ? 'Unexpected response' : isPT ? 'Resposta inesperada' : 'Respuesta inesperada'));
   } catch (e) {
     errEl.innerHTML = `<div class="form-error">${e.message}</div>`;
     btn.disabled    = false;
-    btn.textContent = `♠ ${isPT ? 'Pagar e começar' : 'Pagar y comenzar'}`;
+    btn.textContent = `♠ ${isEN ? 'Pay and start' : isPT ? 'Pagar e começar' : 'Pagar y comenzar'}`;
   }
 }

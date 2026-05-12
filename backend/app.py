@@ -231,6 +231,7 @@ def init_db():
         "ALTER TABLE users ADD COLUMN stripe_customer_id TEXT DEFAULT NULL",
         "ALTER TABLE users ADD COLUMN mp_subscription_id TEXT DEFAULT NULL",
         "ALTER TABLE users ADD COLUMN paddle_subscription_id TEXT DEFAULT NULL",
+        "ALTER TABLE users ADD COLUMN idioma TEXT DEFAULT 'es'",
     ]
     for sql in migrations:
         try:
@@ -329,6 +330,9 @@ def register():
     password = data.get('password') or ''
     pais = (data.get('pais') or '').strip()
     sala_preferida = (data.get('sala_preferida') or '').strip()
+    idioma = (data.get('idioma') or 'es').strip().lower()
+    if idioma not in ('es', 'pt', 'en'):
+        idioma = 'es'
     referral_code_raw = (data.get('referral_code') or '').strip()
 
     if not all([nombre, apellido, email, password]):
@@ -370,8 +374,8 @@ def register():
             db.commit()
 
     db.execute(
-        "INSERT INTO users (nombre, apellido, email, password_hash, pais, sala_preferida, referral_code) VALUES (?,?,?,?,?,?,?)",
-        (nombre, apellido, email, hash_password(password), pais, sala_preferida, referral_code)
+        "INSERT INTO users (nombre, apellido, email, password_hash, pais, sala_preferida, referral_code, idioma) VALUES (?,?,?,?,?,?,?,?)",
+        (nombre, apellido, email, hash_password(password), pais, sala_preferida, referral_code, idioma)
     )
     db.commit()
     user_id = db.execute("SELECT id FROM users WHERE email=?", (email,)).fetchone()['id']
@@ -2290,7 +2294,7 @@ def _generate_coupon_email_html(nombre, days_remaining, lang='es'):
     ai_paragraph = ''
     if api_key:
         try:
-            lang_word = 'Spanish' if lang == 'es' else 'Brazilian Portuguese'
+            lang_word = 'English' if lang == 'en' else ('Spanish' if lang == 'es' else 'Brazilian Portuguese')
             prompt = (
                 f"You are MindEV, a poker improvement platform. Write a SHORT motivational paragraph "
                 f"(2-3 sentences) in {lang_word} for a poker player named {nombre} who has "
@@ -2321,25 +2325,40 @@ def _generate_coupon_email_html(nombre, days_remaining, lang='es'):
             print(f"[COUPON] AI paragraph error: {e}")
 
     if not ai_paragraph:
-        ai_paragraph = (
-            'Tu acceso a MindEV sigue activo y cada sesión de estudio cuenta. '
-            'Aprovechar estos días para identificar y trabajar tus fugas mentales '
-            'puede marcar la diferencia en tus resultados a largo plazo.'
-            if lang == 'es' else
-            'Seu acesso ao MindEV continua ativo e cada sessão de estudo conta. '
-            'Aproveitar esses dias para identificar e trabalhar suas fugas mentais '
-            'pode fazer a diferença nos seus resultados a longo prazo.'
-        )
+        if lang == 'en':
+            ai_paragraph = (
+                'Your MindEV access is still active and every study session counts. '
+                'Using these days to identify and work on your mental leaks '
+                'can make a real difference to your long-term results.'
+            )
+        elif lang == 'pt':
+            ai_paragraph = (
+                'Seu acesso ao MindEV continua ativo e cada sessão de estudo conta. '
+                'Aproveitar esses dias para identificar e trabalhar suas fugas mentais '
+                'pode fazer a diferença nos seus resultados a longo prazo.'
+            )
+        else:
+            ai_paragraph = (
+                'Tu acceso a MindEV sigue activo y cada sesión de estudio cuenta. '
+                'Aprovechar estos días para identificar y trabajar tus fugas mentales '
+                'puede marcar la diferencia en tus resultados a largo plazo.'
+            )
 
-    subject_label = (
-        f"Tienes {days_remaining} días restantes en MindEV"
-        if lang == 'es' else
-        f"Você tem {days_remaining} dias restantes no MindEV"
-    )
-    greeting  = f"{'Hola' if lang == 'es' else 'Olá'}, {nombre}!"
-    cta_text  = 'Acceder a MindEV' if lang == 'es' else 'Acessar MindEV'
-    sub_text  = ('Diagnóstico Mental y Técnico para Poker'
-                 if lang == 'es' else 'Diagnóstico Mental e Técnico para Poker')
+    if lang == 'en':
+        subject_label = f"You have {days_remaining} days remaining on MindEV"
+        greeting  = f"Hi, {nombre}!"
+        cta_text  = 'Access MindEV'
+        sub_text  = 'Mental & Technical Diagnosis for Poker'
+    elif lang == 'pt':
+        subject_label = f"Você tem {days_remaining} dias restantes no MindEV"
+        greeting  = f"Olá, {nombre}!"
+        cta_text  = 'Acessar MindEV'
+        sub_text  = 'Diagnóstico Mental e Técnico para Poker'
+    else:
+        subject_label = f"Tienes {days_remaining} días restantes en MindEV"
+        greeting  = f"Hola, {nombre}!"
+        cta_text  = 'Acceder a MindEV'
+        sub_text  = 'Diagnóstico Mental y Técnico para Poker'
     base_url  = os.environ.get('BASE_URL', BASE_URL)
     logo_url  = f"{base_url}/icons/mindev-logo.png"
     logo_pt   = f"{base_url}/icons/mindev-logo-pt.svg"
@@ -2392,10 +2411,30 @@ def _generate_coupon_welcome_html(nombre, lang='es'):
     """HTML del correo de bienvenida al activar un cupón."""
     base_url = os.environ.get('BASE_URL', BASE_URL)
     logo_url = f"{base_url}/icons/mindev-logo.png"
-    sub_text = ('Diagnóstico Mental y Técnico para Poker'
-                if lang == 'es' else 'Diagnóstico Mental e Técnico para Poker')
+    if lang == 'en':
+        sub_text = 'Mental & Technical Diagnosis for Poker'
+    elif lang == 'pt':
+        sub_text = 'Diagnóstico Mental e Técnico para Poker'
+    else:
+        sub_text = 'Diagnóstico Mental y Técnico para Poker'
 
-    if lang == 'es':
+    if lang == 'en':
+        greeting   = f"Welcome, {nombre}!"
+        headline   = "✅ Your 30-day access is now active"
+        body_p1    = (
+            "Your coupon was successfully validated. You have <strong>30 full days</strong> "
+            "to explore MindEV and discover exactly which areas you need to work on "
+            "to improve your game."
+        )
+        body_p2    = "With your access you can:"
+        features   = [
+            "🧠 <strong>Mental Test</strong> — identify your emotional and focus leaks",
+            "♠️ <strong>Technical Test</strong> — assess your mastery of key poker concepts",
+            "📊 <strong>Dashboard</strong> — review your results and personalised improvement plan",
+        ]
+        cta_text   = "Get started now"
+        sub_note   = "You will receive a weekly reminder while your access is active."
+    elif lang == 'es':
         greeting   = f"¡Bienvenido, {nombre}!"
         headline   = "✅ Tu acceso de 30 días está activo"
         body_p1    = (
@@ -2471,11 +2510,29 @@ def _generate_coupon_welcome_html(nombre, lang='es'):
 
 def _send_coupon_welcome_email(nombre, email, pais, user_id=None):
     """Envía el correo de bienvenida cuando el usuario activa su cupón."""
-    lang = 'pt' if pais and pais.upper() == 'BR' else 'es'
+    # Determine language: prefer stored idioma field, fallback to pais heuristic
+    lang = 'es'
+    if user_id:
+        try:
+            _db = sqlite3.connect(DB_PATH)
+            _db.row_factory = sqlite3.Row
+            row = _db.execute("SELECT idioma FROM users WHERE id=?", (user_id,)).fetchone()
+            _db.close()
+            if row and row['idioma'] in ('es', 'pt', 'en'):
+                lang = row['idioma']
+            elif pais and pais.upper() == 'BR':
+                lang = 'pt'
+        except Exception:
+            lang = 'pt' if pais and pais.upper() == 'BR' else 'es'
+    elif pais and pais.upper() == 'BR':
+        lang = 'pt'
     html = _generate_coupon_welcome_html(nombre, lang)
-    subject = ('¡Tu acceso a MindEV está activo — 30 días!'
-               if lang == 'es' else
-               'Seu acesso ao MindEV está ativo — 30 dias!')
+    if lang == 'en':
+        subject = 'Your MindEV access is active — 30 days!'
+    elif lang == 'pt':
+        subject = 'Seu acesso ao MindEV está ativo — 30 dias!'
+    else:
+        subject = '¡Tu acceso a MindEV está activo — 30 días!'
     try:
         _smtp_send(email, subject, html)
         print(f"[COUPON] Welcome email sent to {email}")
@@ -2497,15 +2554,19 @@ def _generate_coupon_expiry_html(nombre, days_remaining, lang='es'):
     import requests as _requests
     base_url = os.environ.get('BASE_URL', BASE_URL)
     logo_url = f"{base_url}/icons/mindev-logo.png"
-    sub_text = ('Diagnóstico Mental y Técnico para Poker'
-                if lang == 'es' else 'Diagnóstico Mental e Técnico para Poker')
+    if lang == 'en':
+        sub_text = 'Mental & Technical Diagnosis for Poker'
+    elif lang == 'pt':
+        sub_text = 'Diagnóstico Mental e Técnico para Poker'
+    else:
+        sub_text = 'Diagnóstico Mental y Técnico para Poker'
 
     # Párrafo generado por IA (urgencia)
     ai_paragraph = ''
     api_key = _get_api_key()
     if api_key:
         try:
-            lang_word = 'Spanish' if lang == 'es' else 'Brazilian Portuguese'
+            lang_word = 'English' if lang == 'en' else ('Spanish' if lang == 'es' else 'Brazilian Portuguese')
             prompt = (
                 f"You are MindEV, a poker improvement platform. Write a SHORT urgent paragraph "
                 f"(2-3 sentences) in {lang_word} for a poker player named {nombre} who has only "
@@ -2534,17 +2595,30 @@ def _generate_coupon_expiry_html(nombre, days_remaining, lang='es'):
             print(f"[COUPON] Expiry AI paragraph error: {e}")
 
     if not ai_paragraph:
-        ai_paragraph = (
-            f'Tu acceso a MindEV vence en {days_remaining} día{"s" if days_remaining != 1 else ""}. '
-            'Es el momento ideal para completar tu diagnóstico y descargar tu plan de mejora antes '
-            'de que expire tu acceso.'
-            if lang == 'es' else
-            f'Seu acesso ao MindEV expira em {days_remaining} dia{"s" if days_remaining != 1 else ""}. '
-            'É o momento ideal para completar seu diagnóstico e baixar seu plano de melhoria antes '
-            'que seu acesso expire.'
-        )
+        if lang == 'en':
+            ai_paragraph = (
+                f'Your MindEV access expires in {days_remaining} day{"s" if days_remaining != 1 else ""}. '
+                'This is the ideal time to complete your diagnosis and download your improvement plan '
+                'before your access expires.'
+            )
+        elif lang == 'pt':
+            ai_paragraph = (
+                f'Seu acesso ao MindEV expira em {days_remaining} dia{"s" if days_remaining != 1 else ""}. '
+                'É o momento ideal para completar seu diagnóstico e baixar seu plano de melhoria antes '
+                'que seu acesso expire.'
+            )
+        else:
+            ai_paragraph = (
+                f'Tu acceso a MindEV vence en {days_remaining} día{"s" if days_remaining != 1 else ""}. '
+                'Es el momento ideal para completar tu diagnóstico y descargar tu plan de mejora antes '
+                'de que expire tu acceso.'
+            )
 
-    if lang == 'es':
+    if lang == 'en':
+        greeting     = f"{nombre}, your access is expiring soon!"
+        alert_text   = f"⚠️ Only {days_remaining} day{'s' if days_remaining != 1 else ''} remaining"
+        cta_text     = "Use my access now"
+    elif lang == 'es':
         greeting     = f"¡{nombre}, tu acceso vence pronto!"
         alert_text   = f"⚠️ Solo te quedan {days_remaining} día{'s' if days_remaining != 1 else ''}"
         cta_text     = "Aprovechar mi acceso ahora"
@@ -2584,24 +2658,45 @@ def _generate_coupon_expiry_html(nombre, days_remaining, lang='es'):
     """
 
 
+def _get_user_lang(user_id, pais):
+    """Determine language for a user: check idioma column first, fallback to pais heuristic."""
+    if user_id:
+        try:
+            _db = sqlite3.connect(DB_PATH)
+            _db.row_factory = sqlite3.Row
+            row = _db.execute("SELECT idioma FROM users WHERE id=?", (user_id,)).fetchone()
+            _db.close()
+            if row and row['idioma'] in ('es', 'pt', 'en'):
+                return row['idioma']
+        except Exception:
+            pass
+    return 'pt' if pais and pais.upper() == 'BR' else 'es'
+
+
 def _send_coupon_expiry_warning(user_id, nombre, email, days_remaining, pais):
     """Envía el correo de alerta de expiración (una sola vez, cuando quedan ≤ 3 días)."""
-    lang = 'pt' if pais and pais.upper() == 'BR' else 'es'
+    lang = _get_user_lang(user_id, pais)
     html = _generate_coupon_expiry_html(nombre, days_remaining, lang)
-    subject = (f'⚠️ Tu acceso a MindEV vence en {days_remaining} día{"s" if days_remaining != 1 else ""}'
-               if lang == 'es' else
-               f'⚠️ Seu acesso ao MindEV expira em {days_remaining} dia{"s" if days_remaining != 1 else ""}')
+    if lang == 'en':
+        subject = f'⚠️ Your MindEV access expires in {days_remaining} day{"s" if days_remaining != 1 else ""}'
+    elif lang == 'pt':
+        subject = f'⚠️ Seu acesso ao MindEV expira em {days_remaining} dia{"s" if days_remaining != 1 else ""}'
+    else:
+        subject = f'⚠️ Tu acceso a MindEV vence en {days_remaining} día{"s" if days_remaining != 1 else ""}'
     _smtp_send(email, subject, html)
     print(f"[COUPON] Expiry warning sent to {email} — {days_remaining} days remaining")
 
 
 def _send_coupon_reminder_email(user_id, nombre, email, days_remaining, pais):
     """Envía el correo de recordatorio semanal al usuario con cupón (texto generado por IA)."""
-    lang = 'pt' if pais and pais.upper() == 'BR' else 'es'
+    lang = _get_user_lang(user_id, pais)
     html = _generate_coupon_email_html(nombre, days_remaining, lang)
-    subject = (f"Tienes {days_remaining} dias restantes en MindEV"
-               if lang == 'es' else
-               f"Voce tem {days_remaining} dias restantes no MindEV")
+    if lang == 'en':
+        subject = f"You have {days_remaining} days remaining on MindEV"
+    elif lang == 'pt':
+        subject = f"Voce tem {days_remaining} dias restantes no MindEV"
+    else:
+        subject = f"Tienes {days_remaining} dias restantes en MindEV"
     _smtp_send(email, subject, html)
     print(f"[COUPON] Reminder sent to {email} — {days_remaining} days remaining")
 
@@ -2680,7 +2775,7 @@ def _check_coupon_reminders():
     try:
         now = datetime.datetime.utcnow()
         users = db.execute(
-            "SELECT id, nombre, apellido, email, pais, coupon_activated_at, "
+            "SELECT id, nombre, apellido, email, pais, idioma, coupon_activated_at, "
             "last_coupon_reminder, coupon_expiry_warned, coupon_welcome_sent "
             "FROM users WHERE coupon_activated_at IS NOT NULL AND coupon_activated_at != ''"
         ).fetchall()
@@ -2910,7 +3005,9 @@ def _build_profile_prompt(nombre, mental_answers, technical_answers,
     tech_avg   = round(sum(technical_scores.values()) / max(len(technical_scores), 1), 1)
 
     if lang == 'pt':
-        lang_instruction = "IMPORTANTE: Genera TODO el informe en PORTUGUÉS BRASILEÑO (PT-BR). Todos los títulos, análisis, diagnósticos, recomendaciones y textos deben estar íntegramente en portugués brasileño. No uses español en ninguna parte."
+        lang_instruction = "IMPORTANT: Write the ENTIRE report in BRAZILIAN PORTUGUESE (PT-BR). All titles, analyses, diagnoses, recommendations and text must be entirely in Brazilian Portuguese. Do not use Spanish or English prose anywhere."
+    elif lang == 'en':
+        lang_instruction = "IMPORTANT: Write the ENTIRE report in ENGLISH (UK/US). All titles, analyses, diagnoses, recommendations and text must be entirely in English. Poker technical terms should remain in English as-is."
     else:
         lang_instruction = "IMPORTANTE: Genera todo el informe en ESPAÑOL."
 
