@@ -20,6 +20,7 @@ async function renderDashboard() {
           <p class="text-muted">${isEN ? 'Welcome,' : isPT ? 'Bem-vindo/a,' : 'Bienvenido/a,'} <strong>${user.nombre}</strong>. ${isEN ? 'Your diagnosis and improvement centre.' : isPT ? 'Seu centro de diagnóstico e melhoria.' : 'Tu centro de diagnóstico y mejora.'}</p>
         </div>
         <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button id="wb-download-btn" class="btn btn-secondary" onclick="generateWorkbook()" style="border-color:#d4af37;color:#d4af37;font-weight:700;border-width:2px;background:rgba(212,175,55,0.1);box-shadow:0 0 16px rgba(212,175,55,0.28)">📋&nbsp;${isEN ? 'Control Workbook' : isPT ? 'Caderno de Controle' : 'Cuadernillo de Control'}</button>
           <button class="btn btn-secondary" onclick="showGuide()" style="border-color:#ef4444;color:#ef4444;font-weight:700;border-width:2px">📖 ${isEN ? 'How to use MindEV' : isPT ? 'Como usar MindEV' : 'Cómo usar MindEV'}</button>
           <button class="btn btn-secondary" onclick="App.go('study-plan')" style="border-color:#818cf8;color:#818cf8">📚 ${isEN ? 'Plan' : 'Plan'}</button>
           <button class="btn btn-secondary" onclick="App.go('sessions')" style="border-color:#4DB6AC;color:#4DB6AC">🃏 ${isEN ? 'Sessions' : isPT ? 'Sessões' : 'Sesiones'}</button>
