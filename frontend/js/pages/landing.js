@@ -51,15 +51,10 @@ function renderLanding() {
   const html = `
     <div class="hero">
       <div style="display:flex;justify-content:center;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">
-        ${[['cl','Chile'],['ar','Argentina'],['br','Brasil'],['mx','México'],['co','Colombia'],['pe','Perú'],['uy','Uruguay']].map(([code,name]) =>
-            `<img src="/icons/flags/${code}.png" alt="${name}" title="${name}"
+        ${[['cl','Chile'],['ar','Argentina'],['br','Brasil'],['mx','México'],['co','Colombia'],['pe','Perú'],['uy','Uruguay'],['us','USA'],['ca','Canada'],['gb','UK'],['au','Australia'],['ie','Ireland']].map(([code,name]) =>
+            `<img src="https://flagcdn.com/w40/${code}.png" alt="${name}" title="${name}"
               style="height:28px;width:auto;border-radius:3px;box-shadow:0 1px 4px rgba(0,0,0,0.4)">`
           ).join('')}
-        <span title="USA" style="font-size:1.6rem;line-height:28px">🇺🇸</span>
-        <span title="Canada" style="font-size:1.6rem;line-height:28px">🇨🇦</span>
-        <span title="UK" style="font-size:1.6rem;line-height:28px">🇬🇧</span>
-        <span title="Australia" style="font-size:1.6rem;line-height:28px">🇦🇺</span>
-        <span title="Ireland" style="font-size:1.6rem;line-height:28px">🇮🇪</span>
         <span title="Worldwide" style="font-size:1.6rem;line-height:28px">🌍</span>
       </div>
       <div class="hero-suits">♠ ♥ ♦ ♣</div>
@@ -156,14 +151,11 @@ function renderLanding() {
               : `Usuarios de <strong style="color:var(--text1)">Chile, Argentina, Brasil, México, Colombia, Perú y Uruguay</strong> pueden pagar con tarjeta local en moneda local vía Mercado Pago. Resto del mundo vía checkout internacional seguro.`}
           </div>
           <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center">
-            ${[['cl','Chile'],['ar','Argentina'],['br','Brasil'],['mx','México'],['co','Colombia'],['pe','Perú'],['uy','Uruguay']].map(([code,name]) =>
+            ${[['cl','Chile'],['ar','Argentina'],['br','Brasil'],['mx','México'],['co','Colombia'],['pe','Perú'],['uy','Uruguay'],['us','USA'],['ca','Canada'],['gb','UK'],['au','Australia'],['ie','Ireland']].map(([code,name]) =>
               `<span style="background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:6px;padding:3px 10px;font-size:0.78rem;color:var(--text2);display:inline-flex;align-items:center;gap:5px">
-                <img src="/icons/flags/${code}.png" alt="${name}" style="height:13px;border-radius:2px">${name}
+                <img src="https://flagcdn.com/w20/${code}.png" alt="${name}" style="height:13px;border-radius:2px">${name}
               </span>`
             ).join('')}
-            <span style="background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:6px;padding:3px 10px;font-size:0.78rem;color:var(--text2);display:inline-flex;align-items:center;gap:5px">🇺🇸 USA</span>
-            <span style="background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:6px;padding:3px 10px;font-size:0.78rem;color:var(--text2);display:inline-flex;align-items:center;gap:5px">🇨🇦 Canada</span>
-            <span style="background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:6px;padding:3px 10px;font-size:0.78rem;color:var(--text2);display:inline-flex;align-items:center;gap:5px">🇬🇧 UK</span>
             <span style="background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:6px;padding:3px 10px;font-size:0.78rem;color:var(--text2);display:inline-flex;align-items:center;gap:5px">🌍 ${isEN ? 'Worldwide' : isPT ? 'Resto do mundo' : 'Resto del mundo'}</span>
           </div>
         </div>
