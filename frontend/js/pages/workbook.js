@@ -1375,6 +1375,86 @@ async function wbBuildExcel({ lang, playerName, dateStr, mentalSc, techSc, menta
   wsDx.protect('', { selectLockedCells:true, selectUnlockedCells:false });
 
   // ══════════════════════════════════════════════════════════════════════════
+  //  HOJA SEGUIMIENTO — 2ª pestaña (después de Diagnóstico)
+  // ══════════════════════════════════════════════════════════════════════════
+  const trackerName = lang==='en' ? 'Tracker' : lang==='pt' ? 'Acompanhamento' : 'Seguimiento';
+  const wsTk = wb.addWorksheet(trackerName, { properties:{ tabColor:{ argb: C.purple } } });
+
+  const dayHdrs = t.days; // ['LUN','MAR','MIE','JUE','VIE','SAB','DOM']
+  wsTk.columns = [
+    { key:'wk',     width:6  },
+    { key:'theme',  width:32 },
+    { key:'phase',  width:14 },
+    ...dayHdrs.map(() => ({ width:12 })),
+  ];
+
+  addBrandHeader(wsTk, String.fromCharCode(67 + dayHdrs.length)); // A..J
+
+  const tkTitle = lang==='en' ? 'GLOBAL PROGRESS TRACKER'
+    : lang==='pt' ? 'ACOMPANHAMENTO GLOBAL DE PROGRESSO'
+    : 'SEGUIMIENTO GLOBAL DE PROGRESO';
+  addSectionRow(wsTk, 3, String.fromCharCode(67+dayHdrs.length), tkTitle, C.dark, C.gold, 22);
+
+  // Encabezados columna
+  const tkHdrRow = wsTk.getRow(4);
+  tkHdrRow.height = 18;
+  [t.wkLabel, t.themeLabel, lang==='en'?'PHASE':lang==='pt'?'FASE':'FASE', ...dayHdrs].forEach((h,i) => {
+    const cell = tkHdrRow.getCell(i+1);
+    cell.value = h;
+    sc(cell, { fill:fill(C.navy), font:font(true,9,'FFE2E8F0'), align:align('center','middle'), border:border(C.gold) });
+  });
+  wsTk.views = [{ state:'frozen', xSplit:0, ySplit:4 }];
+
+  // Filas de semanas
+  weeks.forEach((wk, idx) => {
+    const r   = 5 + idx;
+    const row = wsTk.getRow(r);
+    row.height = 20;
+    const phCol = phaseColor(wk.color);
+    const bg    = idx%2===0 ? C.lightBg : C.altBg;
+
+    // Num semana
+    const cN = row.getCell(1);
+    cN.value = wk.n;
+    sc(cN, { fill:fill(phaseBg(wk.color)), font:font(true,9,phCol), align:align('center','middle'), border:border(C.muted) });
+
+    // Tema
+    const cTh = row.getCell(2);
+    cTh.value = wk.theme;
+    sc(cTh, { fill:fill(bg), font:font(false,9,C.black), align:align('left','middle'), border:border(C.muted) });
+
+    // Fase
+    const cPh = row.getCell(3);
+    cPh.value = wk.color==='mental' ? (lang==='en'?'Mental':lang==='pt'?'Mental':'Mental')
+      : wk.color==='technical' ? (lang==='en'?'Technical':lang==='pt'?'Tecnico':'Tecnico')
+      : (lang==='en'?'Integration':lang==='pt'?'Integracao':'Integracion');
+    sc(cPh, { fill:fill(phaseBg(wk.color)), font:font(false,8,phCol), align:align('center','middle'), border:border(C.muted) });
+
+    // 7 dropdowns de días
+    for (let d=0; d<7; d++) {
+      addStatusDropdown(row.getCell(4+d));
+    }
+  });
+
+  // Fila de re-test
+  const reTestRow = 5 + weeks.length + 1;
+  const lastTkCol = String.fromCharCode(67+dayHdrs.length);
+  wsTk.mergeCells(`A${reTestRow}:${lastTkCol}${reTestRow}`);
+  const reCell = wsTk.getCell(`A${reTestRow}`);
+  const reNote = lang==='en'
+    ? 'Week 12 RE-TEST — Complete the Mental + Technical tests on MindEV-IA and compare with your initial results.'
+    : lang==='pt'
+    ? 'RE-TESTE Semana 12 — Complete os testes Mental + Tecnico no MindEV-IA e compare com seus resultados iniciais.'
+    : 'RE-TEST Semana 12 — Completa los tests Mental + Tecnico en MindEV-IA y compara con tus resultados iniciales.';
+  reCell.value = reNote;
+  sc(reCell, { fill:fill('FF1A2E1A'), font:font(false,9,'FF4ADE80'), align:align('left','middle',true), border:border('FF4ADE80') });
+  wsTk.getRow(reTestRow).height = 30;
+  reCell.protection = { locked: false };
+
+  wsTk.protect('', { selectLockedCells:true, selectUnlockedCells:true,
+    formatCells:false, insertRows:false, deleteRows:false });
+
+  // ══════════════════════════════════════════════════════════════════════════
   //  HOJAS DE SEMANAS
   // ══════════════════════════════════════════════════════════════════════════
   const dayColHdr   = lang==='en' ? 'DAY'   : lang==='pt' ? 'DIA'    : 'DIA';
@@ -1502,86 +1582,6 @@ async function wbBuildExcel({ lang, playerName, dateStr, mentalSc, techSc, menta
     ws.protect('', { selectLockedCells:true, selectUnlockedCells:true,
       formatCells:false, insertRows:false, deleteRows:false });
   });
-
-  // ══════════════════════════════════════════════════════════════════════════
-  //  HOJA FINAL — SEGUIMIENTO GLOBAL
-  // ══════════════════════════════════════════════════════════════════════════
-  const trackerName = lang==='en' ? 'Tracker' : lang==='pt' ? 'Acompanhamento' : 'Seguimiento';
-  const wsTk = wb.addWorksheet(trackerName, { properties:{ tabColor:{ argb: C.purple } } });
-
-  const dayHdrs = t.days; // ['LUN','MAR','MIE','JUE','VIE','SAB','DOM']
-  wsTk.columns = [
-    { key:'wk',     width:6  },
-    { key:'theme',  width:32 },
-    { key:'phase',  width:14 },
-    ...dayHdrs.map(() => ({ width:12 })),
-  ];
-
-  addBrandHeader(wsTk, String.fromCharCode(67 + dayHdrs.length)); // A..J
-
-  const tkTitle = lang==='en' ? 'GLOBAL PROGRESS TRACKER'
-    : lang==='pt' ? 'ACOMPANHAMENTO GLOBAL DE PROGRESSO'
-    : 'SEGUIMIENTO GLOBAL DE PROGRESO';
-  addSectionRow(wsTk, 3, String.fromCharCode(67+dayHdrs.length), tkTitle, C.dark, C.gold, 22);
-
-  // Encabezados columna
-  const tkHdrRow = wsTk.getRow(4);
-  tkHdrRow.height = 18;
-  [t.wkLabel, t.themeLabel, lang==='en'?'PHASE':lang==='pt'?'FASE':'FASE', ...dayHdrs].forEach((h,i) => {
-    const cell = tkHdrRow.getCell(i+1);
-    cell.value = h;
-    sc(cell, { fill:fill(C.navy), font:font(true,9,'FFE2E8F0'), align:align('center','middle'), border:border(C.gold) });
-  });
-  wsTk.views = [{ state:'frozen', xSplit:0, ySplit:4 }];
-
-  // Filas de semanas
-  weeks.forEach((wk, idx) => {
-    const r   = 5 + idx;
-    const row = wsTk.getRow(r);
-    row.height = 20;
-    const phCol = phaseColor(wk.color);
-    const bg    = idx%2===0 ? C.lightBg : C.altBg;
-
-    // Num semana
-    const cN = row.getCell(1);
-    cN.value = wk.n;
-    sc(cN, { fill:fill(phaseBg(wk.color)), font:font(true,9,phCol), align:align('center','middle'), border:border(C.muted) });
-
-    // Tema
-    const cTh = row.getCell(2);
-    cTh.value = wk.theme;
-    sc(cTh, { fill:fill(bg), font:font(false,9,C.black), align:align('left','middle'), border:border(C.muted) });
-
-    // Fase
-    const cPh = row.getCell(3);
-    cPh.value = wk.color==='mental' ? (lang==='en'?'Mental':lang==='pt'?'Mental':'Mental')
-      : wk.color==='technical' ? (lang==='en'?'Technical':lang==='pt'?'Tecnico':'Tecnico')
-      : (lang==='en'?'Integration':lang==='pt'?'Integracao':'Integracion');
-    sc(cPh, { fill:fill(phaseBg(wk.color)), font:font(false,8,phCol), align:align('center','middle'), border:border(C.muted) });
-
-    // 7 dropdowns de días
-    for (let d=0; d<7; d++) {
-      addStatusDropdown(row.getCell(4+d));
-    }
-  });
-
-  // Fila de re-test
-  const reTestRow = 5 + weeks.length + 1;
-  const lastTkCol = String.fromCharCode(67+dayHdrs.length);
-  wsTk.mergeCells(`A${reTestRow}:${lastTkCol}${reTestRow}`);
-  const reCell = wsTk.getCell(`A${reTestRow}`);
-  const reNote = lang==='en'
-    ? 'Week 12 RE-TEST — Complete the Mental + Technical tests on MindEV-IA and compare with your initial results.'
-    : lang==='pt'
-    ? 'RE-TESTE Semana 12 — Complete os testes Mental + Tecnico no MindEV-IA e compare com seus resultados iniciais.'
-    : 'RE-TEST Semana 12 — Completa los tests Mental + Tecnico en MindEV-IA y compara con tus resultados iniciales.';
-  reCell.value = reNote;
-  sc(reCell, { fill:fill('FF1A2E1A'), font:font(false,9,'FF4ADE80'), align:align('left','middle',true), border:border('FF4ADE80') });
-  wsTk.getRow(reTestRow).height = 30;
-  reCell.protection = { locked: false };
-
-  wsTk.protect('', { selectLockedCells:true, selectUnlockedCells:true,
-    formatCells:false, insertRows:false, deleteRows:false });
 
   // ── Descargar ──
   const buffer = await wb.xlsx.writeBuffer();
