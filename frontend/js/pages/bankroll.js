@@ -102,19 +102,30 @@ function renderBankroll() {
         </div>
         <div>
           <label style="font-size:0.78rem;color:var(--text3);display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em">${L.reentries}</label>
-          <select id="brm-mtt-reentries" onchange="calcBankroll()"
+          <select id="brm-mtt-reentries" onchange="brmMttReentriesChange()"
             style="width:100%;background:var(--input);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text1);font-size:0.95rem">
             <option value="0">${L.freezeout}</option>
             <option value="1">1 re-entry</option>
             <option value="2">2 re-entries</option>
             <option value="3">${L.unlimited}</option>
           </select>
+          <div style="font-size:0.75rem;color:var(--text3);margin-top:4px">
+            ${isEN ? 'How many re-buys the tournament allows after busting.'
+              : isPT ? 'Quantas re-entradas o torneio permite após ser eliminado.'
+              : 'Cuántas re-entradas permite el torneo después de quedar eliminado.'}
+          </div>
         </div>
-        <div>
+        <div id="brm-mtt-rate-wrap">
           <label style="font-size:0.78rem;color:var(--text3);display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em">${L.reentryRate} (%)</label>
           <input type="number" id="brm-mtt-rerate" value="60" min="0" max="100" step="5" oninput="calcBankroll()"
             style="width:100%;box-sizing:border-box;background:var(--input);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text1);font-size:0.95rem">
-          <div style="font-size:0.75rem;color:var(--text3);margin-top:4px">${isEN ? '% of tournaments where you re-enter' : isPT ? '% dos torneios em que você re-entra' : '% de torneos en los que re-entras'}</div>
+          <div style="font-size:0.75rem;color:var(--text3);margin-top:4px;line-height:1.4">
+            ${isEN
+              ? '% of tournaments where you choose to re-enter after busting. 100% = always re-enter; 0% = never.'
+              : isPT
+              ? '% dos torneios em que você opta por re-entrar após ser eliminado. 100% = sempre; 0% = nunca.'
+              : '% de torneos en los que eliges re-entrar al quedar eliminado. 100% = siempre; 0% = nunca.'}
+          </div>
         </div>
         <div>
           <label style="font-size:0.78rem;color:var(--text3);display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em">${L.bankroll}</label>
@@ -149,6 +160,10 @@ function renderBankroll() {
     </div>
   </div>`;
 
+  // Ocultar campo tasa al inicio (Freezeout por defecto)
+  const rateWrap = document.getElementById('brm-mtt-rate-wrap');
+  if (rateWrap) rateWrap.style.display = 'none';
+
   calcBankroll();
 }
 
@@ -171,6 +186,14 @@ function brmTable(brmObj, L) {
         </tr>`).join('')}
     </tbody>
   </table></div>`;
+}
+
+// ─── Cambio de re-entradas: muestra/oculta campo tasa ────────────────────────
+function brmMttReentriesChange() {
+  const reentries = parseInt(document.getElementById('brm-mtt-reentries')?.value || 0);
+  const wrap = document.getElementById('brm-mtt-rate-wrap');
+  if (wrap) wrap.style.display = reentries > 0 ? 'block' : 'none';
+  calcBankroll();
 }
 
 // ─── Cambio de tab ────────────────────────────────────────────────────────────
