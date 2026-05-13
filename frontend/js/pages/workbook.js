@@ -1577,9 +1577,14 @@ async function wbBuildExcel({ lang, playerName, dateStr, mentalSc, techSc, menta
       : (lang==='en'?'Integration':lang==='pt'?'Integracao':'Integracion');
     sc(cPh, { fill:fill(phaseBg(wk.color)), font:font(false,8,phCol), align:align('center','middle'), border:border(C.muted) });
 
-    // 7 dropdowns de días
+    // 7 celdas con fórmula → leen el estado de la hoja semanal en tiempo real
+    // Las hojas semanales tienen el estado en columna D, filas 8-14 (7 días)
+    const wkSheetRef = (lang==='en' ? `Wk.` : `Sem.`) + String(wk.n).padStart(2,'0');
     for (let d=0; d<7; d++) {
-      addStatusDropdown(row.getCell(4+d));
+      const cell = row.getCell(4+d);
+      cell.value = { formula: `='${wkSheetRef}'!D${8+d}` };
+      sc(cell, { fill:fill(bg), font:font(false,9,C.muted), align:align('center','middle'), border:border(C.muted) });
+      // Celda bloqueada: el usuario edita en la hoja semanal, Seguimiento se actualiza solo
     }
   });
 
