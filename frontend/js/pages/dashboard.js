@@ -30,10 +30,15 @@ async function renderDashboard() {
           ${user.is_admin ? `<button class="btn btn-secondary" onclick="App.go('admin-coupons')" style="border-color:var(--accent);color:var(--accent)">🎟️ ${isEN ? 'Coupons' : isPT ? 'Cupons' : 'Cupones'}</button>` : ''}
           <button class="btn btn-secondary" onclick="startNewTest('mental')">🧠 ${isEN ? 'Mental Test' : isPT ? 'Teste Mental' : 'Test Mental'}</button>
           <button class="btn btn-primary"   onclick="startNewTest('technical')">⚙️ ${isEN ? 'Technical Test' : isPT ? 'Teste Técnico' : 'Test Técnico'}</button>
-          <div style="display:inline-flex;border:2px solid #d4af37;border-radius:10px;overflow:hidden;box-shadow:0 0 16px rgba(212,175,55,0.28);background:rgba(212,175,55,0.08)">
-            <button id="wb-pdf-btn" onclick="generateWorkbook()" style="border:none;background:none;color:#d4af37;font-weight:700;cursor:pointer;padding:8px 14px;font-size:0.85rem">📋 PDF</button>
-            <div style="width:1px;background:rgba(212,175,55,0.35);align-self:stretch"></div>
-            <button id="wb-excel-btn" onclick="generateWorkbookExcel()" style="border:none;background:none;color:#d4af37;font-weight:700;cursor:pointer;padding:8px 14px;font-size:0.85rem">📊 Excel</button>
+          <div style="display:inline-flex;flex-direction:column;border:2px solid #d4af37;border-radius:10px;overflow:hidden;box-shadow:0 0 16px rgba(212,175,55,0.28);background:rgba(212,175,55,0.08)">
+            <div style="font-size:0.65rem;font-weight:800;color:#d4af37;text-transform:uppercase;letter-spacing:0.07em;text-align:center;padding:5px 14px 2px;border-bottom:1px solid rgba(212,175,55,0.25)">
+              📒 ${isEN ? 'Export Control Workbook' : isPT ? 'Exportar Caderno de Controle' : 'Exportar Cuaderno de Control'}
+            </div>
+            <div style="display:flex">
+              <button id="wb-pdf-btn" onclick="generateWorkbook()" style="border:none;background:none;color:#d4af37;font-weight:700;cursor:pointer;padding:6px 14px;font-size:0.85rem">📋 PDF</button>
+              <div style="width:1px;background:rgba(212,175,55,0.35);align-self:stretch"></div>
+              <button id="wb-excel-btn" onclick="generateWorkbookExcel()" style="border:none;background:none;color:#d4af37;font-weight:700;cursor:pointer;padding:6px 14px;font-size:0.85rem">📊 Excel</button>
+            </div>
           </div>
         </div>
       </div>
