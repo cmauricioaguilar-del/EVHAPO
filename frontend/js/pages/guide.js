@@ -110,6 +110,7 @@ const GUIDE_STEPS = [
     noteES: 'También disponible en formato Excel con seguimiento automático',
     notePT: 'Também disponível em Excel com acompanhamento automático',
     noteEN: 'Also available in Excel with automatic tracking',
+    noteHighlight: true,
   },
   {
     num: 8,
@@ -156,7 +157,10 @@ function showGuide() {
             ${s.action && btn ? `<button onclick="${s.action};hideGuide()" style="margin-left:auto;background:${s.color}22;border:1px solid ${s.color};color:${s.color};border-radius:6px;padding:3px 10px;font-size:0.75rem;cursor:pointer;font-weight:600">${btn}</button>` : ''}
           </div>
           <p style="margin:0;color:var(--text3);font-size:0.82rem;line-height:1.45">${desc}</p>
-          ${note ? `<span style="display:inline-block;margin-top:4px;font-size:0.75rem;color:var(--text3);background:rgba(255,255,255,0.05);border-radius:4px;padding:2px 7px">💡 ${note}</span>` : ''}
+          ${note ? (s.noteHighlight
+            ? `<span style="display:inline-flex;align-items:center;gap:5px;margin-top:6px;font-size:0.78rem;font-weight:700;color:#d4af37;background:rgba(212,175,55,0.12);border:1px solid rgba(212,175,55,0.4);border-radius:6px;padding:4px 10px">📊 ${note}</span>`
+            : `<span style="display:inline-block;margin-top:4px;font-size:0.75rem;color:var(--text3);background:rgba(255,255,255,0.05);border-radius:4px;padding:2px 7px">💡 ${note}</span>`)
+          : ''}
         </div>
       </div>
       ${connectorLine}`;
