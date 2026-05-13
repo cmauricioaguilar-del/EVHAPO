@@ -54,7 +54,7 @@
   <script src="js/data/technical_questions_pt.js?v=20250511d"></script>
   <script src="js/utils/api.js?v=20250511d"></script>
   <script src="js/utils/report.js?v=20250512f"></script>
-  <script src="js/pages/landing.js?v=20250512j"></script>
+  <script src="js/pages/landing.js?v=20250512k"></script>
   <script src="js/pages/login.js?v=20250512e"></script>
   <script src="js/pages/register.js?v=20250512e"></script>
   <script src="js/pages/payment.js?v=20250512e"></script>
@@ -94,28 +94,63 @@
       }, { once: true });
     }
 
-    // Mostrar botón "Instalar App" cuando el navegador lo permita
-    let deferredInstallPrompt = null;
+    // ── Detección iOS (beforeinstallprompt no existe en iOS Safari) ──────────
+    window._pwaIsIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    window._pwaIsInstalled = window.matchMedia('(display-mode: standalone)').matches
+                          || window.navigator.standalone === true;
+
+    // ── Prompt diferido (Chrome/Edge/Android) ────────────────────────────────
+    window._deferredInstallPrompt = null;
+
     window.addEventListener('beforeinstallprompt', (e) => {
       e.preventDefault();
-      deferredInstallPrompt = e;
-      // Mostrar botón de instalación si existe en el DOM
-      const btn = document.getElementById('pwa-install-btn');
-      if (btn) btn.style.display = 'block';
+      window._deferredInstallPrompt = e;
+      _pwaUpdateInstallBtn();
     });
-
-    window.installPWA = async () => {
-      if (!deferredInstallPrompt) return;
-      deferredInstallPrompt.prompt();
-      const { outcome } = await deferredInstallPrompt.userChoice;
-      console.log('[PWA] Resultado de instalación:', outcome);
-      deferredInstallPrompt = null;
-    };
 
     window.addEventListener('appinstalled', () => {
       console.log('[PWA] App instalada correctamente');
-      deferredInstallPrompt = null;
+      window._deferredInstallPrompt = null;
+      window._pwaIsInstalled = true;
+      _pwaUpdateInstallBtn();
     });
+
+    // ── Función global: muestra/oculta el botón según el estado real ─────────
+    // Llamar después de cada render que incluya #pwa-install-btn
+    window._pwaUpdateInstallBtn = function() {
+      const btn = document.getElementById('pwa-install-btn');
+      if (!btn) return;
+      // No mostrar si ya está instalada
+      if (window._pwaIsInstalled) { btn.style.display = 'none'; return; }
+      // Mostrar si hay prompt disponible (Chrome/Android) o si es iOS
+      if (window._deferredInstallPrompt || window._pwaIsIOS) {
+        btn.style.display = 'inline-flex';
+        btn.style.alignItems = 'center';
+        btn.style.gap = '6px';
+      } else {
+        btn.style.display = 'none';
+      }
+    };
+
+    // ── Acción de instalación ────────────────────────────────────────────────
+    window.installPWA = async () => {
+      if (window._pwaIsIOS) {
+        // iOS: no hay API de instalación — mostrar instrucciones
+        const lang = (typeof I18N !== 'undefined') ? I18N.lang : 'es';
+        const msg = lang === 'en'
+          ? 'To install: tap the Share button (□↑) at the bottom of Safari and select "Add to Home Screen".'
+          : lang === 'pt'
+          ? 'Para instalar: toque no botão Compartilhar (□↑) na barra inferior do Safari e selecione "Adicionar à Tela de Início".'
+          : 'Para instalar: toca el botón Compartir (□↑) en la barra inferior de Safari y selecciona "Agregar a pantalla de inicio".';
+        alert(msg);
+        return;
+      }
+      if (!window._deferredInstallPrompt) return;
+      window._deferredInstallPrompt.prompt();
+      const { outcome } = await window._deferredInstallPrompt.userChoice;
+      console.log('[PWA] Resultado de instalación:', outcome);
+      if (outcome === 'accepted') window._deferredInstallPrompt = null;
+    };
   </script>
 </body>
 </html>

@@ -86,9 +86,11 @@ function renderLanding() {
         </span>
       </div>
 
-      <!-- Botón de instalación PWA (solo aparece cuando el navegador lo permite) -->
-      <button id="pwa-install-btn" class="btn btn-outline btn-sm" style="display:none;margin-top:12px" onclick="installPWA()">
-        📲 ${isEN ? 'Install App on my device' : isPT ? 'Instalar App no meu dispositivo' : 'Instalar App en mi dispositivo'}
+      <!-- Botón PWA: visible en Android/Chrome (prompt nativo) y en iOS (instrucciones) -->
+      <button id="pwa-install-btn" class="btn btn-outline btn-sm"
+        style="display:none;margin-top:12px;align-items:center;gap:6px" onclick="installPWA()">
+        <span id="pwa-install-icon">📲</span>
+        ${isEN ? 'Install App on my device' : isPT ? 'Instalar App no meu dispositivo' : 'Instalar App en mi dispositivo'}
       </button>
 
       <div class="chip gold" style="margin-top:8px">${isEN
@@ -346,6 +348,9 @@ function renderLanding() {
   `;
 
   document.getElementById('app').innerHTML = `${renderNavbar()}${html}`;
+
+  // Restaurar botón PWA si el prompt ya fue capturado antes de este render
+  if (typeof _pwaUpdateInstallBtn === 'function') _pwaUpdateInstallBtn();
 
   // Autoplay: esperar canplay y detectar solo NotAllowedError real
   const vid = document.getElementById('promo-vid');
