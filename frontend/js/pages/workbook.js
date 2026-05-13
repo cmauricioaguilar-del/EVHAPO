@@ -1494,15 +1494,18 @@ async function wbBuildExcel({ lang, playerName, dateStr, mentalSc, techSc, menta
   ];
   const [mRadarPng, tRadarPng] = await Promise.all(rxlPromises);
 
+  // Tamaño de referencia: el mayor entre las dos secciones (ambas usan el mismo)
+  const mSectionRows = (hasMental && mCats.length) ? (mentalRowEnd - mentalRowStart + 1) : 0;
+  const tSectionRows = (hasTech   && tCats.length) ? (techRowEnd   - techRowStart   + 1) : 0;
+  const refRows  = Math.max(mSectionRows, tSectionRows, 14);
+  const refImgH  = refRows * rowPx;
+  const refImgW  = Math.round(refImgH * 1.32); // proporción ~4:3
+
   if (mRadarPng) {
-    const mRows  = mentalRowEnd - mentalRowStart + 1;
-    const mImgH  = mRows * rowPx;
-    const mImgW  = Math.min(radarImgW, Math.round(mImgH * 1.35)); // proporcional
-    const mId    = wb.addImage({ base64: mRadarPng.split(',')[1], extension: 'png' });
-    // centrado vertical: tl en mentalRowStart (0-indexed), br en mentalRowEnd+1
+    const mId = wb.addImage({ base64: mRadarPng.split(',')[1], extension: 'png' });
     wsDx.addImage(mId, {
       tl: { col: 6, row: mentalRowStart - 1 },
-      br: { col: 12, row: mentalRowEnd },
+      ext: { width: refImgW, height: refImgH },
       editAs: 'oneCell',
     });
   }
@@ -1510,7 +1513,7 @@ async function wbBuildExcel({ lang, playerName, dateStr, mentalSc, techSc, menta
     const tId = wb.addImage({ base64: tRadarPng.split(',')[1], extension: 'png' });
     wsDx.addImage(tId, {
       tl: { col: 6, row: techRowStart - 1 },
-      br: { col: 12, row: techRowEnd },
+      ext: { width: refImgW, height: refImgH },
       editAs: 'oneCell',
     });
   }
