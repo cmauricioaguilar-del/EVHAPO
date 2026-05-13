@@ -1603,6 +1603,23 @@ async function wbBuildExcel({ lang, playerName, dateStr, mentalSc, techSc, menta
   wsTk.getRow(reTestRow).height = 30;
   reCell.protection = { locked: false };
 
+  // Formato condicional: tareas ejecutadas → verde claro + texto verde negrita
+  const cfEndCol = String.fromCharCode(67 + dayHdrs.length); // 'J' para 7 días
+  const cfEndRow = 4 + weeks.length;                          // última fila de semanas
+  wsTk.addConditionalFormatting({
+    ref: `D5:${cfEndCol}${cfEndRow}`,
+    rules: [{
+      type: 'containsText',
+      operator: 'containsText',
+      text: '✓',
+      priority: 1,
+      style: {
+        fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FF86EFAC' } }, // verde claro
+        font: { bold: true, color: { argb: 'FF166534' } },                           // verde oscuro
+      }
+    }]
+  });
+
   wsTk.protect('', { selectLockedCells:true, selectUnlockedCells:true,
     formatCells:false, insertRows:false, deleteRows:false });
 
