@@ -3588,14 +3588,26 @@ def _build_tournament_prompt(nombre, meta, player_profile, lang='es'):
 POKER TERMINOLOGY (always keep these in English, never translate):
 - "board", "call", "raise", "fold", "check", "bet", "all-in", "bluff", "stack", "pot", "flop", "turn", "river", "pre-flop", "3-bet", "c-bet", "range", "equity", "EV", "hand", "spot".
 
-⚠️ REGLA CRÍTICA — IDENTIFICACIÓN DE STREET (LEE ESTO ANTES DE ANALIZAR CUALQUIER MANO):
+⚠️ REGLAS CRÍTICAS — ANÁLISIS BASADO SOLO EN INFORMACIÓN DISPONIBLE AL MOMENTO DE LA DECISIÓN:
+
+REGLA 1 — IDENTIFICACIÓN DE STREET:
 En los historiales de mano de poker, cuando un jugador va all-in PRE-FLOP, el sistema igual muestra las cartas comunitarias (flop/turn/river) porque se "corren" para determinar el ganador. Esto NO significa que la acción ocurrió en esos streets.
-NORMA: El street donde ocurrió una acción se determina ÚNICAMENTE por la sección de acción del historial donde aparece la jugada (*** HOLE CARDS ***, *** FLOP ***, *** TURN ***, *** RIVER ***), NUNCA por las cartas del board que se muestran.
-- Si el all-in aparece bajo *** HOLE CARDS *** → la acción fue PRE-FLOP, aunque haya board visible.
-- Si el all-in aparece bajo *** FLOP *** → la acción fue en el FLOP.
-- Si el all-in aparece bajo *** TURN *** → la acción fue en el TURN.
-- Si el all-in aparece bajo *** RIVER *** → la acción fue en el RIVER.
-NUNCA describas un all-in pre-flop como si hubiera ocurrido en el flop, turn o river basándote en el board mostrado.
+El street donde ocurrió una acción se determina ÚNICAMENTE por la sección del historial donde aparece la jugada:
+- Acción bajo *** HOLE CARDS *** → ocurrió PRE-FLOP.
+- Acción bajo *** FLOP *** → ocurrió en el FLOP.
+- Acción bajo *** TURN *** → ocurrió en el TURN.
+- Acción bajo *** RIVER *** → ocurrió en el RIVER.
+
+REGLA 2 — ANALIZA SOLO CON LA INFORMACIÓN QUE HERO TENÍA EN ESE MOMENTO (LA MÁS IMPORTANTE):
+El análisis de cada decisión debe realizarse EXCLUSIVAMENTE con la información disponible para Hero en el momento exacto de su jugada. NUNCA uses información de streets posteriores.
+- Si Hero actuó PRE-FLOP (shove, call, 3-bet, fold): analiza SOLO con hand, posición, stack en BBs, nivel de ciegos, dinámica de mesa y rangos pre-flop. El board (flop/turn/river) NO EXISTÍA aún — NO lo menciones, NO lo uses para evaluar la decisión.
+- Si Hero actuó en el FLOP: analiza con hand + flop. Turn y river NO EXISTÍAN — no los uses.
+- Si Hero actuó en el TURN: analiza con hand + flop + turn. River NO EXISTÍA — no lo uses.
+- Si Hero actuó en el RIVER: analiza con toda la información de la mano.
+
+EJEMPLO CORRECTO para shove pre-flop con K2o con 7.7 BB:
+✅ "Con 7.7 BB en nivel 41, K2o tiene equity suficiente para shove desde [posición]. El ICM y la presión de los ciegos justifican/no justifican este spot porque [análisis de rango]."
+❌ INCORRECTO: "El board vino Q-alto bi-pareado lo que destruye la K-high de Hero" — esto usa información post-decisión que Hero no podía conocer.
 
 ═══ DATOS DEL TORNEO ═══
 Plataforma: {meta.get('platform', 'N/D')}
