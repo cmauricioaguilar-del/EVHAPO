@@ -3588,6 +3588,15 @@ def _build_tournament_prompt(nombre, meta, player_profile, lang='es'):
 POKER TERMINOLOGY (always keep these in English, never translate):
 - "board", "call", "raise", "fold", "check", "bet", "all-in", "bluff", "stack", "pot", "flop", "turn", "river", "pre-flop", "3-bet", "c-bet", "range", "equity", "EV", "hand", "spot".
 
+⚠️ REGLA CRÍTICA — IDENTIFICACIÓN DE STREET (LEE ESTO ANTES DE ANALIZAR CUALQUIER MANO):
+En los historiales de mano de poker, cuando un jugador va all-in PRE-FLOP, el sistema igual muestra las cartas comunitarias (flop/turn/river) porque se "corren" para determinar el ganador. Esto NO significa que la acción ocurrió en esos streets.
+NORMA: El street donde ocurrió una acción se determina ÚNICAMENTE por la sección de acción del historial donde aparece la jugada (*** HOLE CARDS ***, *** FLOP ***, *** TURN ***, *** RIVER ***), NUNCA por las cartas del board que se muestran.
+- Si el all-in aparece bajo *** HOLE CARDS *** → la acción fue PRE-FLOP, aunque haya board visible.
+- Si el all-in aparece bajo *** FLOP *** → la acción fue en el FLOP.
+- Si el all-in aparece bajo *** TURN *** → la acción fue en el TURN.
+- Si el all-in aparece bajo *** RIVER *** → la acción fue en el RIVER.
+NUNCA describas un all-in pre-flop como si hubiera ocurrido en el flop, turn o river basándote en el board mostrado.
+
 ═══ DATOS DEL TORNEO ═══
 Plataforma: {meta.get('platform', 'N/D')}
 Torneo: {meta.get('tournament_name', 'N/D')}
