@@ -3317,10 +3317,10 @@ def _bg_tournament_analysis(job_id, meta, prompt, api_key):
             },
             json={
                 'model': 'claude-sonnet-4-6',
-                'max_tokens': 28000,
+                'max_tokens': 10000,
                 'messages': [{'role': 'user', 'content': prompt}]
             },
-            timeout=300,
+            timeout=600,
             verify=False
         )
         resp.raise_for_status()
