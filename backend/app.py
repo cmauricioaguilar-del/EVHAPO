@@ -2,6 +2,7 @@ import os
 import sqlite3
 import hashlib
 import hmac
+from werkzeug.security import generate_password_hash, check_password_hash
 import json
 import datetime
 import secrets
@@ -30,8 +31,9 @@ DB_PATH = os.path.join(_DATA_DIR, 'evhapo.db')
 TEST_PRICE_USD = 9.90
 SUB_PRICE_USD  = 4.90   # precio mensual suscripción
 
-MERCADOPAGO_ACCESS_TOKEN = os.environ.get('MERCADOPAGO_ACCESS_TOKEN', '')
-MERCADOPAGO_PUBLIC_KEY   = os.environ.get('MERCADOPAGO_PUBLIC_KEY', '')
+MERCADOPAGO_ACCESS_TOKEN  = os.environ.get('MERCADOPAGO_ACCESS_TOKEN', '')
+MERCADOPAGO_PUBLIC_KEY    = os.environ.get('MERCADOPAGO_PUBLIC_KEY', '')
+MERCADOPAGO_WEBHOOK_SECRET = os.environ.get('MERCADOPAGO_WEBHOOK_SECRET', '')
 STRIPE_SECRET_KEY        = os.environ.get('STRIPE_SECRET_KEY', '')
 STRIPE_WEBHOOK_SECRET    = os.environ.get('STRIPE_WEBHOOK_SECRET', '')
 STRIPE_SUB_PRICE_ID      = os.environ.get('STRIPE_SUB_PRICE_ID', '')   # opcional: ID de precio ya creado
@@ -261,7 +263,15 @@ def init_db():
 # ─── Auth helpers ─────────────────────────────────────────────────────────────
 
 def hash_password(password):
-    return hashlib.sha256(password.encode()).hexdigest()
+    """Genera hash seguro con werkzeug (PBKDF2-SHA256 + salt)."""
+    return generate_password_hash(password)
+
+def verify_password(password, stored_hash):
+    """Verifica contraseña. Soporta hashes werkzeug (nuevos) y SHA-256 legado."""
+    if stored_hash.startswith('pbkdf2:') or stored_hash.startswith('scrypt:'):
+        return check_password_hash(stored_hash, password)
+    # Legado: SHA-256 sin sal — sólo para migración transparente
+    return stored_hash == hashlib.sha256(password.encode()).hexdigest()
 
 def create_token(user_id):
     token = secrets.token_hex(32)
@@ -401,8 +411,14 @@ def login():
         "SELECT id, nombre, apellido, email, password_hash, is_admin FROM users WHERE email=?", (email,)
     ).fetchone()
 
-    if not user or user['password_hash'] != hash_password(password):
+    if not user or not verify_password(password, user['password_hash']):
         return jsonify({'error': 'Email o contraseña incorrectos'}), 401
+
+    # Migración automática: si el hash es SHA-256 legado, actualizarlo a werkzeug
+    stored = user['password_hash']
+    if not (stored.startswith('pbkdf2:') or stored.startswith('scrypt:')):
+        db.execute("UPDATE users SET password_hash=? WHERE id=?", (hash_password(password), user['id']))
+        db.commit()
 
     token = create_token(user['id'])
     return jsonify({
@@ -783,17 +799,20 @@ def stripe_verify():
 @app.route('/api/payment/confirm', methods=['POST'])
 @require_auth
 def confirm_payment():
+    # Solo administradores pueden confirmar pagos manualmente
+    if not g.is_admin:
+        return jsonify({'error': 'No autorizado'}), 403
     data = request.json or {}
     payment_id = data.get('payment_id')
     db = get_db()
     pay = db.execute(
-        "SELECT * FROM payments WHERE id=? AND user_id=?", (payment_id, g.user_id)
+        "SELECT * FROM payments WHERE id=?", (payment_id,)
     ).fetchone()
     if not pay:
         return jsonify({'error': 'Pago no encontrado'}), 404
     db.execute("UPDATE payments SET status='approved' WHERE id=?", (payment_id,))
     db.commit()
-    threading.Thread(target=_send_referral_notification, args=(g.user_id,), daemon=True).start()
+    threading.Thread(target=_send_referral_notification, args=(pay['user_id'],), daemon=True).start()
     return jsonify({'ok': True})
 
 # ─── Subscription routes ─────────────────────────────────────────────────────
@@ -1242,6 +1261,29 @@ def new_test_session():
 # Mercado Pago webhook
 @app.route('/api/payment/webhook/mp', methods=['POST'])
 def mp_webhook():
+    # ── Verificación de firma HMAC (MercadoPago x-signature) ──────────────────
+    if MERCADOPAGO_WEBHOOK_SECRET:
+        sig_header = request.headers.get('x-signature', '')
+        req_id     = request.headers.get('x-request-id', '')
+        ts = v1 = ''
+        for part in sig_header.split(','):
+            k, _, v = part.partition('=')
+            if k == 'ts':  ts = v
+            if k == 'v1':  v1 = v
+        if not (ts and v1):
+            return jsonify({'error': 'Firma inválida'}), 401
+        # El payload firmado incluye el id del evento, el request-id y el timestamp
+        raw_data = request.get_json(silent=True) or {}
+        data_id  = str(raw_data.get('data', {}).get('id', ''))
+        signed_template = f'id:{data_id};request-id:{req_id};ts:{ts}'
+        expected = hmac.new(
+            MERCADOPAGO_WEBHOOK_SECRET.encode(),
+            signed_template.encode(),
+            'sha256'
+        ).hexdigest()
+        if not hmac.compare_digest(expected, v1):
+            return jsonify({'error': 'Firma inválida'}), 401
+    # ──────────────────────────────────────────────────────────────────────────
     data = request.json or {}
     if data.get('type') == 'payment':
         payment_id_external = data.get('data', {}).get('id')
@@ -1364,7 +1406,7 @@ def _generate_posttest_email_html(nombre, test_type, overall, scores, lang='es')
                 'https://api.anthropic.com/v1/messages',
                 headers={'x-api-key': api_key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json'},
                 json={'model': 'claude-haiku-4-5', 'max_tokens': 80, 'messages': [{'role': 'user', 'content': prompt}]},
-                timeout=20, verify=False
+                timeout=20
             )
             if resp.status_code == 200:
                 ai_text = resp.json()['content'][0]['text'].strip()
@@ -1944,20 +1986,21 @@ def password_reset():
     if not user:
         return jsonify({'ok': True, 'message': 'Si el email está registrado, recibirás un correo en breve.'})
 
-    # Generar contraseña temporal
+    # Solo proceder si el email está configurado — nunca exponer la clave en la respuesta
+    if not (SMTP_USER and SMTP_PASS):
+        # Sin SMTP configurado no podemos enviar; respondemos genérico sin tocar la BD
+        return jsonify({'ok': True, 'message': 'Si el email está registrado, recibirás un correo en breve.'})
+
+    # Generar contraseña temporal y actualizarla en BD
     temp_pw = ''.join(random.choices(string.ascii_letters + string.digits, k=10))
     db.execute("UPDATE users SET password_hash=? WHERE id=?", (hash_password(temp_pw), user['id']))
     db.commit()
 
-    if SMTP_USER and SMTP_PASS:
-        try:
-            _send_reset_email(email, user['nombre'], temp_pw)
-            return jsonify({'ok': True, 'message': 'Te enviamos un correo con tu nueva contraseña temporal. Revisa también la carpeta de spam.'})
-        except Exception as e:
-            return jsonify({'error': f'Error al enviar el correo: {str(e)}'}), 500
-    else:
-        # Modo desarrollo: devuelve la clave en la respuesta
-        return jsonify({'ok': True, 'message': f'[MODO DEV] Contraseña temporal: {temp_pw}  —  Configura SMTP_USER y SMTP_PASS para envío real por email.'})
+    try:
+        _send_reset_email(email, user['nombre'], temp_pw)
+        return jsonify({'ok': True, 'message': 'Te enviamos un correo con tu nueva contraseña temporal. Revisa también la carpeta de spam.'})
+    except Exception as e:
+        return jsonify({'error': f'Error al enviar el correo: {str(e)}'}), 500
 
 REFERRAL_NOTIFY_EMAIL = 'c.mauricio.aguilar@gmail.com'
 
@@ -2045,8 +2088,7 @@ def _smtp_send(to_addr, subject, html_body):
                     'subject': subject,
                     'html': html_body,
                 },
-                timeout=30,
-                verify=False
+                timeout=30
             )
             if resp.status_code in (200, 201):
                 print(f"[EMAIL] Enviado via Resend a {to_addr}")
@@ -2324,8 +2366,7 @@ def _generate_coupon_email_html(nombre, days_remaining, lang='es'):
                     'max_tokens': 300,
                     'messages': [{'role': 'user', 'content': prompt}]
                 },
-                timeout=30,
-                verify=False
+                timeout=30
             )
             if resp.status_code == 200:
                 ai_paragraph = resp.json()['content'][0]['text'].strip()
@@ -2595,7 +2636,7 @@ def _generate_coupon_expiry_html(nombre, days_remaining, lang='es'):
                     'max_tokens': 250,
                     'messages': [{'role': 'user', 'content': prompt}]
                 },
-                timeout=30, verify=False
+                timeout=30
             )
             if resp.status_code == 200:
                 ai_paragraph = resp.json()['content'][0]['text'].strip()
@@ -2933,8 +2974,7 @@ def _bg_profile_generation(job_id, user_id, prompt, api_key):
                 'max_tokens': 24000,
                 'messages': [{'role': 'user', 'content': prompt}]
             },
-            timeout=600,
-            verify=False
+            timeout=600
         )
         resp.raise_for_status()
         profile_html = resp.json()['content'][0]['text']
@@ -3328,8 +3368,7 @@ def _bg_tournament_analysis(job_id, meta, prompt, api_key):
                 'max_tokens': 10000,
                 'messages': [{'role': 'user', 'content': prompt}]
             },
-            timeout=600,
-            verify=False
+            timeout=600
         )
         resp.raise_for_status()
         report_html = resp.json()['content'][0]['text']
@@ -3754,7 +3793,7 @@ def _bg_study_plan_generation(job_id, user_id, prompt, api_key):
             'https://api.anthropic.com/v1/messages',
             headers={'x-api-key': api_key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json'},
             json={'model': 'claude-sonnet-4-6', 'max_tokens': 8000, 'messages': [{'role': 'user', 'content': prompt}]},
-            timeout=300, verify=False
+            timeout=300
         )
         resp.raise_for_status()
         plan_html = resp.json()['content'][0]['text']
