@@ -86,6 +86,7 @@ function renderNavbar() {
       </div>`
     : `<div class="nav-links">
         ${langToggle}
+        <a href="/blog/" class="nav-btn" style="text-decoration:none">📚 Blog</a>
         <button class="nav-btn" onclick="App.go('login')">${isEN ? 'Sign in' : isPT ? 'Entrar' : 'Iniciar sesión'}</button>
         <button class="nav-btn primary" onclick="App.go('register')">${isEN ? 'Get started →' : isPT ? 'Começar →' : 'Comenzar →'}</button>
       </div>`;
@@ -112,9 +113,63 @@ function doLogout() {
   App.go('landing');
 }
 
+// ── Actualiza <title>, <meta description> y <html lang> según idioma activo ──
+function _updatePageMeta() {
+  const isEN = I18N.isEN();
+  const isPT = I18N.isPT();
+
+  const titles = {
+    en: 'MindEV-IA | Mental & Technical Test for Poker Players with AI',
+    pt: 'MindEV-IA | Teste Mental e Técnico para Jogadores de Poker com IA',
+    es: 'MindEV-IA | Test Mental y Técnico para Jugadores de Poker con IA',
+  };
+  const descs = {
+    en: "Discover your real level as a Texas Hold'em player. AI-powered mental + technical test, skills radar and personalized week-by-week improvement plan.",
+    pt: "Descubra seu nível real como jogador de Texas Hold'em. Teste mental + técnico com IA, radar de habilidades e plano de melhoria personalizado semana a semana.",
+    es: "Descubre tu nivel real como jugador de Texas Hold'em. Test mental + técnico con IA, radar de habilidades y plan de mejora personalizado semana a semana.",
+  };
+  const lang = isEN ? 'en' : isPT ? 'pt' : 'es';
+
+  document.title = titles[lang];
+  document.documentElement.lang = lang;
+
+  const metaDesc = document.querySelector('meta[name="description"]');
+  if (metaDesc) metaDesc.setAttribute('content', descs[lang]);
+
+  const ogTitle = document.querySelector('meta[property="og:title"]');
+  if (ogTitle) ogTitle.setAttribute('content', titles[lang]);
+
+  const ogDesc = document.querySelector('meta[property="og:description"]');
+  if (ogDesc) ogDesc.setAttribute('content', descs[lang]);
+
+  const twTitle = document.querySelector('meta[name="twitter:title"]');
+  if (twTitle) twTitle.setAttribute('content', titles[lang]);
+
+  const twDesc = document.querySelector('meta[name="twitter:description"]');
+  if (twDesc) twDesc.setAttribute('content', descs[lang]);
+
+  // URL canónica con lang param para EN/PT
+  const canonical = document.querySelector('link[rel="canonical"]');
+  if (canonical) {
+    canonical.setAttribute('href', lang === 'es'
+      ? 'https://mindev-ia.cl/'
+      : `https://mindev-ia.cl/?lang=${lang}`);
+  }
+}
+
 // Boot
 window.addEventListener('load', async () => {
   const params        = new URLSearchParams(window.location.search);
+
+  // ── Detectar ?lang= y aplicarlo antes de cualquier render ──────────────────
+  const langParam = params.get('lang');
+  if (langParam && ['en', 'es', 'pt'].includes(langParam)) {
+    I18N._lang = langParam;
+    localStorage.setItem('mindev_lang', langParam);
+  }
+  _updatePageMeta();
+  // ───────────────────────────────────────────────────────────────────────────
+
   const mpResult      = params.get('mp_result');
   const mpPid         = params.get('pid');
   const mpPayId       = params.get('payment_id');

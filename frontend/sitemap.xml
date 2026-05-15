@@ -45,4 +45,39 @@
     <priority>0.3</priority>
   </url>
 
+  <!-- Blog índice -->
+  <url>
+    <loc>https://mindev-ia.cl/blog/</loc>
+    <lastmod>2025-05-15</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Blog: Tilt (ES) -->
+  <url>
+    <loc>https://mindev-ia.cl/blog/como-controlar-el-tilt-en-el-poker.html</loc>
+    <lastmod>2025-05-15</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="es" href="https://mindev-ia.cl/blog/como-controlar-el-tilt-en-el-poker.html"/>
+  </url>
+
+  <!-- Blog: Mental game (EN) -->
+  <url>
+    <loc>https://mindev-ia.cl/blog/how-to-build-an-unshakeable-poker-mental-game.html</loc>
+    <lastmod>2025-05-15</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://mindev-ia.cl/blog/how-to-build-an-unshakeable-poker-mental-game.html"/>
+  </url>
+
+  <!-- Blog: Estudo poker (PT) -->
+  <url>
+    <loc>https://mindev-ia.cl/blog/como-estudar-poker-de-forma-eficiente.html</loc>
+    <lastmod>2025-05-15</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="pt" href="https://mindev-ia.cl/blog/como-estudar-poker-de-forma-eficiente.html"/>
+  </url>
+
 </urlset>

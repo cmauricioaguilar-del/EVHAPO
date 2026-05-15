@@ -323,6 +323,15 @@ def privacy_page():
 def refund_page():
     return send_from_directory('../frontend', 'refund.html')
 
+@app.route('/blog/')
+@app.route('/blog')
+def blog_index():
+    return send_from_directory('../frontend/blog', 'index.html')
+
+@app.route('/blog/<slug>')
+def blog_article(slug):
+    return send_from_directory('../frontend/blog', slug)
+
 @app.route('/sitemap.xml')
 def sitemap_xml():
     return send_from_directory('../frontend', 'sitemap.xml', mimetype='application/xml')

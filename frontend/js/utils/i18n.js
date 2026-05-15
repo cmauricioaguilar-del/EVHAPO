@@ -9,6 +9,8 @@ const I18N = {
   set(l) {
     this._lang = l;
     localStorage.setItem('mindev_lang', l);
+    // Actualizar meta tags del documento con el nuevo idioma
+    if (typeof _updatePageMeta === 'function') _updatePageMeta();
     // Re-renderiza la página actual en el mismo DOM (sin recarga = sin parpadeo de banderas).
     // App._lastArg preserva el argumento del último App.go() (ej: datos de resultados).
     if (typeof App !== 'undefined' && App.current) {
