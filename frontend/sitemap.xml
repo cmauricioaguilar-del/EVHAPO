@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml">
+
+  <!-- Página principal ES -->
+  <url>
+    <loc>https://www.mindev-ia.cl/</loc>
+    <lastmod>2026-05-15</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+    <xhtml:link rel="alternate" hreflang="es" href="https://www.mindev-ia.cl/"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://www.mindev-ia.cl/?lang=en"/>
+    <xhtml:link rel="alternate" hreflang="pt" href="https://www.mindev-ia.cl/?lang=pt"/>
+  </url>
+
+  <!-- Registro -->
+  <url>
+    <loc>https://www.mindev-ia.cl/#register</loc>
+    <lastmod>2026-05-15</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Login -->
+  <url>
+    <loc>https://www.mindev-ia.cl/#login</loc>
+    <lastmod>2026-05-15</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+
+  <!-- Privacidad -->
+  <url>
+    <loc>https://www.mindev-ia.cl/privacy.html</loc>
+    <lastmod>2026-05-15</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.3</priority>
+  </url>
+
+  <!-- Términos -->
+  <url>
+    <loc>https://www.mindev-ia.cl/terms.html</loc>
+    <lastmod>2026-05-15</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.3</priority>
+  </url>
+
+</urlset>

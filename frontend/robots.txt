@@ -1,0 +1,16 @@
+User-agent: *
+Allow: /
+
+# Bloquear rutas privadas de usuarios
+Disallow: /api/
+Disallow: /#dashboard
+Disallow: /#test
+Disallow: /#results
+Disallow: /#payment
+Disallow: /#admin
+
+# Sitemap
+Sitemap: https://www.mindev-ia.cl/sitemap.xml
+
+# Crawl-delay recomendado
+Crawl-delay: 10
