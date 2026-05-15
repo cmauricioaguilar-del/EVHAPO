@@ -4,7 +4,23 @@ let _testState = {
   sessionId: null,
   testType: 'mental',
   categories: null,
+  shuffledOptions: {},   // cache: qid → shuffled options array (técnico only)
 };
+
+// Devuelve las opciones en orden aleatorio (solo test técnico).
+// El orden se cachea por pregunta para ser consistente dentro de la sesión.
+function _getShuffledOptions(qid, options) {
+  if (_testState.testType !== 'technical') return options;
+  if (!_testState.shuffledOptions[qid]) {
+    const arr = [...options];
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    _testState.shuffledOptions[qid] = arr;
+  }
+  return _testState.shuffledOptions[qid];
+}
 
 function renderTest() {
   if (!Api.isLoggedIn()) { App.go('login', I18N.isEN() ? 'Sign in to continue' : I18N.isPT() ? 'Entre para continuar' : 'Inicia sesión para continuar'); return; }
@@ -14,6 +30,7 @@ function renderTest() {
   _testState.sessionId = parseInt(sid);
   _testState.catIdx = 0;
   _testState.answers = {};
+  _testState.shuffledOptions = {};
   _testState.testType = testType;
   _testState.categories = I18N.catsForType(testType);
   renderTestSection();
@@ -35,7 +52,7 @@ function renderTestSection() {
         <div class="question-num">${isEN ? 'Question' : isPT ? 'Pergunta' : 'Pregunta'} ${qi + 1} ${isEN ? 'of' : isPT ? 'de' : 'de'} ${cat.questions.length}</div>
         <div class="question-text">${q.text}</div>
         <div class="options-grid">
-          ${q.options.map(opt => `
+          ${_getShuffledOptions(q.id, q.options).map(opt => `
             <button class="option-btn ${ans === opt.value ? 'selected' : ''}"
               onclick="selectAnswer(${q.id}, '${opt.value}', this)">
               <span class="opt-dot"></span>
