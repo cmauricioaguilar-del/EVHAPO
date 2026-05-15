@@ -313,6 +313,14 @@ def privacy_page():
 def refund_page():
     return send_from_directory('../frontend', 'refund.html')
 
+@app.route('/sitemap.xml')
+def sitemap_xml():
+    return send_from_directory('../frontend', 'sitemap.xml', mimetype='application/xml')
+
+@app.route('/robots.txt')
+def robots_txt():
+    return send_from_directory('../frontend', 'robots.txt', mimetype='text/plain')
+
 @app.route('/<path:path>')
 def static_files(path):
     return send_from_directory('../frontend', path)
