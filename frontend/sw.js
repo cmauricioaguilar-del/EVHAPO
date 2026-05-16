@@ -1,9 +1,9 @@
 // ─── MindEV-IA Service Worker ─────────────────────────────────────────────────
 // Versión: incrementar al hacer cambios importantes para forzar actualización
 
-const CACHE_NAME   = 'mindev-v27';
-const STATIC_CACHE = 'mindev-static-v27';
-const API_CACHE    = 'mindev-api-v27';
+const CACHE_NAME   = 'mindev-v28';
+const STATIC_CACHE = 'mindev-static-v28';
+const API_CACHE    = 'mindev-api-v28';
 
 // Archivos que se cachean al instalar (shell de la app)
 const SHELL_FILES = [
