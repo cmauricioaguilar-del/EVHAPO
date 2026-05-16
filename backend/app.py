@@ -1909,10 +1909,15 @@ def send_referral_report():
                 msg['From']    = SMTP_USER
                 msg['To']      = rc['owner_email']
                 msg.attach(MIMEText(html_body, 'html', 'utf-8'))
-                with smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=30) as srv:
-                    srv.starttls()
+                raw = msg.as_string()
+                # Forzar IPv4 para evitar "Network is unreachable" en Railway (no soporta IPv6 saliente)
+                infos = socket.getaddrinfo(SMTP_SERVER, SMTP_PORT, socket.AF_INET, socket.SOCK_STREAM)
+                ipv4  = infos[0][4][0]
+                with smtplib.SMTP(ipv4, SMTP_PORT, timeout=30) as srv:
+                    srv._host = SMTP_SERVER   # para validación TLS del certificado
+                    srv.ehlo(); srv.starttls(); srv.ehlo()
                     srv.login(SMTP_USER, SMTP_PASS)
-                    srv.sendmail(SMTP_USER, rc['owner_email'], msg.as_string())
+                    srv.sendmail(SMTP_USER, rc['owner_email'], raw)
                 sent = True
             except Exception as e:
                 smtp_err = str(e)
