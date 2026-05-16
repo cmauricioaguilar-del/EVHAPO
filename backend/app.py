@@ -1897,9 +1897,12 @@ def send_referral_report():
         </div>"""
 
         # Enviar email
-        sent = False
-        try:
-            if SMTP_USER and SMTP_PASS:
+        sent      = False
+        smtp_err  = None
+        if not (SMTP_USER and SMTP_PASS):
+            smtp_err = 'SMTP_USER o SMTP_PASS no configurados en Railway'
+        else:
+            try:
                 msg = MIMEMultipart('alternative')
                 subject_prefix = '[PRUEBA] ' if test_mode else ''
                 msg['Subject'] = f'{subject_prefix}📊 Tu reporte de comisiones MindEV-IA — {month_name} {year}'
@@ -1911,13 +1914,15 @@ def send_referral_report():
                     srv.login(SMTP_USER, SMTP_PASS)
                     srv.sendmail(SMTP_USER, rc['owner_email'], msg.as_string())
                 sent = True
-        except Exception as e:
-            print(f'[REPORT] Error enviando a {rc["owner_email"]}: {e}')
+            except Exception as e:
+                smtp_err = str(e)
+                print(f'[REPORT] Error enviando a {rc["owner_email"]}: {e}')
 
         results.append({
             'code': rc['code'],
             'owner_email': rc['owner_email'],
             'sent': sent,
+            'smtp_error': smtp_err,
             'users': len(paying_users),
             'total_sales': total_sales,
             'total_commission': total_commission
