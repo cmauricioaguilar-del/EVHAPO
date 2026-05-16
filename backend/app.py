@@ -1792,6 +1792,7 @@ def send_referral_report():
     year  = int(data.get('year',  datetime.datetime.now().year))
     month = int(data.get('month', datetime.datetime.now().month))
     code_filter = (data.get('code') or '').strip()
+    test_mode   = bool(data.get('test'))   # Modo prueba: envía aunque no haya ventas reales
 
     start = f"{year}-{month:02d}-01"
     end   = f"{year+1}-01-01" if month == 12 else f"{year}-{month+1:02d}-01"
@@ -1825,8 +1826,11 @@ def send_referral_report():
         paying_users = [u for u in users if u['amount']]
 
         if not paying_users:
-            results.append({'code': rc['code'], 'sent': False, 'reason': 'Sin ventas este mes', 'users': 0})
-            continue
+            if not test_mode:
+                results.append({'code': rc['code'], 'sent': False, 'reason': 'Sin ventas este mes', 'users': 0})
+                continue
+            # Modo prueba: usar datos ficticios para visualizar el email
+            paying_users = [{'nombre': 'Usuario', 'apellido': 'Ejemplo', 'email': 'usuario@ejemplo.com', 'amount': 19.99}]
 
         commission_per_sale = rc['commission_usd'] or 0
         total_sales     = sum(u['amount'] for u in paying_users)
@@ -1897,7 +1901,8 @@ def send_referral_report():
         try:
             if SMTP_USER and SMTP_PASS:
                 msg = MIMEMultipart('alternative')
-                msg['Subject'] = f'📊 Tu reporte de comisiones MindEV-IA — {month_name} {year}'
+                subject_prefix = '[PRUEBA] ' if test_mode else ''
+                msg['Subject'] = f'{subject_prefix}📊 Tu reporte de comisiones MindEV-IA — {month_name} {year}'
                 msg['From']    = SMTP_USER
                 msg['To']      = rc['owner_email']
                 msg.attach(MIMEText(html_body, 'html', 'utf-8'))
