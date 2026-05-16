@@ -5,4 +5,5 @@ stripe>=7.0.0
 gunicorn>=21.2.0
 requests>=2.31.0
 Pillow>=10.0.0
-sentry-sdk[flask]>=2.0.0
+sentry-sdk>=2.0.0
+blinker>=1.6.0
