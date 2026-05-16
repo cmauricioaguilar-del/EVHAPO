@@ -18,9 +18,23 @@ from email.mime.multipart import MIMEMultipart
 from functools import wraps
 from flask import Flask, request, jsonify, send_from_directory, g
 from flask_cors import CORS
+import sentry_sdk
+from sentry_sdk.integrations.flask import FlaskIntegration
 
 app = Flask(__name__, static_folder='../frontend', static_url_path='')
 CORS(app)
+
+# ─── Sentry — monitoreo de errores en producción ──────────────────────────────
+_SENTRY_DSN = os.environ.get('SENTRY_DSN', '')
+if _SENTRY_DSN:
+    sentry_sdk.init(
+        dsn=_SENTRY_DSN,
+        integrations=[FlaskIntegration()],
+        traces_sample_rate=0.2,   # 20% de requests trackeados (performance)
+        send_default_pii=False,   # No enviar datos personales (emails, nombres)
+        environment=os.environ.get('RAILWAY_ENVIRONMENT', 'production'),
+    )
+    print('[Sentry] Monitoreo de errores activo')
 
 # Config
 SECRET_KEY = os.environ.get('SECRET_KEY', 'evhapo-secret-key-2024-change-in-production')
