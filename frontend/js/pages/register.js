@@ -100,6 +100,13 @@ function renderRegister() {
 
   document.getElementById('app').innerHTML = `${renderNavbar()}${html}`;
 
+  // Auto-rellenar código de referido desde ?ref= URL param (guardado en localStorage)
+  const savedRef = localStorage.getItem('mindev_ref');
+  if (savedRef) {
+    const refInput = document.getElementById('reg-referral');
+    if (refInput) refInput.value = savedRef;
+  }
+
   // Referral code real-time validation
   let _referralTimer = null;
   document.getElementById('reg-referral').addEventListener('input', function() {
@@ -163,6 +170,7 @@ async function doRegister() {
     const payload = { nombre, apellido, email, pais, sala_preferida: sala, password: pass, idioma: I18N.lang };
     if (referralCode) payload.referral_code = referralCode;
     await Api.register(payload);
+    localStorage.removeItem('mindev_ref'); // limpiar código de referido tras registro exitoso
     App.go('payment');
   } catch (e) {
     if (e.message && e.message.includes('already_paid')) {

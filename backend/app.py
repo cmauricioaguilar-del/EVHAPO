@@ -251,6 +251,10 @@ def init_db():
         "ALTER TABLE users ADD COLUMN mp_subscription_id TEXT DEFAULT NULL",
         "ALTER TABLE users ADD COLUMN paddle_subscription_id TEXT DEFAULT NULL",
         "ALTER TABLE users ADD COLUMN idioma TEXT DEFAULT 'es'",
+        # Sistema de referidos con comisiones
+        "ALTER TABLE referral_codes ADD COLUMN owner_email TEXT DEFAULT ''",
+        "ALTER TABLE referral_codes ADD COLUMN owner_name TEXT DEFAULT ''",
+        "ALTER TABLE referral_codes ADD COLUMN commission_usd REAL DEFAULT 0",
     ]
     for sql in migrations:
         try:
@@ -1706,8 +1710,25 @@ def list_referral_codes():
     if not g.is_admin:
         return jsonify({'error': 'Acceso denegado'}), 403
     db = get_db()
-    rows = db.execute("SELECT id, code, notes, created_at FROM referral_codes ORDER BY created_at DESC").fetchall()
-    return jsonify({'codes': [dict(r) for r in rows]})
+    rows = db.execute(
+        "SELECT id, code, notes, created_at, owner_email, owner_name, commission_usd FROM referral_codes ORDER BY created_at DESC"
+    ).fetchall()
+    result = []
+    for r in rows:
+        d = dict(r)
+        # Stats: usuarios registrados y ventas aprobadas con este código
+        stats = db.execute("""
+            SELECT COUNT(u.id) as total_users,
+                   COALESCE(SUM(p.amount),0) as total_sales
+            FROM users u
+            LEFT JOIN payments p ON p.user_id = u.id AND p.status='approved'
+            WHERE u.referral_code = ?
+        """, (r['code'],)).fetchone()
+        d['total_users'] = stats['total_users']
+        d['total_sales'] = stats['total_sales']
+        d['total_commission'] = round((r['commission_usd'] or 0) * stats['total_users'], 2)
+        result.append(d)
+    return jsonify({'codes': result})
 
 @app.route('/api/admin/referral-codes', methods=['POST'])
 @require_auth
@@ -1727,6 +1748,27 @@ def add_referral_code():
     db.commit()
     return jsonify({'ok': True, 'code': code}), 201
 
+@app.route('/api/admin/referral-codes/<code>', methods=['PUT'])
+@require_auth
+def update_referral_code(code):
+    if not g.is_admin:
+        return jsonify({'error': 'Acceso denegado'}), 403
+    data = request.json or {}
+    owner_email    = (data.get('owner_email') or '').strip()
+    owner_name     = (data.get('owner_name') or '').strip()
+    commission_usd = float(data.get('commission_usd') or 0)
+    notes          = (data.get('notes') or '').strip()
+    db = get_db()
+    row = db.execute("SELECT id FROM referral_codes WHERE LOWER(code)=LOWER(?)", (code,)).fetchone()
+    if not row:
+        return jsonify({'error': 'Código no encontrado'}), 404
+    db.execute(
+        "UPDATE referral_codes SET owner_email=?, owner_name=?, commission_usd=?, notes=? WHERE id=?",
+        (owner_email, owner_name, commission_usd, notes, row['id'])
+    )
+    db.commit()
+    return jsonify({'ok': True})
+
 @app.route('/api/admin/referral-codes/<code>', methods=['DELETE'])
 @require_auth
 def delete_referral_code(code):
@@ -1739,6 +1781,144 @@ def delete_referral_code(code):
     db.execute("DELETE FROM referral_codes WHERE id=?", (row['id'],))
     db.commit()
     return jsonify({'ok': True})
+
+@app.route('/api/admin/referrals/send-report', methods=['POST'])
+@require_auth
+def send_referral_report():
+    """Genera y envía reporte mensual de comisiones a cada referido."""
+    if not g.is_admin:
+        return jsonify({'error': 'Acceso denegado'}), 403
+    data  = request.json or {}
+    year  = int(data.get('year',  datetime.datetime.now().year))
+    month = int(data.get('month', datetime.datetime.now().month))
+    code_filter = (data.get('code') or '').strip()
+
+    start = f"{year}-{month:02d}-01"
+    end   = f"{year+1}-01-01" if month == 12 else f"{year}-{month+1:02d}-01"
+    month_name = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio',
+                  'Agosto','Septiembre','Octubre','Noviembre','Diciembre'][month-1]
+
+    db = get_db()
+    query = "SELECT * FROM referral_codes WHERE owner_email != '' AND owner_email IS NOT NULL"
+    params = []
+    if code_filter:
+        query += " AND LOWER(code)=LOWER(?)"
+        params.append(code_filter)
+    codes = db.execute(query, params).fetchall()
+
+    if not codes:
+        return jsonify({'error': 'No hay códigos con email de propietario configurado'}), 400
+
+    results = []
+    for rc in codes:
+        # Usuarios que se registraron este mes con este código
+        users = db.execute("""
+            SELECT u.nombre, u.apellido, u.email, u.created_at,
+                   p.amount, p.currency, p.status
+            FROM users u
+            LEFT JOIN payments p ON p.user_id = u.id AND p.status = 'approved'
+            WHERE u.referral_code = ?
+              AND u.created_at >= ? AND u.created_at < ?
+            ORDER BY u.created_at ASC
+        """, (rc['code'], start, end)).fetchall()
+
+        paying_users = [u for u in users if u['amount']]
+
+        if not paying_users:
+            results.append({'code': rc['code'], 'sent': False, 'reason': 'Sin ventas este mes', 'users': 0})
+            continue
+
+        commission_per_sale = rc['commission_usd'] or 0
+        total_sales     = sum(u['amount'] for u in paying_users)
+        total_commission = round(commission_per_sale * len(paying_users), 2)
+
+        # Construir tabla HTML de usuarios
+        rows_html = ''.join([f"""
+            <tr>
+              <td style="padding:10px 12px;border-bottom:1px solid #2d3748">{u['nombre']} {u['apellido']}</td>
+              <td style="padding:10px 12px;border-bottom:1px solid #2d3748;color:#94a3b8">{u['email']}</td>
+              <td style="padding:10px 12px;border-bottom:1px solid #2d3748;text-align:center">USD ${u['amount']:.2f}</td>
+              <td style="padding:10px 12px;border-bottom:1px solid #2d3748;text-align:center;color:#4ade80">USD ${commission_per_sale:.2f}</td>
+            </tr>""" for u in paying_users])
+
+        html_body = f"""
+        <div style="background:#0a0e1a;color:#e2e8f0;font-family:'Segoe UI',sans-serif;padding:40px 20px;max-width:640px;margin:0 auto">
+          <div style="text-align:center;margin-bottom:32px">
+            <div style="font-size:2rem;margin-bottom:8px">♠</div>
+            <h1 style="color:#d4af37;font-size:1.5rem;margin:0">MindEV-IA</h1>
+            <p style="color:#64748b;margin:4px 0 0">Reporte de Comisiones — {month_name} {year}</p>
+          </div>
+
+          <p style="margin-bottom:8px">Hola <strong>{rc['owner_name'] or rc['owner_email']}</strong>,</p>
+          <p style="color:#94a3b8;margin-bottom:24px">
+            A continuación encontrarás el detalle de usuarios que compraron una licencia MindEV-IA
+            en <strong style="color:#e2e8f0">{month_name} {year}</strong> a través de tu código
+            <strong style="color:#d4af37">{rc['code']}</strong>.
+          </p>
+
+          <table style="width:100%;border-collapse:collapse;background:#1a2035;border-radius:12px;overflow:hidden;margin-bottom:24px">
+            <thead>
+              <tr style="background:#d4af37">
+                <th style="padding:12px;text-align:left;color:#000;font-size:0.8rem">USUARIO</th>
+                <th style="padding:12px;text-align:left;color:#000;font-size:0.8rem">EMAIL</th>
+                <th style="padding:12px;text-align:center;color:#000;font-size:0.8rem">PAGO</th>
+                <th style="padding:12px;text-align:center;color:#000;font-size:0.8rem">TU COMISIÓN</th>
+              </tr>
+            </thead>
+            <tbody>{rows_html}</tbody>
+          </table>
+
+          <div style="background:#1a2035;border:1px solid #d4af37;border-radius:12px;padding:20px;text-align:center;margin-bottom:24px">
+            <div style="font-size:0.85rem;color:#94a3b8;margin-bottom:8px">RESUMEN DEL MES</div>
+            <div style="display:flex;justify-content:space-around;flex-wrap:wrap;gap:16px">
+              <div>
+                <div style="font-size:1.8rem;font-weight:900;color:#d4af37">{len(paying_users)}</div>
+                <div style="font-size:0.8rem;color:#64748b">ventas</div>
+              </div>
+              <div>
+                <div style="font-size:1.8rem;font-weight:900;color:#d4af37">USD ${total_sales:.2f}</div>
+                <div style="font-size:0.8rem;color:#64748b">facturado total</div>
+              </div>
+              <div>
+                <div style="font-size:1.8rem;font-weight:900;color:#4ade80">USD ${total_commission:.2f}</div>
+                <div style="font-size:0.8rem;color:#64748b">tu comisión total</div>
+              </div>
+            </div>
+          </div>
+
+          <p style="color:#64748b;font-size:0.85rem;text-align:center">
+            Para consultas sobre el pago de comisiones, responde este correo.<br>
+            MindEV-IA · mindev-ia.cl
+          </p>
+        </div>"""
+
+        # Enviar email
+        sent = False
+        try:
+            if SMTP_USER and SMTP_PASS:
+                msg = MIMEMultipart('alternative')
+                msg['Subject'] = f'📊 Tu reporte de comisiones MindEV-IA — {month_name} {year}'
+                msg['From']    = SMTP_USER
+                msg['To']      = rc['owner_email']
+                msg.attach(MIMEText(html_body, 'html', 'utf-8'))
+                with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as srv:
+                    srv.starttls()
+                    srv.login(SMTP_USER, SMTP_PASS)
+                    srv.sendmail(SMTP_USER, rc['owner_email'], msg.as_string())
+                sent = True
+        except Exception as e:
+            print(f'[REPORT] Error enviando a {rc["owner_email"]}: {e}')
+
+        results.append({
+            'code': rc['code'],
+            'owner_email': rc['owner_email'],
+            'sent': sent,
+            'users': len(paying_users),
+            'total_sales': total_sales,
+            'total_commission': total_commission
+        })
+
+    return jsonify({'ok': True, 'month': month_name, 'year': year, 'results': results})
 
 @app.route('/api/admin/users', methods=['GET'])
 @require_auth

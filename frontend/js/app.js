@@ -170,6 +170,13 @@ window.addEventListener('load', async () => {
   _updatePageMeta();
   // ───────────────────────────────────────────────────────────────────────────
 
+  // ── Detectar ?ref= y guardar en localStorage para auto-rellenar registro ──
+  const refParam = params.get('ref');
+  if (refParam && refParam.trim()) {
+    localStorage.setItem('mindev_ref', refParam.toLowerCase().trim());
+  }
+  // ───────────────────────────────────────────────────────────────────────────
+
   const mpResult      = params.get('mp_result');
   const mpPid         = params.get('pid');
   const mpPayId       = params.get('payment_id');
