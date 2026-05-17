@@ -21,6 +21,7 @@ async function renderDashboard() {
         </div>
         <div style="display:flex;gap:10px;flex-wrap:wrap">
           <button class="btn btn-secondary" onclick="showGuide()" style="border-color:#ef4444;color:#ef4444;font-weight:700;border-width:2px">📖 ${isEN ? 'How to use MindEV' : isPT ? 'Como usar MindEV' : 'Cómo usar MindEV'}</button>
+          <button class="btn btn-secondary" onclick="openTutorialVideo()" style="border-color:#ff0000;color:#ff0000;font-weight:700;border-width:2px">▶ ${isEN ? 'Watch Tutorial' : isPT ? 'Ver Tutorial' : 'Ver Tutorial'}</button>
           <button class="btn btn-secondary" onclick="App.go('study-plan')" style="border-color:#818cf8;color:#818cf8">📚 ${isEN ? 'Plan' : 'Plan'}</button>
           <button class="btn btn-secondary" onclick="App.go('sessions')" style="border-color:#4DB6AC;color:#4DB6AC">🃏 ${isEN ? 'Sessions' : isPT ? 'Sessões' : 'Sesiones'}</button>
           <button class="btn btn-secondary" onclick="App.go('bankroll')" style="border-color:#4ade80;color:#4ade80">💰 Bankroll</button>
@@ -1078,4 +1079,14 @@ async function startNewTest(testType = 'mental') {
       App.go('payment');
     }
   }
+}
+
+function openTutorialVideo() {
+  const videos = {
+    es: 'https://www.youtube.com/watch?v=3zVcNYv072w',
+    en: 'https://www.youtube.com/watch?v=tURP4kDgYi8',
+    pt: 'https://www.youtube.com/watch?v=ZIKFn8oZg6E',
+  };
+  const lang = I18N.isEN() ? 'en' : I18N.isPT() ? 'pt' : 'es';
+  window.open(videos[lang], '_blank', 'noopener');
 }
