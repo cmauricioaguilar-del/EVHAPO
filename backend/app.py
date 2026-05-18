@@ -4118,13 +4118,23 @@ def hands_position_analysis():
     import json as _json, requests as _req
 
     db = get_db()
+    # Asegurar que la columna position_stats existe (por si el usuario nunca subió manos)
+    try:
+        db.execute("ALTER TABLE tournament_analyses ADD COLUMN position_stats TEXT")
+        db.commit()
+    except Exception:
+        pass
+
     # Buscar el análisis más reciente con position_stats
-    row = db.execute(
-        """SELECT * FROM tournament_analyses
-           WHERE user_id=? AND position_stats IS NOT NULL
-           ORDER BY id DESC LIMIT 1""",
-        (g.user_id,)
-    ).fetchone()
+    try:
+        row = db.execute(
+            """SELECT * FROM tournament_analyses
+               WHERE user_id=? AND position_stats IS NOT NULL
+               ORDER BY id DESC LIMIT 1""",
+            (g.user_id,)
+        ).fetchone()
+    except Exception:
+        row = None
 
     if not row:
         # Fallback: cualquier análisis reciente aunque no tenga position_stats

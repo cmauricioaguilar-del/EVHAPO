@@ -1168,7 +1168,8 @@ async function loadPositionAnalysis() {
 
 function _hfRenderResult(data, isEN, isPT) {
   const result = document.getElementById('hf-result');
-  const { hand_count, worst_pos, sorted_stats, ai_analysis } = data;
+  const hand_count  = data.hand_count || data.total_hands || 0;
+  const { worst_pos, sorted_stats, ai_analysis } = data;
 
   const posColor = {
     BTN:'#d4af37', SB:'#60a5fa', BB:'#f87171', CO:'#4ade80',
