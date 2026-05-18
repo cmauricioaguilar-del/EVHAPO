@@ -179,7 +179,7 @@ function renderDashboardContent(data, user) {
     ${hasEvolution ? `<button class="tab-btn" onclick="dashTab('evolution')">📈 ${isEN ? 'Evolution' : isPT ? 'Evolução' : 'Evolución'}</button>` : ''}
     <button class="tab-btn" onclick="dashTab('profile')">🧬 ${isEN ? 'My Profile' : isPT ? 'Meu Perfil' : 'Mi Perfil'}</button>
     <button class="tab-btn" onclick="dashTab('tournament')">🃏 ${isEN ? 'Hand Analysis' : isPT ? 'Análise de Mãos' : 'Análisis de Manos'}</button>
-    <button class="tab-btn" onclick="dashTab('handsfile')">📂 ${isEN ? 'File Analysis' : isPT ? 'Análise de Arquivo' : 'Análisis de Archivo'}</button>
+    <button class="tab-btn" onclick="dashTab('handsfile')">📉 ${isEN ? 'Position Leaks' : isPT ? 'Perdas por Posição' : 'Análisis de Pérdidas de Blinds'}</button>
     <button class="tab-btn" onclick="dashTab('history')">📅 ${isEN ? 'History' : isPT ? 'Histórico' : 'Historial'}</button>
     <button class="tab-btn" onclick="dashTab('benchmark')">🏅 Benchmark</button>
   </div>`;
@@ -641,6 +641,8 @@ function dashTab(tab) {
   if (tab === 'profile')    loadSavedProfile();
   // Al abrir el tab de torneo, cargar el último análisis guardado si existe
   if (tab === 'tournament') loadLastTournament();
+  // Al abrir el tab de pérdidas por posición, cargar análisis automáticamente
+  if (tab === 'handsfile')  loadPositionAnalysis();
 
   // Dibujar radares de tabs individuales al hacerlos visibles
   // (cuando hasBoth=true, los radares solo se habían dibujado para el tab combinado)
@@ -1095,121 +1097,72 @@ function openTutorialVideo() {
   window.open(videos[lang], '_blank', 'noopener');
 }
 
-// ─── TAB: Análisis de Archivo de Manos ────────────────────────────────────────
+// ─── TAB: Análisis de Pérdidas de Blinds ─────────────────────────────────────
 
 function renderHandsFileTab(isEN, isPT) {
-  const title    = isEN ? 'Hand File Analysis' : isPT ? 'Análise de Arquivo de Mãos' : 'Análisis de Archivo de Manos';
+  const title    = isEN ? 'Position Leak Analysis' : isPT ? 'Análise de Perdas por Posição' : 'Análisis de Pérdidas de Blinds';
   const subtitle = isEN
-    ? 'Upload your hand history (.txt) from PokerStars or GGPoker and let AI identify where you lose the most chips.'
+    ? 'AI analysis of your position losses based on the hand file you already uploaded in the Hand Analysis tab.'
     : isPT
-    ? 'Suba seu histórico de mãos (.txt) do PokerStars ou GGPoker e deixe a IA identificar onde você perde mais fichas.'
-    : 'Sube tu historial de manos (.txt) de PokerStars o GGPoker y deja que la IA identifique desde qué posición pierdes más fichas.';
-  const btnLabel    = isEN ? '🔍 Analyze File' : isPT ? '🔍 Analisar Arquivo' : '🔍 Analizar Archivo';
-  const chooseLabel = isEN ? 'Choose .txt file' : isPT ? 'Escolher arquivo .txt' : 'Elegir archivo .txt';
-  const dragLabel   = isEN ? 'or drag & drop here' : isPT ? 'ou arraste e solte aqui' : 'o arrastra y suelta aquí';
-  const supportLabel = isEN ? 'Supports PokerStars and GGPoker hand history format'
-    : isPT ? 'Suporta o formato de histórico de mãos do PokerStars e GGPoker'
-    : 'Compatible con el formato de historial de manos de PokerStars y GGPoker';
+    ? 'Análise de IA das suas perdas por posição com base no arquivo já carregado na aba Análise de Mãos.'
+    : 'Análisis de IA de tus pérdidas por posición basado en el archivo que ya subiste en el tab Análisis de Manos.';
 
   return `
   <div id="dtab-handsfile" style="display:none">
     <div class="card" style="margin-bottom:20px">
       <div class="card-header">
-        <span class="card-icon">📂</span>
+        <span class="card-icon">📉</span>
         <div>
           <h2>${title}</h2>
           <div class="card-sub">${subtitle}</div>
         </div>
       </div>
-
-      <div id="hf-dropzone"
-        ondragover="event.preventDefault();this.style.borderColor='var(--accent)'"
-        ondragleave="this.style.borderColor='var(--border)'"
-        ondrop="hfHandleDrop(event)"
-        style="border:2px dashed var(--border);border-radius:12px;padding:36px 20px;text-align:center;margin:20px 0;cursor:pointer;transition:border-color 0.2s"
-        onclick="document.getElementById('hf-file-input').click()">
-        <div style="font-size:2.5rem;margin-bottom:10px">📄</div>
-        <div style="font-weight:700;color:var(--text1);margin-bottom:6px">${chooseLabel}</div>
-        <div style="font-size:0.85rem;color:var(--text3)">${dragLabel}</div>
-        <input type="file" id="hf-file-input" accept=".txt,.csv" style="display:none"
-          onchange="hfFileSelected(this.files[0])"/>
-      </div>
-
-      <div id="hf-filename" style="font-size:0.85rem;color:var(--accent);margin-bottom:14px;min-height:20px;text-align:center"></div>
-
-      <div style="text-align:center">
-        <button id="hf-btn" onclick="analyzeHandsFile()" disabled
-          style="background:var(--accent);color:#000;border:none;border-radius:10px;padding:12px 32px;font-size:1rem;font-weight:800;cursor:not-allowed;opacity:0.5;transition:all 0.2s">
-          ${btnLabel}
-        </button>
-      </div>
-      <p style="text-align:center;font-size:0.75rem;color:var(--text3);margin-top:12px">${supportLabel}</p>
     </div>
     <div id="hf-result"></div>
   </div>`;
 }
 
-let _hfFile = null;
-
-function hfHandleDrop(e) {
-  e.preventDefault();
-  document.getElementById('hf-dropzone').style.borderColor = 'var(--border)';
-  const file = e.dataTransfer.files[0];
-  if (file) hfFileSelected(file);
-}
-
-function hfFileSelected(file) {
-  if (!file) return;
-  _hfFile = file;
-  const nameEl = document.getElementById('hf-filename');
-  const btn    = document.getElementById('hf-btn');
-  if (nameEl) nameEl.textContent = '📄 ' + file.name + ' (' + (file.size/1024).toFixed(1) + ' KB)';
-  if (btn)    { btn.disabled = false; btn.style.opacity = '1'; btn.style.cursor = 'pointer'; }
-  const dz = document.getElementById('hf-dropzone');
-  if (dz) dz.style.borderColor = 'var(--accent)';
-}
-
-async function analyzeHandsFile() {
-  if (!_hfFile) return;
+async function loadPositionAnalysis() {
   const isEN = I18N.isEN();
   const isPT = I18N.isPT();
   const lang = isEN ? 'en' : isPT ? 'pt' : 'es';
-
-  const btn    = document.getElementById('hf-btn');
   const result = document.getElementById('hf-result');
-
-  btn.disabled = true;
-  btn.textContent = isEN ? '⏳ Analyzing...' : isPT ? '⏳ Analisando...' : '⏳ Analizando...';
+  if (!result) return;
 
   const loadingMsg = isEN
-    ? 'Reading your hands and calling the AI coach… this may take 20–30 seconds.'
+    ? 'Consulting AI coach for your position data… this may take 20–30 seconds.'
     : isPT
-    ? 'Lendo suas mãos e consultando o coach de IA… isso pode levar 20–30 segundos.'
-    : 'Leyendo tus manos y consultando al coach de IA… esto puede tardar 20–30 segundos.';
+    ? 'Consultando coach de IA para seus dados de posição… isso pode levar 20–30 segundos.'
+    : 'Consultando al coach de IA con tus datos de posición… esto puede tardar 20–30 segundos.';
 
   result.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text3)"><div class="spinner" style="margin:0 auto 16px"></div><div style="font-size:0.9rem">' + loadingMsg + '</div></div>';
 
   try {
-    const form  = new FormData();
-    form.append('file', _hfFile);
-    form.append('lang', lang);
     const token = Api._token ? Api._token() : (localStorage.getItem('evhapo_token') || '');
-    const resp  = await fetch('/api/hands/analyze-file', {
+    const resp  = await fetch('/api/hands/position-analysis', {
       method: 'POST',
-      headers: { 'Authorization': 'Bearer ' + token },
-      body: form,
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ lang }),
     });
     const data = await resp.json();
+
     if (!resp.ok || data.error) {
-      result.innerHTML = '<div class="form-error">' + (data.error || 'Error al analizar el archivo') + '</div>';
+      const errCode = data.error || '';
+      if (errCode === 'no_analysis' || errCode === 'no_position_stats') {
+        const msg = isEN
+          ? '📂 No hand history found. Please upload a .txt file in the <strong>Hand Analysis</strong> tab first.'
+          : isPT
+          ? '📂 Nenhum histórico de mãos encontrado. Envie um arquivo .txt na aba <strong>Análise de Mãos</strong> primeiro.'
+          : '📂 No se encontró historial de manos. Sube primero un archivo .txt en el tab <strong>Análisis de Manos</strong>.';
+        result.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text3);font-size:0.95rem">' + msg + '</div>';
+      } else {
+        result.innerHTML = '<div class="form-error">' + errCode + '</div>';
+      }
       return;
     }
     _hfRenderResult(data, isEN, isPT);
   } catch (e) {
     result.innerHTML = '<div class="form-error">' + e.message + '</div>';
-  } finally {
-    btn.disabled = false;
-    btn.textContent = isEN ? '🔍 Analyze File' : isPT ? '🔍 Analisar Arquivo' : '🔍 Analizar Archivo';
   }
 }
 

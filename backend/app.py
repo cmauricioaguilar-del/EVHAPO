@@ -3540,6 +3540,65 @@ def _parse_single_hand(block):
     boards = re.findall(r'\*\*\* (?:FLOP|TURN|RIVER) \*\*\*\s*\[([^\]]+)\]', block)
     hand['board'] = ' → '.join(boards) if boards else None
 
+    # ── Posición de Hero ──────────────────────────────────────────────────────
+    position = None
+    # GGPoker: "Seat N: Hero [BTN/SB/BB/CO/MP/HJ/UTG...]"
+    gg_pos = re.search(r'Seat \d+: Hero \[(BTN|SB|BB|CO|MP|HJ|LJ|UTG\+?\d?|EP)\]', block)
+    if gg_pos:
+        position = gg_pos.group(1)
+    # GGPoker alternativo: "Hero: BTN"
+    if not position:
+        gg2 = re.search(r'\bHero\b[:\s]+(BTN|SB|BB|CO|MP|HJ|LJ|UTG\+?\d?|EP)\b', block)
+        if gg2:
+            position = gg2.group(1)
+    # PokerStars: "Seat N: Hero (dealer)" / "(small blind)" / "(big blind)"
+    if not position:
+        hero_seat_m = re.search(r'Seat (\d+): Hero', block)
+        if hero_seat_m:
+            hs = hero_seat_m.group(1)
+            if re.search(rf'Seat {hs}: Hero[^)]*\(dealer\)', block):
+                position = 'BTN'
+            elif re.search(rf'Seat {hs}: Hero[^)]*\(small blind\)', block):
+                position = 'SB'
+            elif re.search(rf'Seat {hs}: Hero[^)]*\(big blind\)', block):
+                position = 'BB'
+            else:
+                # Calcular posición relativa al dealer
+                dealer_m = re.search(r'Seat #(\d+) is the button', block)
+                if dealer_m:
+                    dealer_seat = int(dealer_m.group(1))
+                    hero_seat   = int(hs)
+                    seats = [int(x) for x in re.findall(r'^Seat (\d+):', block, re.MULTILINE)]
+                    if dealer_seat in seats and hero_seat in seats:
+                        d_idx = seats.index(dealer_seat)
+                        h_idx = seats.index(hero_seat)
+                        n     = len(seats)
+                        dist  = (h_idx - d_idx) % n
+                        pos_map = {0: 'BTN', 1: 'SB', 2: 'BB', 3: 'UTG'}
+                        if n >= 6: pos_map[n - 1] = 'CO'
+                        if n >= 7: pos_map[n - 2] = 'HJ'
+                        if n >= 8: pos_map[n - 3] = 'LJ'
+                        position = pos_map.get(dist, 'MP')
+    hand['position'] = position
+
+    # ── Neto de fichas de Hero en esta mano ───────────────────────────────────
+    collected = sum(float(x.replace(',', '')) for x in
+                    re.findall(r'Hero collected ([\d,]+(?:\.\d+)?)', block))
+    returned  = sum(float(x.replace(',', '')) for x in
+                    re.findall(r'Uncalled bet \(([\d,]+(?:\.\d+)?)\) returned to Hero', block))
+    invested  = 0
+    for x in re.findall(r'Hero posts (?:small|big) blind ([\d,]+(?:\.\d+)?)', block):
+        invested += float(x.replace(',', ''))
+    for x in re.findall(r'Hero posts the ante ([\d,]+(?:\.\d+)?)', block):
+        invested += float(x.replace(',', ''))
+    for x in re.findall(r'Hero: calls ([\d,]+(?:\.\d+)?)', block):
+        invested += float(x.replace(',', ''))
+    for x in re.findall(r'Hero: bets ([\d,]+(?:\.\d+)?)', block):
+        invested += float(x.replace(',', ''))
+    for x in re.findall(r'Hero: raises ([\d,]+(?:\.\d+)?) to', block):
+        invested += float(x.replace(',', ''))
+    hand['hero_net'] = round(collected + returned - invested, 2)
+
     # Resumen compact para el prompt
     hand['summary'] = _format_hand_compact(hand)
     return hand
@@ -3661,15 +3720,42 @@ def analyze_tournament():
     lang   = request.form.get('lang', 'es')
     prompt = _build_tournament_prompt(nombre, meta, player_profile, lang=lang)
 
-    # ── 5. Insertar job con status='processing' y lanzar hilo background ──────
+    # ── 5. Calcular estadísticas por posición ─────────────────────────────────
+    import json as _json
+    pos_stats = {}
+    for h in meta.get('selected_hands', []):
+        pos = h.get('position')
+        if not pos:
+            continue
+        net = h.get('hero_net', 0) or 0
+        if pos not in pos_stats:
+            pos_stats[pos] = {'hands': 0, 'net': 0.0, 'wins': 0}
+        pos_stats[pos]['hands'] += 1
+        pos_stats[pos]['net']   += net
+        if net > 0:
+            pos_stats[pos]['wins'] += 1
+    # Calcular per_100 y winrate
+    for p, d in pos_stats.items():
+        d['net']     = round(d['net'], 2)
+        d['per_100'] = round(d['net'] / d['hands'] * 100, 2) if d['hands'] else 0
+        d['winrate'] = round(d['wins'] / d['hands'] * 100, 1) if d['hands'] else 0
+
+    # ── 6. Insertar job con status='processing' y lanzar hilo background ──────
     db = get_db()
+    # Asegurar que la columna position_stats existe
+    try:
+        db.execute("ALTER TABLE tournament_analyses ADD COLUMN position_stats TEXT")
+        db.commit()
+    except Exception:
+        pass
     cursor = db.execute(
         """INSERT INTO tournament_analyses
-           (user_id, tournament_name, platform, buy_in, total_hands, hero_hands, date, status, created_at)
-           VALUES (?,?,?,?,?,?,?,?,?)""",
+           (user_id, tournament_name, platform, buy_in, total_hands, hero_hands, date, status, created_at, position_stats)
+           VALUES (?,?,?,?,?,?,?,?,?,?)""",
         (g.user_id, meta['tournament_name'], meta['platform'], meta['buy_in'],
          meta['total_hands'], meta['hero_hands_played'], meta['date'],
-         'processing', datetime.datetime.utcnow().isoformat())
+         'processing', datetime.datetime.utcnow().isoformat(),
+         _json.dumps(pos_stats) if pos_stats else None)
     )
     job_id = cursor.lastrowid
     db.commit()
@@ -4020,6 +4106,125 @@ def _bg_study_plan_generation(job_id, user_id, prompt, api_key):
             except Exception: pass
     finally:
         if db: db.close()
+
+
+@app.route('/api/hands/position-analysis', methods=['POST'])
+@require_auth
+def hands_position_analysis():
+    """
+    Lee el último análisis de manos del usuario, extrae position_stats
+    y genera con Claude un análisis de pérdidas por posición.
+    """
+    import json as _json, requests as _req
+
+    db = get_db()
+    # Buscar el análisis más reciente con position_stats
+    row = db.execute(
+        """SELECT * FROM tournament_analyses
+           WHERE user_id=? AND position_stats IS NOT NULL
+           ORDER BY id DESC LIMIT 1""",
+        (g.user_id,)
+    ).fetchone()
+
+    if not row:
+        # Fallback: cualquier análisis reciente aunque no tenga position_stats
+        row = db.execute(
+            """SELECT * FROM tournament_analyses
+               WHERE user_id=? ORDER BY id DESC LIMIT 1""",
+            (g.user_id,)
+        ).fetchone()
+        if not row:
+            return jsonify({'error': 'no_analysis'}), 404
+        return jsonify({'error': 'no_position_stats'}), 404
+
+    pos_stats = _json.loads(row['position_stats'])
+    if not pos_stats:
+        return jsonify({'error': 'no_position_stats'}), 404
+
+    lang = (request.json or {}).get('lang', 'es')
+
+    # Ordenar de peor a mejor
+    sorted_stats = sorted(pos_stats.items(), key=lambda x: x[1]['net'])
+    worst_pos  = sorted_stats[0][0]
+    worst_data = sorted_stats[0][1]
+    total_hands = sum(d['hands'] for d in pos_stats.values())
+
+    stats_lines = '\n'.join([
+        f"  {pos}: {d['hands']} manos, neto={d['net']:+.2f}, cada 100 manos={d['per_100']:+.2f}, winrate={d['winrate']}%"
+        for pos, d in sorted_stats
+    ])
+
+    api_key = _get_api_key()
+    if not api_key:
+        return jsonify({'error': 'API key no configurada'}), 503
+
+    if lang == 'en':
+        prompt = (
+            f"You are an expert poker coach. Analysis of a player's hand history "
+            f"({total_hands} hands from {row['platform'] or 'tournament'}).\n\n"
+            f"Results by position (worst to best):\n{stats_lines}\n\n"
+            f"WORST position: {worst_pos} — net: {worst_data['net']:+.2f} over {worst_data['hands']} hands.\n\n"
+            f"Write a concise coaching analysis in English with exactly 3 sections using HTML formatting:\n"
+            f"1. <strong>Position Leak Summary</strong> — brief overview of all positions\n"
+            f"2. <strong>Root Cause Analysis</strong> — why they likely lose from {worst_pos} specifically\n"
+            f"3. <strong>Action Plan</strong> — 3 to 5 concrete adjustments to fix the {worst_pos} leak\n\n"
+            f"Use poker terminology. Be direct. No generic advice. Use <ul><li> for lists."
+        )
+    elif lang == 'pt':
+        prompt = (
+            f"Você é um coach especialista em poker. Análise do histórico de mãos "
+            f"({total_hands} mãos de {row['platform'] or 'torneio'}).\n\n"
+            f"Resultados por posição (do pior ao melhor):\n{stats_lines}\n\n"
+            f"PIOR posição: {worst_pos} — saldo: {worst_data['net']:+.2f} em {worst_data['hands']} mãos.\n\n"
+            f"Escreva uma análise concisa em português com exatamente 3 seções em HTML:\n"
+            f"1. <strong>Resumo de Vazamentos por Posição</strong>\n"
+            f"2. <strong>Análise da Causa Raiz</strong> — por que perde em {worst_pos}\n"
+            f"3. <strong>Plano de Ação</strong> — 3 a 5 ajustes concretos para {worst_pos}\n\n"
+            f"Use terminologia de poker. Seja direto. Sem conselhos genéricos. Use <ul><li>."
+        )
+    else:
+        prompt = (
+            f"Eres un coach experto en poker. Análisis del historial de manos "
+            f"({total_hands} manos de {row['platform'] or 'torneo'}).\n\n"
+            f"Resultados por posición (de peor a mejor):\n{stats_lines}\n\n"
+            f"PEOR posición: {worst_pos} — neto: {worst_data['net']:+.2f} en {worst_data['hands']} manos.\n\n"
+            f"Escribe un análisis conciso de coach en español con exactamente 3 secciones en HTML:\n"
+            f"1. <strong>Resumen de Fugas por Posición</strong>\n"
+            f"2. <strong>Análisis de Causa Raíz</strong> — por qué pierde desde {worst_pos}\n"
+            f"3. <strong>Plan de Acción</strong> — 3 a 5 ajustes concretos para corregir la fuga en {worst_pos}\n\n"
+            f"Usa terminología de poker. Sé directo. Sin consejos genéricos. Usa <ul><li>."
+        )
+
+    ai_analysis = None
+    try:
+        resp = _req.post(
+            'https://api.anthropic.com/v1/messages',
+            headers={
+                'x-api-key': api_key,
+                'anthropic-version': '2023-06-01',
+                'content-type': 'application/json',
+            },
+            json={
+                'model': 'claude-sonnet-4-6',
+                'max_tokens': 1200,
+                'messages': [{'role': 'user', 'content': prompt}]
+            },
+            timeout=60
+        )
+        resp.raise_for_status()
+        ai_analysis = resp.json()['content'][0]['text'].strip()
+    except Exception as e:
+        print(f'[POSITION] Claude error: {e}')
+
+    return jsonify({
+        'ok':           True,
+        'tournament':   row['tournament_name'],
+        'platform':     row['platform'],
+        'total_hands':  total_hands,
+        'worst_pos':    worst_pos,
+        'sorted_stats': [{'pos': p, **d} for p, d in sorted_stats],
+        'ai_analysis':  ai_analysis,
+    })
 
 
 @app.route('/api/study-plan/generate', methods=['POST'])
