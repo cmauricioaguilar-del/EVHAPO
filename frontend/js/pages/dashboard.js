@@ -1169,7 +1169,10 @@ async function loadPositionAnalysis() {
 function _hfRenderResult(data, isEN, isPT) {
   const result = document.getElementById('hf-result');
   const hand_count  = data.hand_count || data.total_hands || 0;
-  const { worst_pos, sorted_stats, ai_analysis } = data;
+  const { worst_pos, sorted_stats } = data;
+  // Limpiar markdown ```html ... ``` que a veces devuelve la IA
+  let ai_analysis = data.ai_analysis || '';
+  ai_analysis = ai_analysis.replace(/^```html\s*/i, '').replace(/```\s*$/, '').trim();
 
   const posColor = {
     BTN:'#d4af37', SB:'#60a5fa', BB:'#f87171', CO:'#4ade80',
@@ -1184,11 +1187,20 @@ function _hfRenderResult(data, isEN, isPT) {
   const per100     = isEN ? 'per 100 hands' : isPT ? 'por 100 mãos' : 'por 100 manos';
   const thStyle    = 'padding:10px 12px;text-align:left;color:var(--text3);font-size:0.75rem;font-weight:700;text-transform:uppercase;border-bottom:1px solid var(--border)';
 
+  // Formatear número: si abs >= 1000 usar K, si >= 1M usar M
+  function fmtChips(n) {
+    const sign = n >= 0 ? '+' : '';
+    const abs  = Math.abs(n);
+    if (abs >= 1000000) return sign + (n/1000000).toFixed(2) + 'M';
+    if (abs >= 1000)    return sign + (n/1000).toFixed(1) + 'K';
+    return sign + n.toFixed(2);
+  }
+
   const rows = (sorted_stats || []).map(function(s) {
     const color   = posColor[s.pos] || '#94a3b8';
     const isWorst = s.pos === worst_pos;
-    const netStr  = (s.net >= 0 ? '+' : '') + s.net.toFixed(2);
-    const p100Str = (s.per_100 >= 0 ? '+' : '') + s.per_100.toFixed(2);
+    const netStr  = fmtChips(s.net);
+    const p100Str = fmtChips(s.per_100);
     return '<tr style="' + (isWorst ? 'background:rgba(239,68,68,0.08)' : '') + '">'
       + '<td style="padding:10px 12px;font-weight:800;color:' + color + ';font-family:monospace;font-size:0.95rem">' + s.pos + (isWorst ? ' ⚠️' : '') + '</td>'
       + '<td style="padding:10px 12px;text-align:center;color:var(--text2)">' + s.hands + '</td>'
@@ -1210,8 +1222,8 @@ function _hfRenderResult(data, isEN, isPT) {
           + '<thead><tr>'
             + '<th style="' + thStyle + '">' + (isEN ? 'Position' : 'Posición') + '</th>'
             + '<th style="' + thStyle + ';text-align:center">' + (isEN ? 'Hands' : isPT ? 'Mãos' : 'Manos') + '</th>'
-            + '<th style="' + thStyle + ';text-align:center">Net</th>'
-            + '<th style="' + thStyle + ';text-align:center">' + per100 + '</th>'
+            + '<th style="' + thStyle + ';text-align:center">Net (chips)</th>'
+            + '<th style="' + thStyle + ';text-align:center">' + per100 + ' (chips)</th>'
             + '<th style="' + thStyle + ';text-align:center">Winrate</th>'
           + '</tr></thead>'
           + '<tbody>' + rows + '</tbody>'
