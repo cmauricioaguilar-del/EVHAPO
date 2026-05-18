@@ -179,6 +179,7 @@ function renderDashboardContent(data, user) {
     ${hasEvolution ? `<button class="tab-btn" onclick="dashTab('evolution')">📈 ${isEN ? 'Evolution' : isPT ? 'Evolução' : 'Evolución'}</button>` : ''}
     <button class="tab-btn" onclick="dashTab('profile')">🧬 ${isEN ? 'My Profile' : isPT ? 'Meu Perfil' : 'Mi Perfil'}</button>
     <button class="tab-btn" onclick="dashTab('tournament')">🃏 ${isEN ? 'Hand Analysis' : isPT ? 'Análise de Mãos' : 'Análisis de Manos'}</button>
+    <button class="tab-btn" onclick="dashTab('handsfile')">📂 ${isEN ? 'File Analysis' : isPT ? 'Análise de Arquivo' : 'Análisis de Archivo'}</button>
     <button class="tab-btn" onclick="dashTab('history')">📅 ${isEN ? 'History' : isPT ? 'Histórico' : 'Historial'}</button>
     <button class="tab-btn" onclick="dashTab('benchmark')">🏅 Benchmark</button>
   </div>`;
@@ -328,6 +329,9 @@ function renderDashboardContent(data, user) {
 
   // ─── TAB: Torneo ─────────────────────────────────────────────────────────
   html += renderTournamentTab();
+
+  // ─── TAB: Análisis de Archivo de Manos ───────────────────────────────────
+  html += renderHandsFileTab(isEN, isPT);
 
   // ─── TAB: Historial ───────────────────────────────────────────────────────
   html += `<div id="dtab-history" style="display:none">`;
@@ -627,7 +631,7 @@ function drawComparisonRadar(canvasId, categories, prevScores, currScores, accen
 }
 
 function dashTab(tab) {
-  ['combined','mental','technical','evolution','profile','tournament','history','benchmark'].forEach(t => {
+  ['combined','mental','technical','evolution','profile','tournament','handsfile','history','benchmark'].forEach(t => {
     const el  = document.getElementById(`dtab-${t}`);
     const btn = document.querySelector(`[onclick="dashTab('${t}')"]`);
     if (el)  el.style.display  = t === tab ? 'block' : 'none';
@@ -1089,4 +1093,179 @@ function openTutorialVideo() {
   };
   const lang = I18N.isEN() ? 'en' : I18N.isPT() ? 'pt' : 'es';
   window.open(videos[lang], '_blank', 'noopener');
+}
+
+// ─── TAB: Análisis de Archivo de Manos ────────────────────────────────────────
+
+function renderHandsFileTab(isEN, isPT) {
+  const title    = isEN ? 'Hand File Analysis' : isPT ? 'Análise de Arquivo de Mãos' : 'Análisis de Archivo de Manos';
+  const subtitle = isEN
+    ? 'Upload your hand history (.txt) from PokerStars or GGPoker and let AI identify where you lose the most chips.'
+    : isPT
+    ? 'Suba seu histórico de mãos (.txt) do PokerStars ou GGPoker e deixe a IA identificar onde você perde mais fichas.'
+    : 'Sube tu historial de manos (.txt) de PokerStars o GGPoker y deja que la IA identifique desde qué posición pierdes más fichas.';
+  const btnLabel    = isEN ? '🔍 Analyze File' : isPT ? '🔍 Analisar Arquivo' : '🔍 Analizar Archivo';
+  const chooseLabel = isEN ? 'Choose .txt file' : isPT ? 'Escolher arquivo .txt' : 'Elegir archivo .txt';
+  const dragLabel   = isEN ? 'or drag & drop here' : isPT ? 'ou arraste e solte aqui' : 'o arrastra y suelta aquí';
+  const supportLabel = isEN ? 'Supports PokerStars and GGPoker hand history format'
+    : isPT ? 'Suporta o formato de histórico de mãos do PokerStars e GGPoker'
+    : 'Compatible con el formato de historial de manos de PokerStars y GGPoker';
+
+  return `
+  <div id="dtab-handsfile" style="display:none">
+    <div class="card" style="margin-bottom:20px">
+      <div class="card-header">
+        <span class="card-icon">📂</span>
+        <div>
+          <h2>${title}</h2>
+          <div class="card-sub">${subtitle}</div>
+        </div>
+      </div>
+
+      <div id="hf-dropzone"
+        ondragover="event.preventDefault();this.style.borderColor='var(--accent)'"
+        ondragleave="this.style.borderColor='var(--border)'"
+        ondrop="hfHandleDrop(event)"
+        style="border:2px dashed var(--border);border-radius:12px;padding:36px 20px;text-align:center;margin:20px 0;cursor:pointer;transition:border-color 0.2s"
+        onclick="document.getElementById('hf-file-input').click()">
+        <div style="font-size:2.5rem;margin-bottom:10px">📄</div>
+        <div style="font-weight:700;color:var(--text1);margin-bottom:6px">${chooseLabel}</div>
+        <div style="font-size:0.85rem;color:var(--text3)">${dragLabel}</div>
+        <input type="file" id="hf-file-input" accept=".txt,.csv" style="display:none"
+          onchange="hfFileSelected(this.files[0])"/>
+      </div>
+
+      <div id="hf-filename" style="font-size:0.85rem;color:var(--accent);margin-bottom:14px;min-height:20px;text-align:center"></div>
+
+      <div style="text-align:center">
+        <button id="hf-btn" onclick="analyzeHandsFile()" disabled
+          style="background:var(--accent);color:#000;border:none;border-radius:10px;padding:12px 32px;font-size:1rem;font-weight:800;cursor:not-allowed;opacity:0.5;transition:all 0.2s">
+          ${btnLabel}
+        </button>
+      </div>
+      <p style="text-align:center;font-size:0.75rem;color:var(--text3);margin-top:12px">${supportLabel}</p>
+    </div>
+    <div id="hf-result"></div>
+  </div>`;
+}
+
+let _hfFile = null;
+
+function hfHandleDrop(e) {
+  e.preventDefault();
+  document.getElementById('hf-dropzone').style.borderColor = 'var(--border)';
+  const file = e.dataTransfer.files[0];
+  if (file) hfFileSelected(file);
+}
+
+function hfFileSelected(file) {
+  if (!file) return;
+  _hfFile = file;
+  const nameEl = document.getElementById('hf-filename');
+  const btn    = document.getElementById('hf-btn');
+  if (nameEl) nameEl.textContent = '📄 ' + file.name + ' (' + (file.size/1024).toFixed(1) + ' KB)';
+  if (btn)    { btn.disabled = false; btn.style.opacity = '1'; btn.style.cursor = 'pointer'; }
+  const dz = document.getElementById('hf-dropzone');
+  if (dz) dz.style.borderColor = 'var(--accent)';
+}
+
+async function analyzeHandsFile() {
+  if (!_hfFile) return;
+  const isEN = I18N.isEN();
+  const isPT = I18N.isPT();
+  const lang = isEN ? 'en' : isPT ? 'pt' : 'es';
+
+  const btn    = document.getElementById('hf-btn');
+  const result = document.getElementById('hf-result');
+
+  btn.disabled = true;
+  btn.textContent = isEN ? '⏳ Analyzing...' : isPT ? '⏳ Analisando...' : '⏳ Analizando...';
+
+  const loadingMsg = isEN
+    ? 'Reading your hands and calling the AI coach… this may take 20–30 seconds.'
+    : isPT
+    ? 'Lendo suas mãos e consultando o coach de IA… isso pode levar 20–30 segundos.'
+    : 'Leyendo tus manos y consultando al coach de IA… esto puede tardar 20–30 segundos.';
+
+  result.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text3)"><div class="spinner" style="margin:0 auto 16px"></div><div style="font-size:0.9rem">' + loadingMsg + '</div></div>';
+
+  try {
+    const form  = new FormData();
+    form.append('file', _hfFile);
+    form.append('lang', lang);
+    const token = Api._token ? Api._token() : (localStorage.getItem('evhapo_token') || '');
+    const resp  = await fetch('/api/hands/analyze-file', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + token },
+      body: form,
+    });
+    const data = await resp.json();
+    if (!resp.ok || data.error) {
+      result.innerHTML = '<div class="form-error">' + (data.error || 'Error al analizar el archivo') + '</div>';
+      return;
+    }
+    _hfRenderResult(data, isEN, isPT);
+  } catch (e) {
+    result.innerHTML = '<div class="form-error">' + e.message + '</div>';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = isEN ? '🔍 Analyze File' : isPT ? '🔍 Analisar Arquivo' : '🔍 Analizar Archivo';
+  }
+}
+
+function _hfRenderResult(data, isEN, isPT) {
+  const result = document.getElementById('hf-result');
+  const { hand_count, worst_pos, sorted_stats, ai_analysis } = data;
+
+  const posColor = {
+    BTN:'#d4af37', SB:'#60a5fa', BB:'#f87171', CO:'#4ade80',
+    MP:'#c084fc', HJ:'#fb923c', UTG:'#94a3b8', 'UTG+1':'#94a3b8',
+    'UTG+2':'#94a3b8', EP:'#94a3b8', LJ:'#94a3b8'
+  };
+
+  const handsLabel = isEN ? 'hands analyzed' : isPT ? 'mãos analisadas' : 'manos analizadas';
+  const worstLabel = isEN ? 'Worst position' : isPT ? 'Pior posição' : 'Peor posición';
+  const statsLabel = isEN ? 'Results by position' : isPT ? 'Resultados por posição' : 'Resultados por posición';
+  const aiLabel    = isEN ? '🤖 AI Coach Analysis' : isPT ? '🤖 Análise do Coach de IA' : '🤖 Análisis del Coach de IA';
+  const per100     = isEN ? 'per 100 hands' : isPT ? 'por 100 mãos' : 'por 100 manos';
+  const thStyle    = 'padding:10px 12px;text-align:left;color:var(--text3);font-size:0.75rem;font-weight:700;text-transform:uppercase;border-bottom:1px solid var(--border)';
+
+  const rows = (sorted_stats || []).map(function(s) {
+    const color   = posColor[s.pos] || '#94a3b8';
+    const isWorst = s.pos === worst_pos;
+    const netStr  = (s.net >= 0 ? '+' : '') + s.net.toFixed(2);
+    const p100Str = (s.per_100 >= 0 ? '+' : '') + s.per_100.toFixed(2);
+    return '<tr style="' + (isWorst ? 'background:rgba(239,68,68,0.08)' : '') + '">'
+      + '<td style="padding:10px 12px;font-weight:800;color:' + color + ';font-family:monospace;font-size:0.95rem">' + s.pos + (isWorst ? ' ⚠️' : '') + '</td>'
+      + '<td style="padding:10px 12px;text-align:center;color:var(--text2)">' + s.hands + '</td>'
+      + '<td style="padding:10px 12px;text-align:center;font-weight:700;color:' + (s.net >= 0 ? '#4ade80' : '#f87171') + '">' + netStr + '</td>'
+      + '<td style="padding:10px 12px;text-align:center;font-weight:600;color:' + (s.per_100 >= 0 ? '#4ade80' : '#f87171') + '">' + p100Str + '</td>'
+      + '<td style="padding:10px 12px;text-align:center;color:var(--text2)">' + s.winrate + '%</td>'
+      + '</tr>';
+  }).join('');
+
+  result.innerHTML =
+    '<div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:20px">'
+      + '<div class="stat-card" style="flex:1;min-width:140px"><div class="stat-val">' + hand_count + '</div><div class="stat-label">' + handsLabel + '</div></div>'
+      + '<div class="stat-card" style="flex:1;min-width:140px;border-color:rgba(239,68,68,0.4)"><div class="stat-val" style="color:#f87171">' + worst_pos + '</div><div class="stat-label">' + worstLabel + '</div></div>'
+    + '</div>'
+    + '<div class="card" style="margin-bottom:20px">'
+      + '<div class="card-header"><span class="card-icon">📊</span><div><h2>' + statsLabel + '</h2></div></div>'
+      + '<div style="overflow-x:auto;margin-top:12px">'
+        + '<table style="width:100%;border-collapse:collapse">'
+          + '<thead><tr>'
+            + '<th style="' + thStyle + '">' + (isEN ? 'Position' : 'Posición') + '</th>'
+            + '<th style="' + thStyle + ';text-align:center">' + (isEN ? 'Hands' : isPT ? 'Mãos' : 'Manos') + '</th>'
+            + '<th style="' + thStyle + ';text-align:center">Net</th>'
+            + '<th style="' + thStyle + ';text-align:center">' + per100 + '</th>'
+            + '<th style="' + thStyle + ';text-align:center">Winrate</th>'
+          + '</tr></thead>'
+          + '<tbody>' + rows + '</tbody>'
+        + '</table>'
+      + '</div>'
+    + '</div>'
+    + (ai_analysis
+      ? '<div class="card"><div class="card-header"><span class="card-icon">🤖</span><div><h2>' + aiLabel + '</h2></div></div>'
+        + '<div style="margin-top:16px;line-height:1.7;color:var(--text2);font-size:0.92rem">' + ai_analysis + '</div></div>'
+      : '');
 }

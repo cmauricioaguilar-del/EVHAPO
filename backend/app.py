@@ -4198,6 +4198,205 @@ def sessions_stats():
 # Inicializar BD al importar el módulo (gunicorn no ejecuta __main__)
 init_db()
 
+# ─── Análisis de archivo de manos ─────────────────────────────────────────────
+
+@app.route('/api/hands/analyze-file', methods=['POST'])
+@require_auth
+def analyze_hands_file():
+    """
+    Recibe un archivo .txt/.csv de historial de manos (PokerStars / GGPoker),
+    parsea posiciones y resultados, llama a Claude para diagnóstico y estrategia.
+    """
+    import re, io
+
+    file = request.files.get('file')
+    if not file:
+        return jsonify({'error': 'No se recibió ningún archivo'}), 400
+
+    raw = file.read(400_000).decode('utf-8', errors='ignore')  # máx ~400KB
+
+    # ── Parser multiformat ────────────────────────────────────────────────────
+    # Posiciones reconocidas
+    POS_ALIASES = {
+        'BTN': 'BTN', 'BUTTON': 'BTN', 'BU': 'BTN',
+        'SB': 'SB', 'SMALL BLIND': 'SB',
+        'BB': 'BB', 'BIG BLIND': 'BB',
+        'UTG': 'UTG', 'UTG+1': 'UTG+1', 'UTG+2': 'UTG+2',
+        'MP': 'MP', 'MP1': 'MP', 'MP2': 'MP', 'MP3': 'MP', 'HJ': 'HJ',
+        'CO': 'CO', 'CUTOFF': 'CO',
+        'EP': 'EP', 'LJ': 'LJ',
+    }
+
+    pos_results = {}   # { 'BTN': [+10.5, -3.2, ...], ... }
+    hand_count  = 0
+    hero_name   = None
+
+    # ── Detectar hero en PokerStars ───────────────────────────────────────────
+    hero_match = re.search(r'Dealt to ([^\[]+?) \[', raw)
+    if hero_match:
+        hero_name = hero_match.group(1).strip()
+
+    # ── Split en manos individuales ───────────────────────────────────────────
+    hand_blocks = re.split(r'(?=PokerStars Hand|GGPoker Hand|\*\*\* HAND)', raw)
+
+    for block in hand_blocks:
+        if not block.strip():
+            continue
+
+        # Detectar posición del hero
+        position = None
+
+        # PokerStars: "Seat 3: HeroName (dealer)" o "Seat 5: HeroName (small blind)"
+        if hero_name:
+            ps_pos = re.search(
+                rf'Seat \d+: {re.escape(hero_name)}\b.*?\((.*?)\)',
+                block, re.IGNORECASE
+            )
+            if ps_pos:
+                raw_pos = ps_pos.group(1).upper().strip()
+                position = POS_ALIASES.get(raw_pos)
+                if not position:
+                    # "dealer" → BTN
+                    if 'DEALER' in raw_pos:
+                        position = 'BTN'
+                    elif 'SMALL' in raw_pos:
+                        position = 'SB'
+                    elif 'BIG' in raw_pos:
+                        position = 'BB'
+
+        # GGPoker: "Hero: BTN" o similares
+        if not position:
+            gg = re.search(r'\bHero\b.*?:\s*(BTN|SB|BB|UTG|CO|MP|HJ|LJ|EP)\b',
+                           block, re.IGNORECASE)
+            if gg:
+                position = POS_ALIASES.get(gg.group(1).upper(), gg.group(1).upper())
+
+        # ── Calcular resultado neto de la mano para el hero ───────────────────
+        net = None
+
+        # PokerStars: "HeroName collected 45.60 from pot" y "HeroName: loses 12.00"
+        if hero_name:
+            collected = sum(float(x) for x in re.findall(
+                rf'{re.escape(hero_name)} collected ([\d.]+)', block))
+            uncalled   = sum(float(x) for x in re.findall(
+                rf'Uncalled bet \(([\d.]+)\) returned to {re.escape(hero_name)}', block))
+            # Extraer contribuciones del hero (calls, bets, raises)
+            contributed = sum(float(x) for x in re.findall(
+                rf'{re.escape(hero_name)}(?:: posts|: calls|: bets|: raises to) ([\d.]+)',
+                block))
+            # Blinds ya están contados arriba
+            if collected > 0 or contributed > 0:
+                net = collected + uncalled - contributed
+
+        if position and net is not None:
+            pos_results.setdefault(position, []).append(net)
+            hand_count += 1
+
+    if hand_count < 5:
+        return jsonify({'error':
+            'No se pudieron parsear suficientes manos. '
+            'Asegúrate de subir un historial de manos de PokerStars o GGPoker en formato .txt'
+        }), 400
+
+    # ── Estadísticas por posición ─────────────────────────────────────────────
+    stats = {}
+    for pos, results in pos_results.items():
+        total  = sum(results)
+        hands  = len(results)
+        stats[pos] = {
+            'hands':   hands,
+            'net':     round(total, 2),
+            'per_100': round(total / hands * 100, 2) if hands else 0,
+            'winrate': round(sum(1 for r in results if r > 0) / hands * 100, 1) if hands else 0,
+        }
+
+    # Ordenar por pérdida neta (peor primero)
+    sorted_stats = sorted(stats.items(), key=lambda x: x[1]['net'])
+    worst_pos    = sorted_stats[0][0] if sorted_stats else 'desconocida'
+    worst_data   = sorted_stats[0][1] if sorted_stats else {}
+
+    # ── Llamada a Claude ──────────────────────────────────────────────────────
+    api_key = _get_api_key()
+    if not api_key:
+        return jsonify({'error': 'API key no configurada'}), 503
+
+    lang = request.form.get('lang', 'es')
+
+    # Resumen para el prompt
+    stats_lines = '\n'.join([
+        f"  {pos}: {d['hands']} manos, neto={d['net']:+.2f}, cada 100 manos={d['per_100']:+.2f}, winrate={d['winrate']}%"
+        for pos, d in sorted_stats
+    ])
+
+    if lang == 'en':
+        prompt = (
+            f"You are an expert poker coach. A player uploaded their hand history ({hand_count} hands parsed).\n\n"
+            f"Results by position (sorted worst to best):\n{stats_lines}\n\n"
+            f"Their WORST position is {worst_pos} with a net of {worst_data.get('net', 0):+.2f} "
+            f"over {worst_data.get('hands', 0)} hands.\n\n"
+            f"Write a concise poker coach analysis in English with exactly 3 sections:\n"
+            f"1. **Position Leak Summary** — brief table or list of all positions, highlighting where they bleed the most\n"
+            f"2. **Root Cause Analysis** — explain WHY they likely lose from {worst_pos} (typical mistakes for that position)\n"
+            f"3. **Action Plan** — 3 to 5 concrete, specific adjustments to fix the leak in {worst_pos}\n\n"
+            f"Use poker terminology. Be direct and actionable. No generic advice. Format with HTML tags (<strong>, <ul>, <li>)."
+        )
+    elif lang == 'pt':
+        prompt = (
+            f"Você é um coach especialista em poker. Um jogador enviou seu histórico de mãos ({hand_count} mãos analisadas).\n\n"
+            f"Resultados por posição (do pior ao melhor):\n{stats_lines}\n\n"
+            f"A PIOR posição é {worst_pos} com saldo de {worst_data.get('net', 0):+.2f} "
+            f"em {worst_data.get('hands', 0)} mãos.\n\n"
+            f"Escreva uma análise concisa de coach de poker em português com exatamente 3 seções:\n"
+            f"1. **Resumo de Vazamentos por Posição** — lista ou tabela resumida de todas as posições\n"
+            f"2. **Análise da Causa Raiz** — explique POR QUE provavelmente perde em {worst_pos}\n"
+            f"3. **Plano de Ação** — 3 a 5 ajustes concretos e específicos para corrigir o vazamento em {worst_pos}\n\n"
+            f"Use terminologia de poker. Seja direto e objetivo. Sem conselhos genéricos. Formate com tags HTML (<strong>, <ul>, <li>)."
+        )
+    else:
+        prompt = (
+            f"Eres un coach experto en poker. Un jugador subió su historial de manos ({hand_count} manos parseadas).\n\n"
+            f"Resultados por posición (de peor a mejor):\n{stats_lines}\n\n"
+            f"Su PEOR posición es {worst_pos} con un neto de {worst_data.get('net', 0):+.2f} "
+            f"en {worst_data.get('hands', 0)} manos.\n\n"
+            f"Escribe un análisis conciso de coach de poker en español con exactamente 3 secciones:\n"
+            f"1. **Resumen de Fugas por Posición** — lista o tabla breve de todas las posiciones\n"
+            f"2. **Análisis de Causa Raíz** — explica POR QUÉ probablemente pierde desde {worst_pos}\n"
+            f"3. **Plan de Acción** — 3 a 5 ajustes concretos y específicos para corregir la fuga en {worst_pos}\n\n"
+            f"Usa terminología de poker. Sé directo y accionable. Sin consejos genéricos. Formatea con etiquetas HTML (<strong>, <ul>, <li>)."
+        )
+
+    import requests as _req
+    try:
+        resp = _req.post(
+            'https://api.anthropic.com/v1/messages',
+            headers={
+                'x-api-key': api_key,
+                'anthropic-version': '2023-06-01',
+                'content-type': 'application/json',
+            },
+            json={
+                'model': 'claude-sonnet-4-6',
+                'max_tokens': 1200,
+                'messages': [{'role': 'user', 'content': prompt}]
+            },
+            timeout=60
+        )
+        resp.raise_for_status()
+        ai_analysis = resp.json()['content'][0]['text'].strip()
+    except Exception as e:
+        print(f'[HANDS] Claude error: {e}')
+        ai_analysis = None
+
+    return jsonify({
+        'ok':         True,
+        'hand_count': hand_count,
+        'worst_pos':  worst_pos,
+        'stats':      stats,
+        'sorted_stats': [{'pos': p, **d} for p, d in sorted_stats],
+        'ai_analysis': ai_analysis,
+    })
+
+
 # Iniciar scheduler de recordatorios de cupones
 threading.Thread(target=_coupon_email_scheduler, daemon=True).start()
 
