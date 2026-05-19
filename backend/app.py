@@ -23,6 +23,15 @@ from flask_cors import CORS
 app = Flask(__name__, static_folder='../frontend', static_url_path='')
 CORS(app)
 
+# ─── Redirección www → sin www ────────────────────────────────────────────────
+@app.before_request
+def redirect_www():
+    from flask import redirect
+    host = request.host or ''
+    if host.startswith('www.'):
+        url = request.url.replace('://www.', '://', 1)
+        return redirect(url, code=301)
+
 # ─── Sentry — monitoreo de errores (carga opcional) ──────────────────────────
 _SENTRY_DSN = os.environ.get('SENTRY_DSN', '')
 if _SENTRY_DSN:
