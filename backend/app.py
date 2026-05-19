@@ -658,7 +658,7 @@ def create_payment():
 
 def _create_paddle_checkout(price_id, user_email, success_url, custom_data=None):
     """Crea un checkout en Paddle y retorna (checkout_url, transaction_id)."""
-    import requests as _req
+    import requests as _req, json as _json
     api_key = os.environ.get('PADDLE_API_KEY') or PADDLE_API_KEY
     payload = {
         "items": [{"price_id": price_id, "quantity": 1}],
@@ -666,14 +666,20 @@ def _create_paddle_checkout(price_id, user_email, success_url, custom_data=None)
         "customer": {"email": user_email},
     }
     if custom_data:
-        payload["custom_data"] = custom_data
+        # Paddle requiere custom_data como string JSON, no como objeto
+        payload["custom_data"] = _json.dumps(custom_data)
     resp = _req.post(
         "https://api.paddle.com/transactions",
         headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
         json=payload,
         timeout=15
     )
-    resp.raise_for_status()
+    if not resp.ok:
+        try:
+            err_detail = resp.json()
+        except Exception:
+            err_detail = resp.text
+        raise Exception(f"Paddle {resp.status_code}: {err_detail}")
     data = resp.json()
     return data['data']['checkout']['url'], data['data']['id']
 
