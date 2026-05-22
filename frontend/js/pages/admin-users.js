@@ -107,8 +107,13 @@ function renderUsersList(users) {
               ${u.coupon_activated_at
                 ? (() => {
                     const days = u.coupon_days_remaining;
-                    if (days > 0) return `<span style="background:rgba(251,191,36,0.15);color:#fbbf24;padding:3px 8px;border-radius:4px;font-size:0.82rem;font-weight:600">⏳ ${days}d restantes</span>`;
-                    return `<span style="background:rgba(239,68,68,0.12);color:#f87171;padding:3px 8px;border-radius:4px;font-size:0.82rem">Expirado</span>`;
+                    const badge = days > 0
+                      ? `<span style="background:rgba(251,191,36,0.15);color:#fbbf24;padding:3px 8px;border-radius:4px;font-size:0.82rem;font-weight:600">⏳ ${days}d restantes</span>`
+                      : `<span style="background:rgba(239,68,68,0.12);color:#f87171;padding:3px 8px;border-radius:4px;font-size:0.82rem">Expirado</span>`;
+                    const code = u.coupon_code
+                      ? `<br><span style="font-family:monospace;font-size:0.75rem;color:var(--text3);letter-spacing:1px">${escHtml(u.coupon_code)}</span>`
+                      : '';
+                    return badge + code;
                   })()
                 : `<span style="color:var(--text3);font-size:0.82rem">—</span>`}
             </td>

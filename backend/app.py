@@ -1946,7 +1946,7 @@ def list_users():
         return jsonify({'error': 'Acceso denegado'}), 403
     db = get_db()
     rows = db.execute(
-        "SELECT id, nombre, apellido, email, pais, referral_code, created_at, coupon_activated_at FROM users ORDER BY created_at DESC"
+        "SELECT id, nombre, apellido, email, pais, referral_code, created_at, coupon_activated_at, coupon_code FROM users ORDER BY created_at DESC"
     ).fetchall()
     users_data = []
     for r in rows:
@@ -2226,6 +2226,25 @@ def password_reset():
         return jsonify({'ok': True, 'message': 'Te enviamos un correo con tu nueva contraseña temporal. Revisa también la carpeta de spam.'})
     except Exception as e:
         return jsonify({'error': f'Error al enviar el correo: {str(e)}'}), 500
+
+@app.route('/api/me/change-password', methods=['POST'])
+@require_auth
+def change_password():
+    data       = request.json or {}
+    current_pw = (data.get('current_password') or '').strip()
+    new_pw     = (data.get('new_password')     or '').strip()
+    if not current_pw or not new_pw:
+        return jsonify({'error': 'Ingresa la contraseña actual y la nueva.'}), 400
+    if len(new_pw) < 6:
+        return jsonify({'error': 'La nueva contraseña debe tener al menos 6 caracteres.'}), 400
+    db   = get_db()
+    user = db.execute("SELECT password_hash FROM users WHERE id=?", (g.user_id,)).fetchone()
+    if not verify_password(current_pw, user['password_hash']):
+        return jsonify({'error': 'La contraseña actual es incorrecta.'}), 400
+    db.execute("UPDATE users SET password_hash=? WHERE id=?", (hash_password(new_pw), g.user_id))
+    db.commit()
+    return jsonify({'ok': True})
+
 
 REFERRAL_NOTIFY_EMAIL = 'c.mauricio.aguilar@gmail.com'
 

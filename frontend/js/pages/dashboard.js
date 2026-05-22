@@ -182,6 +182,7 @@ function renderDashboardContent(data, user) {
     <button class="tab-btn" onclick="dashTab('handsfile')">📉 ${isEN ? 'Position Leaks' : isPT ? 'Perdas por Posição' : 'Análisis de Pérdidas de Blinds'}</button>
     <button class="tab-btn" onclick="dashTab('history')">📅 ${isEN ? 'History' : isPT ? 'Histórico' : 'Historial'}</button>
     <button class="tab-btn" onclick="dashTab('benchmark')">🏅 Benchmark</button>
+    <button class="tab-btn" onclick="dashTab('account')">⚙️ ${isEN ? 'Account' : isPT ? 'Conta' : 'Cuenta'}</button>
   </div>`;
 
   // ─── TAB: Vista combinada ─────────────────────────────────────────────────
@@ -504,6 +505,49 @@ function renderDashboardContent(data, user) {
   }
   html += `</div>`;
 
+  // ─── TAB: Cuenta ─────────────────────────────────────────────────────────────
+  html += `<div id="dtab-account" style="display:none">
+    <div class="card" style="max-width:480px;margin:0 auto">
+      <div class="card-header">
+        <span class="card-icon">🔒</span>
+        <div>
+          <h2>${isEN ? 'Change Password' : isPT ? 'Alterar Senha' : 'Cambiar Contraseña'}</h2>
+          <div class="card-sub">${isEN ? 'Update your access password' : isPT ? 'Atualize sua senha de acesso' : 'Actualizá tu contraseña de acceso'}</div>
+        </div>
+      </div>
+      <div id="chpw-msg"></div>
+      <div style="display:flex;flex-direction:column;gap:14px;margin-top:8px">
+        <div>
+          <label style="font-size:0.85rem;color:var(--text2);display:block;margin-bottom:6px">
+            ${isEN ? 'Current password' : isPT ? 'Senha atual' : 'Contraseña actual'}
+          </label>
+          <input id="chpw-current" type="password" class="form-input"
+            placeholder="${isEN ? 'Current password' : isPT ? 'Senha atual' : 'Contraseña actual'}"
+            style="width:100%">
+        </div>
+        <div>
+          <label style="font-size:0.85rem;color:var(--text2);display:block;margin-bottom:6px">
+            ${isEN ? 'New password' : isPT ? 'Nova senha' : 'Nueva contraseña'}
+          </label>
+          <input id="chpw-new" type="password" class="form-input"
+            placeholder="${isEN ? 'Minimum 6 characters' : isPT ? 'Mínimo 6 caracteres' : 'Mínimo 6 caracteres'}"
+            style="width:100%">
+        </div>
+        <div>
+          <label style="font-size:0.85rem;color:var(--text2);display:block;margin-bottom:6px">
+            ${isEN ? 'Confirm new password' : isPT ? 'Confirmar nova senha' : 'Confirmar nueva contraseña'}
+          </label>
+          <input id="chpw-confirm" type="password" class="form-input"
+            placeholder="${isEN ? 'Repeat new password' : isPT ? 'Repita a nova senha' : 'Repetí la nueva contraseña'}"
+            style="width:100%">
+        </div>
+        <button class="btn btn-primary" onclick="submitChangePassword()" style="margin-top:4px">
+          🔒 ${isEN ? 'Update password' : isPT ? 'Atualizar senha' : 'Actualizar contraseña'}
+        </button>
+      </div>
+    </div>
+  </div>`;
+
   document.getElementById('dashboard-content').innerHTML = html;
 
   // ─── Dibujar radares ──────────────────────────────────────────────────────
@@ -631,7 +675,7 @@ function drawComparisonRadar(canvasId, categories, prevScores, currScores, accen
 }
 
 function dashTab(tab) {
-  ['combined','mental','technical','evolution','profile','tournament','handsfile','history','benchmark'].forEach(t => {
+  ['combined','mental','technical','evolution','profile','tournament','handsfile','history','benchmark','account'].forEach(t => {
     const el  = document.getElementById(`dtab-${t}`);
     const btn = document.querySelector(`[onclick="dashTab('${t}')"]`);
     if (el)  el.style.display  = t === tab ? 'block' : 'none';
@@ -1234,4 +1278,47 @@ function _hfRenderResult(data, isEN, isPT) {
       ? '<div class="card"><div class="card-header"><span class="card-icon">🤖</span><div><h2>' + aiLabel + '</h2></div></div>'
         + '<div style="margin-top:16px;line-height:1.7;color:var(--text2);font-size:0.92rem">' + ai_analysis + '</div></div>'
       : '');
+}
+
+async function submitChangePassword() {
+  const current = document.getElementById('chpw-current')?.value || '';
+  const newPw   = document.getElementById('chpw-new')?.value    || '';
+  const confirm = document.getElementById('chpw-confirm')?.value || '';
+  const msgEl   = document.getElementById('chpw-msg');
+  const isEN = I18N.isEN(), isPT = I18N.isPT();
+
+  if (!current || !newPw || !confirm) {
+    msgEl.innerHTML = `<div class="form-error" style="margin-bottom:12px">${isEN ? 'All fields are required.' : isPT ? 'Todos os campos são obrigatórios.' : 'Todos los campos son obligatorios.'}</div>`;
+    return;
+  }
+  if (newPw !== confirm) {
+    msgEl.innerHTML = `<div class="form-error" style="margin-bottom:12px">${isEN ? 'Passwords do not match.' : isPT ? 'As senhas não coincidem.' : 'Las contraseñas no coinciden.'}</div>`;
+    return;
+  }
+  if (newPw.length < 6) {
+    msgEl.innerHTML = `<div class="form-error" style="margin-bottom:12px">${isEN ? 'Password must be at least 6 characters.' : isPT ? 'A senha deve ter pelo menos 6 caracteres.' : 'La contraseña debe tener al menos 6 caracteres.'}</div>`;
+    return;
+  }
+
+  const btn = document.querySelector('#dtab-account .btn-primary');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳...'; }
+  msgEl.innerHTML = '';
+
+  try {
+    await Api.post('/api/me/change-password', { current_password: current, new_password: newPw });
+    msgEl.innerHTML = `<div class="form-success" style="margin-bottom:12px;padding:10px 14px;background:rgba(74,222,128,0.1);border:1px solid rgba(74,222,128,0.3);border-radius:8px;color:#4ade80">
+      ✅ ${isEN ? 'Password updated successfully.' : isPT ? 'Senha atualizada com sucesso.' : 'Contraseña actualizada correctamente.'}
+    </div>`;
+    document.getElementById('chpw-current').value = '';
+    document.getElementById('chpw-new').value     = '';
+    document.getElementById('chpw-confirm').value = '';
+  } catch (e) {
+    msgEl.innerHTML = `<div class="form-error" style="margin-bottom:12px">${e.message}</div>`;
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = `🔒 ${isEN ? 'Update password' : isPT ? 'Atualizar senha' : 'Actualizar contraseña'}`;
+    }
+  }
+}
 }
