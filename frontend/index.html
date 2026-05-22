@@ -151,41 +151,127 @@
   </div>
 
   <script src="js/utils/captcha.js?v=20250511d"></script>
-  <script src="js/utils/i18n.js?v=20250511d"></script>
-  <script src="js/data/questions.js?v=20250512e"></script>
-  <script src="js/data/questions_en.js?v=20250512e"></script>
-  <script src="js/data/questions_pt.js?v=20250511d"></script>
-  <script src="js/data/technical_questions.js?v=20250512e"></script>
-  <script src="js/data/technical_questions_en.js?v=20250512e"></script>
-  <script src="js/data/technical_questions_pt.js?v=20250511d"></script>
-  <script src="js/utils/api.js?v=20250511d"></script>
-  <script src="js/utils/report.js?v=20250512f"></script>
-  <script src="js/pages/landing.js?v=20250512k"></script>
-  <script src="js/pages/login.js?v=20250512e"></script>
-  <script src="js/pages/register.js?v=20250512e"></script>
-  <script src="js/pages/payment.js?v=20250512e"></script>
-  <script src="js/pages/test.js?v=20250512e"></script>
-  <script src="js/pages/results.js?v=20250512e"></script>
-  <script src="js/pages/dashboard.js?v=20250512m"></script>
-  <script src="js/pages/tournament.js?v=20250512f"></script>
-  <script src="js/pages/admin-referrals.js?v=20250511d"></script>
-  <script src="js/pages/admin-users.js?v=20250511f"></script>
-  <script src="js/pages/admin-coupons.js?v=20250511e"></script>
-  <script src="js/pages/admin-analytics.js?v=20250511e"></script>
-  <script src="js/pages/study-plan.js?v=20250512f"></script>
-  <script src="js/pages/workbook.js?v=20250512h"></script>
-  <script src="js/pages/sessions.js?v=20250512f"></script>
-  <script src="js/pages/bankroll.js?v=20250512h"></script>
-  <script src="js/pages/guide.js?v=20250512i"></script>
-  <script src="js/app.js?v=20250512h"></script>
+  <script src="js/utils/i18n.js?v=20260522a"></script>
+  <script src="js/data/questions.js?v=20260522a"></script>
+  <script src="js/data/questions_en.js?v=20260522a"></script>
+  <script src="js/data/questions_pt.js?v=20260522a"></script>
+  <script src="js/data/technical_questions.js?v=20260522a"></script>
+  <script src="js/data/technical_questions_en.js?v=20260522a"></script>
+  <script src="js/data/technical_questions_pt.js?v=20260522a"></script>
+  <script src="js/utils/api.js?v=20260522a"></script>
+  <script src="js/utils/report.js?v=20260522a"></script>
+  <script src="js/pages/landing.js?v=20260522a"></script>
+  <script src="js/pages/login.js?v=20260522a"></script>
+  <script src="js/pages/register.js?v=20260522a"></script>
+  <script src="js/pages/payment.js?v=20260522a"></script>
+  <script src="js/pages/test.js?v=20260522a"></script>
+  <script src="js/pages/results.js?v=20260522a"></script>
+  <script src="js/pages/dashboard.js?v=20260522a"></script>
+  <script src="js/pages/tournament.js?v=20260522a"></script>
+  <script src="js/pages/admin-referrals.js?v=20260522a"></script>
+  <script src="js/pages/admin-users.js?v=20260522a"></script>
+  <script src="js/pages/admin-coupons.js?v=20260522a"></script>
+  <script src="js/pages/admin-analytics.js?v=20260522a"></script>
+  <script src="js/pages/study-plan.js?v=20260522a"></script>
+  <script src="js/pages/workbook.js?v=20260522a"></script>
+  <script src="js/pages/sessions.js?v=20260522a"></script>
+  <script src="js/pages/bankroll.js?v=20260522a"></script>
+  <script src="js/pages/guide.js?v=20260522a"></script>
+  <script src="js/app.js?v=20260522a"></script>
 
-  <!-- Registro del Service Worker (PWA) -->
+  <!-- Banner de actualización -->
+  <style>
+    #update-banner {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+      background: #1e293b; border: 1.5px solid #d4af37; border-radius: 14px;
+      padding: 14px 18px; display: flex; align-items: center; gap: 12px;
+      z-index: 99999; box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+      max-width: 400px; width: calc(100% - 32px); animation: slideUp .3s ease;
+    }
+    @keyframes slideUp { from { opacity:0; transform:translateX(-50%) translateY(20px); } to { opacity:1; transform:translateX(-50%) translateY(0); } }
+    #update-banner .ub-text { flex:1; font-size:0.88rem; color:#e2e8f0; line-height:1.4; }
+    #update-banner .ub-text strong { color:#d4af37; display:block; margin-bottom:2px; }
+    #update-banner .ub-btn { background:#d4af37; color:#0a0e1a; border:none; border-radius:8px;
+      padding:8px 14px; font-size:0.82rem; font-weight:800; cursor:pointer; white-space:nowrap; }
+    #update-banner .ub-close { background:none; border:none; color:#64748b; cursor:pointer;
+      font-size:1.1rem; padding:4px; line-height:1; }
+  </style>
+
+  <!-- Registro del Service Worker (PWA) + detección de actualizaciones -->
   <script>
+    let _swReg = null;
+
+    function _showUpdateBanner() {
+      if (document.getElementById('update-banner')) return;
+      const b = document.createElement('div');
+      b.id = 'update-banner';
+      b.innerHTML = `
+        <div class="ub-text">
+          <strong>🔄 Nueva versión disponible</strong>
+          Hay mejoras listas para vos. ¡Actualizá en un toque!
+        </div>
+        <button class="ub-btn" onclick="_applyUpdate()">Actualizar</button>
+        <button class="ub-close" onclick="this.parentElement.remove()" title="Más tarde">✕</button>`;
+      document.body.appendChild(b);
+    }
+
+    function _applyUpdate() {
+      if (_swReg && _swReg.waiting) {
+        _swReg.waiting.postMessage({ type: 'SKIP_WAITING' });
+      } else {
+        window.location.reload(true);
+      }
+    }
+
+    // Cuando el SW nuevo toma control → recargar automáticamente
     if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js')
-          .then(reg => console.log('[PWA] Service Worker registrado:', reg.scope))
-          .catch(err => console.warn('[PWA] Error al registrar SW:', err));
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        window.location.reload();
+      });
+    }
+
+    async function _checkVersion() {
+      try {
+        const r = await fetch('/api/version', { cache: 'no-store' });
+        const { version } = await r.json();
+        const stored = localStorage.getItem('mindev_srv_version');
+        if (stored && stored !== version) {
+          _showUpdateBanner();
+        }
+        localStorage.setItem('mindev_srv_version', version);
+      } catch {}
+    }
+
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', async () => {
+        try {
+          const reg = await navigator.serviceWorker.register('/sw.js');
+          _swReg = reg;
+
+          // ¿Hay un SW nuevo esperando ya?
+          if (reg.waiting) _showUpdateBanner();
+
+          // Detectar cuando se descarga un SW nuevo
+          reg.addEventListener('updatefound', () => {
+            const nw = reg.installing;
+            nw.addEventListener('statechange', () => {
+              if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+                _showUpdateBanner();
+              }
+            });
+          });
+
+          // Forzar chequeo del SW cada 60 s (sin esto Chrome puede tardar 24 h)
+          setInterval(() => reg.update(), 60_000);
+
+          console.log('[PWA] Service Worker registrado:', reg.scope);
+        } catch (err) {
+          console.warn('[PWA] Error al registrar SW:', err);
+        }
+
+        // Chequeo de versión del servidor: inmediato y cada 5 min
+        setTimeout(_checkVersion, 2000);
+        setInterval(_checkVersion, 5 * 60_000);
       });
     }
 

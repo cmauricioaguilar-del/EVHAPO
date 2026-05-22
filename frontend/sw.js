@@ -1,32 +1,13 @@
 // ─── MindEV-IA Service Worker ─────────────────────────────────────────────────
-// Versión: incrementar al hacer cambios importantes para forzar actualización
+// v29 — JS/CSS nunca se cachean (siempre van a la red); solo íconos y CDN.
+// El banner de actualización en la app maneja el ciclo de update.
 
-const CACHE_NAME   = 'mindev-v28';
-const STATIC_CACHE = 'mindev-static-v28';
-const API_CACHE    = 'mindev-api-v28';
+const STATIC_CACHE = 'mindev-static-v29';
+const API_CACHE    = 'mindev-api-v29';
 
-// Archivos que se cachean al instalar (shell de la app)
+// Solo se pre-cachean recursos que NO cambian con cada deploy:
+// íconos, imágenes y librerías CDN versionadas externamente.
 const SHELL_FILES = [
-  '/',
-  '/index.html',
-  '/css/styles.css',
-  '/js/utils/i18n.js',
-  '/js/data/questions.js',
-  '/js/data/questions_pt.js',
-  '/js/data/technical_questions.js',
-  '/js/data/technical_questions_pt.js',
-  '/js/utils/api.js',
-  '/js/utils/captcha.js',
-  '/js/utils/report.js',
-  '/js/pages/landing.js',
-  '/js/pages/login.js',
-  '/js/pages/register.js',
-  '/js/pages/payment.js',
-  '/js/pages/test.js',
-  '/js/pages/results.js',
-  '/js/pages/dashboard.js',
-  '/js/pages/tournament.js',
-  '/js/app.js',
   '/icons/icon-192-v2.svg',
   '/icons/icon-512-v2.svg',
   '/icons/mindev-logo.png',
@@ -39,50 +20,47 @@ const SHELL_FILES = [
   '/icons/flags/pe.png',
   '/icons/flags/uy.png',
   '/manifest.json',
-  // Librerías externas
+  // Librerías externas versionadas — cambian solo si cambia la versión del CDN
   'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js',
   'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
   'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js',
   'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js',
 ];
 
-// ─── Instalación: cachear shell ───────────────────────────────────────────────
-// Usa Promise.allSettled para que un archivo fallido NO bloquee toda la instalación
+// ─── Instalación ──────────────────────────────────────────────────────────────
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(STATIC_CACHE).then(async cache => {
-      console.log('[SW] Cacheando shell de la app...');
-      const results = await Promise.allSettled(
+      console.log('[SW] Cacheando íconos y librerías CDN...');
+      await Promise.allSettled(
         SHELL_FILES.map(url =>
           cache.add(url).catch(err => console.warn('[SW] No se pudo cachear:', url, err.message))
         )
       );
-      const failed = results.filter(r => r.status === 'rejected').length;
-      if (failed) console.warn(`[SW] ${failed} archivo(s) no cacheado(s) — instalación continúa de todas formas`);
     }).then(() => self.skipWaiting())
   );
 });
 
-// ─── Activación: limpiar cachés viejas y tomar control inmediato ─────────────
+// ─── Activación: limpiar cachés viejas ───────────────────────────────────────
 self.addEventListener('activate', event => {
   event.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(
+    caches.keys()
+      .then(keys => Promise.all(
         keys
           .filter(k => k !== STATIC_CACHE && k !== API_CACHE)
-          .map(k => {
-            console.log('[SW] Eliminando caché vieja:', k);
-            return caches.delete(k);
-          })
-      )
-    ).then(() => self.clients.claim())
-      .then(() => {
-        // Forzar recarga en todos los clientes al actualizar SW
-        self.clients.matchAll({ type: 'window' }).then(clients => {
-          clients.forEach(client => client.navigate(client.url));
-        });
-      })
+          .map(k => { console.log('[SW] Eliminando caché vieja:', k); return caches.delete(k); })
+      ))
+      .then(() => self.clients.claim())
+    // ⚠️ No forzamos client.navigate() aquí — el banner de la app lo maneja
+    //    de forma controlada para no interrumpir al usuario en medio de un test.
   );
+});
+
+// ─── Mensaje desde la app: skipWaiting controlado ────────────────────────────
+self.addEventListener('message', event => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
 
 // ─── Intercepción de peticiones ───────────────────────────────────────────────
@@ -90,26 +68,40 @@ self.addEventListener('fetch', event => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // API requests: network first, cache fallback
-  if (url.pathname.startsWith('/api/')) {
-    event.respondWith(networkFirstApi(request));
+  // JS y CSS locales: SIEMPRE a la red, nunca caché.
+  // El browser HTTP-cache los controla con el ?v= param de index.html.
+  if (url.origin === self.location.origin &&
+      (url.pathname.endsWith('.js') || url.pathname.endsWith('.css'))) {
+    event.respondWith(networkOnly(request));
     return;
   }
 
-  // Navegación HTML (index.html): siempre network first para cargar última versión
+  // HTML navigation: network first para que index.html siempre sea fresco
   if (request.mode === 'navigate') {
     event.respondWith(networkFirstHtml(request));
     return;
   }
 
-  // Recursos estáticos: cache first, network fallback
+  // API: network first, caché como fallback offline
+  if (url.pathname.startsWith('/api/')) {
+    event.respondWith(networkFirstApi(request));
+    return;
+  }
+
+  // Íconos, imágenes, librerías CDN: cache first
   event.respondWith(cacheFirstStatic(request));
 });
 
-// ─── Estrategia: Network First (HTML navigation) ─────────────────────────────
-// Siempre busca en red primero para obtener la última versión del HTML.
-// El index.html tiene version strings en los scripts, así que si el HTML es fresco,
-// todos los JS/CSS también lo serán.
+// ─── Estrategia: Network Only (JS/CSS locales) ────────────────────────────────
+async function networkOnly(request) {
+  try {
+    return await fetch(request);
+  } catch {
+    return new Response('', { status: 408 });
+  }
+}
+
+// ─── Estrategia: Network First (HTML) ─────────────────────────────────────────
 async function networkFirstHtml(request) {
   try {
     const response = await fetch(request);
@@ -121,17 +113,14 @@ async function networkFirstHtml(request) {
   } catch {
     const cached = await caches.match(request);
     if (cached) return cached;
-    return new Response(offlinePage(), {
-      headers: { 'Content-Type': 'text/html; charset=utf-8' }
-    });
+    return new Response(offlinePage(), { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
   }
 }
 
-// ─── Estrategia: Cache First (recursos estáticos) ─────────────────────────────
+// ─── Estrategia: Cache First (íconos / CDN) ───────────────────────────────────
 async function cacheFirstStatic(request) {
   const cached = await caches.match(request);
   if (cached) return cached;
-
   try {
     const response = await fetch(request);
     if (response.ok) {
@@ -140,12 +129,6 @@ async function cacheFirstStatic(request) {
     }
     return response;
   } catch {
-    // Sin conexión y sin caché: mostrar página offline básica
-    if (request.mode === 'navigate') {
-      return new Response(offlinePage(), {
-        headers: { 'Content-Type': 'text/html; charset=utf-8' }
-      });
-    }
     return new Response('', { status: 408 });
   }
 }
@@ -193,28 +176,26 @@ function offlinePage() {
   <div class="container">
     <div class="icon">♠</div>
     <h1>Sin conexión</h1>
-    <p>MindEV-IA necesita conexión a internet para sincronizar tus resultados. Conéctate y vuelve a intentarlo.</p>
+    <p>MindEV-IA necesita conexión a internet para sincronizar tus resultados.</p>
     <button onclick="window.location.reload()">🔄 Reintentar</button>
   </div>
 </body>
 </html>`;
 }
 
-// ─── Notificaciones push (preparado para uso futuro) ─────────────────────────
+// ─── Notificaciones push ──────────────────────────────────────────────────────
 self.addEventListener('push', event => {
   if (!event.data) return;
   const data = event.data.json();
-  self.registration.showNotification(data.title || 'EVHAPO', {
+  self.registration.showNotification(data.title || 'MindEV-IA', {
     body: data.body || 'Tienes una notificación nueva.',
-    icon: '/icons/icon-192.svg',
-    badge: '/icons/icon-192.svg',
+    icon: '/icons/icon-192-v2.svg',
+    badge: '/icons/icon-192-v2.svg',
     data: { url: data.url || '/' },
   });
 });
 
 self.addEventListener('notificationclick', event => {
   event.notification.close();
-  event.waitUntil(
-    clients.openWindow(event.notification.data.url || '/')
-  );
+  event.waitUntil(clients.openWindow(event.notification.data.url || '/'));
 });

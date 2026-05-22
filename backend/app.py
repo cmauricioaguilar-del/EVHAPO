@@ -1,4 +1,5 @@
 import os
+import time as _time
 import sqlite3
 import hashlib
 import hmac
@@ -22,6 +23,14 @@ from flask_cors import CORS
 
 app = Flask(__name__, static_folder='../frontend', static_url_path='')
 CORS(app)
+
+# Versión de la app: cambia en cada deploy (timestamp de inicio del proceso)
+_APP_VERSION = str(int(_time.time()))
+
+@app.route('/api/version', methods=['GET'])
+def get_app_version():
+    """Endpoint público para que el cliente detecte nuevas versiones."""
+    return jsonify({'version': _APP_VERSION})
 
 # ─── Redirección www → sin www ────────────────────────────────────────────────
 @app.before_request
