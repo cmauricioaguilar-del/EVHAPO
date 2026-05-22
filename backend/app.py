@@ -3204,8 +3204,9 @@ def _bg_profile_generation(job_id, user_id, prompt, api_key):
         resp.raise_for_status()
         profile_html = resp.json()['content'][0]['text']
 
-        # Eliminar perfiles anteriores y guardar el nuevo
-        db.execute("DELETE FROM player_profiles WHERE user_id=? AND id!=?", (user_id, job_id))
+        # Eliminar solo perfiles MÁS VIEJOS (id < job_id) para no borrar un job más nuevo
+        # que pudo haberse creado mientras éste estaba procesando
+        db.execute("DELETE FROM player_profiles WHERE user_id=? AND id<?", (user_id, job_id))
         db.execute(
             "UPDATE player_profiles SET profile_html=?, status='done', error_msg=NULL WHERE id=?",
             (profile_html, job_id)
