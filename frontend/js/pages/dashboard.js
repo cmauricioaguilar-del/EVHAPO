@@ -1321,4 +1321,3 @@ async function submitChangePassword() {
     }
   }
 }
-}
