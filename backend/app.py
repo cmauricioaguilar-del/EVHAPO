@@ -261,6 +261,7 @@ def init_db():
         "ALTER TABLE users ADD COLUMN coupon_expiry_warned INTEGER DEFAULT 0",
         "ALTER TABLE users ADD COLUMN coupon_welcome_sent INTEGER DEFAULT 0",
         "ALTER TABLE users ADD COLUMN terms_accepted_at TEXT",
+        "ALTER TABLE coupons ADD COLUMN given_to TEXT DEFAULT ''",
         "ALTER TABLE player_profiles ADD COLUMN status TEXT DEFAULT 'done'",
         "ALTER TABLE player_profiles ADD COLUMN error_msg TEXT",
         # Suscripción mensual
@@ -2586,12 +2587,28 @@ def list_coupons():
         return jsonify({'error': 'Acceso denegado'}), 403
     db = get_db()
     rows = db.execute(
-        """SELECT c.id, c.code, c.used_at, c.created_at,
+        """SELECT c.id, c.code, c.used_at, c.created_at, c.given_to,
                   u.nombre, u.apellido, u.email
            FROM coupons c LEFT JOIN users u ON c.used_by=u.id
            ORDER BY c.code ASC"""
     ).fetchall()
     return jsonify({'coupons': [dict(r) for r in rows]})
+
+
+@app.route('/api/admin/coupons/<code>/note', methods=['POST'])
+@require_auth
+def update_coupon_note(code):
+    if not g.is_admin:
+        return jsonify({'error': 'Acceso denegado'}), 403
+    data     = request.json or {}
+    given_to = (data.get('given_to') or '').strip()
+    db       = get_db()
+    coupon   = db.execute("SELECT id FROM coupons WHERE code=?", (code,)).fetchone()
+    if not coupon:
+        return jsonify({'error': 'Cupón no encontrado'}), 404
+    db.execute("UPDATE coupons SET given_to=? WHERE code=?", (given_to, code))
+    db.commit()
+    return jsonify({'ok': True})
 
 
 # ─── Coupon email scheduler ───────────────────────────────────────────────────

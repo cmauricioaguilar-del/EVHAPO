@@ -118,6 +118,7 @@ function renderCouponsList(coupons) {
         <tr style="border-bottom:1px solid var(--border)">
           <th style="text-align:left;padding:8px;color:var(--text3);font-size:0.78rem;font-weight:600;text-transform:uppercase">Código</th>
           <th style="text-align:left;padding:8px;color:var(--text3);font-size:0.78rem;font-weight:600;text-transform:uppercase">Estado</th>
+          <th style="text-align:left;padding:8px;color:var(--text3);font-size:0.78rem;font-weight:600;text-transform:uppercase">📝 Para quién</th>
           <th style="text-align:left;padding:8px;color:var(--text3);font-size:0.78rem;font-weight:600;text-transform:uppercase">Utilizado por</th>
           <th style="text-align:left;padding:8px;color:var(--text3);font-size:0.78rem;font-weight:600;text-transform:uppercase">Fecha uso</th>
         </tr>
@@ -135,8 +136,25 @@ function renderCouponsList(coupons) {
                 ? `<span style="background:rgba(239,68,68,0.15);color:#f87171;padding:3px 10px;border-radius:4px;font-size:0.82rem;font-weight:600">Utilizado</span>`
                 : `<span style="background:rgba(74,222,128,0.15);color:#4ade80;padding:3px 10px;border-radius:4px;font-size:0.82rem;font-weight:600">Disponible</span>`}
             </td>
+            <td style="padding:6px 8px;min-width:140px">
+              <div style="position:relative;display:flex;align-items:center;gap:6px">
+                <input
+                  type="text"
+                  value="${escHtml(c.given_to || '')}"
+                  placeholder="Sin asignar..."
+                  data-code="${escHtml(c.code)}"
+                  onkeydown="if(event.key==='Enter'){this.blur()}"
+                  onfocus="this.style.borderBottomColor='var(--accent)';this.style.color='var(--text1)'"
+                  onblur="this.style.borderBottomColor='var(--border)';this.style.color='var(--text2)';saveCouponNote(this)"
+                  style="width:100%;background:transparent;border:none;border-bottom:1px solid var(--border);
+                         color:var(--text2);font-size:0.85rem;padding:4px 2px;outline:none;
+                         transition:border-color 0.15s,color 0.15s;font-family:inherit"
+                />
+                <span class="cn-ok-${escHtml(c.code)}" style="color:#4ade80;font-size:0.85rem;opacity:0;transition:opacity 0.3s">✓</span>
+              </div>
+            </td>
             <td style="padding:10px 8px;color:var(--text2);font-size:0.85rem">
-              ${isUsed
+              ${isUsed && (c.nombre || c.email)
                 ? `${escHtml(c.nombre || '')} ${escHtml(c.apellido || '')}<br><span style="color:var(--text3);font-size:0.78rem">${escHtml(c.email || '')}</span>`
                 : `<span style="color:var(--text3)">—</span>`}
             </td>
@@ -182,4 +200,22 @@ function copyCodes() {
   }).catch(() => {
     prompt('Copia los códigos:', available.join(', '));
   });
+}
+
+async function saveCouponNote(inputEl) {
+  const code    = inputEl.dataset.code;
+  const value   = inputEl.value.trim();
+  const okEl    = document.querySelector(`.cn-ok-${code}`);
+
+  // Actualizar cache local para que no se pierda el valor al filtrar
+  const local = _allCoupons.find(c => c.code === code);
+  if (local) local.given_to = value;
+
+  try {
+    await Api.post(`/api/admin/coupons/${code}/note`, { given_to: value });
+    // Mostrar tick de confirmación brevemente
+    if (okEl) { okEl.style.opacity = '1'; setTimeout(() => { okEl.style.opacity = '0'; }, 1500); }
+  } catch (e) {
+    alert(`Error al guardar nota para ${code}: ${e.message}`);
+  }
 }
