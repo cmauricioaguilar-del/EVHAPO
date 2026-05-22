@@ -260,6 +260,7 @@ def init_db():
         "ALTER TABLE users ADD COLUMN last_coupon_reminder TEXT",
         "ALTER TABLE users ADD COLUMN coupon_expiry_warned INTEGER DEFAULT 0",
         "ALTER TABLE users ADD COLUMN coupon_welcome_sent INTEGER DEFAULT 0",
+        "ALTER TABLE users ADD COLUMN terms_accepted_at TEXT",
         "ALTER TABLE player_profiles ADD COLUMN status TEXT DEFAULT 'done'",
         "ALTER TABLE player_profiles ADD COLUMN error_msg TEXT",
         # Suscripción mensual
@@ -400,6 +401,7 @@ def register():
     idioma = (data.get('idioma') or 'es').strip().lower()
     if idioma not in ('es', 'pt', 'en'):
         idioma = 'es'
+    terms_accepted_at = (data.get('terms_accepted_at') or '').strip()
     referral_code_raw = (data.get('referral_code') or '').strip()
 
     if not all([nombre, apellido, email, password]):
@@ -441,8 +443,8 @@ def register():
             db.commit()
 
     db.execute(
-        "INSERT INTO users (nombre, apellido, email, password_hash, pais, sala_preferida, referral_code, idioma) VALUES (?,?,?,?,?,?,?,?)",
-        (nombre, apellido, email, hash_password(password), pais, sala_preferida, referral_code, idioma)
+        "INSERT INTO users (nombre, apellido, email, password_hash, pais, sala_preferida, referral_code, idioma, terms_accepted_at) VALUES (?,?,?,?,?,?,?,?,?)",
+        (nombre, apellido, email, hash_password(password), pais, sala_preferida, referral_code, idioma, terms_accepted_at or None)
     )
     db.commit()
     user_id = db.execute("SELECT id FROM users WHERE email=?", (email,)).fetchone()['id']

@@ -81,8 +81,20 @@ function renderRegister() {
           <datalist id="referral-codes-list"></datalist>
           <div id="reg-referral-feedback" style="font-size:0.8rem;margin-top:4px;min-height:16px"></div>
         </div>
+        <!-- Aceptar Términos -->
+        <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;margin-bottom:4px">
+          <input type="checkbox" id="reg-terms" style="margin-top:3px;accent-color:var(--accent);width:16px;height:16px;flex-shrink:0" />
+          <span style="font-size:0.88rem;color:var(--text2);line-height:1.5">
+            ${isEN
+              ? `I have read and accept the <button type="button" onclick="openLegalModal('privacy')" style="background:none;border:none;color:var(--accent);font-weight:700;cursor:pointer;padding:0;font-size:0.88rem;text-decoration:underline">Privacy Policy</button> and the <button type="button" onclick="openLegalModal('terms')" style="background:none;border:none;color:var(--accent);font-weight:700;cursor:pointer;padding:0;font-size:0.88rem;text-decoration:underline">Terms of Use</button>.`
+              : isPT
+              ? `Li e aceito a <button type="button" onclick="openLegalModal('privacy')" style="background:none;border:none;color:var(--accent);font-weight:700;cursor:pointer;padding:0;font-size:0.88rem;text-decoration:underline">Política de Privacidade</button> e os <button type="button" onclick="openLegalModal('terms')" style="background:none;border:none;color:var(--accent);font-weight:700;cursor:pointer;padding:0;font-size:0.88rem;text-decoration:underline">Termos de Uso</button>.`
+              : `He leído y acepto la <button type="button" onclick="openLegalModal('privacy')" style="background:none;border:none;color:var(--accent);font-weight:700;cursor:pointer;padding:0;font-size:0.88rem;text-decoration:underline">Política de Privacidad</button> y los <button type="button" onclick="openLegalModal('terms')" style="background:none;border:none;color:var(--accent);font-weight:700;cursor:pointer;padding:0;font-size:0.88rem;text-decoration:underline">Términos de Uso</button>.`}
+          </span>
+        </label>
+
         <!-- CAPTCHA -->
-        <div class="captcha-box" id="reg-captcha-box" onclick="toggleCaptcha('reg')">
+        <div class="captcha-box" id="reg-captcha-box" onclick="toggleCaptcha('reg')" style="margin-top:16px">
           <div class="captcha-left">
             <div class="captcha-checkbox" id="reg-captcha-check"></div>
             <span class="captcha-label">${isEN ? "I'm not a robot" : isPT ? 'Não sou um robô' : 'No soy un robot'}</span>
@@ -176,6 +188,9 @@ async function doRegister() {
   if (!sala) {
     errEl.innerHTML = `<div class="form-error">${isEN ? 'Please select your preferred poker room.' : isPT ? 'Selecione sua sala preferida.' : 'Debes seleccionar una sala preferida.'}</div>`; return;
   }
+  if (!document.getElementById('reg-terms')?.checked) {
+    errEl.innerHTML = `<div class="form-error">${isEN ? 'You must accept the Privacy Policy and Terms of Use.' : isPT ? 'Você deve aceitar a Política de Privacidade e os Termos de Uso.' : 'Debes aceptar la Política de Privacidad y los Términos de Uso.'}</div>`; return;
+  }
   if (!_captchaState['reg']) {
     errEl.innerHTML = `<div class="form-error">${isEN ? "Please confirm you're not a robot." : isPT ? 'Por favor confirme que não é um robô.' : 'Por favor confirma que no eres un robot.'}</div>`; return;
   }
@@ -188,7 +203,7 @@ async function doRegister() {
 
   btn.disabled = true; btn.textContent = isEN ? 'Creating account...' : isPT ? 'Criando conta...' : 'Creando cuenta...';
   try {
-    const payload = { nombre, apellido, email, pais, sala_preferida: sala, password: pass, idioma: I18N.lang };
+    const payload = { nombre, apellido, email, pais, sala_preferida: sala, password: pass, idioma: I18N.lang, terms_accepted_at: new Date().toISOString() };
     if (referralCode) payload.referral_code = referralCode;
     await Api.register(payload);
     localStorage.removeItem('mindev_ref'); // limpiar código de referido tras registro exitoso
