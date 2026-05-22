@@ -65,10 +65,20 @@ function renderRegister() {
         </div>
         <div class="form-group">
           <label style="display:flex;align-items:center;gap:6px">
-            ${isEN ? 'Referral Code' : isPT ? 'Código de Referência' : 'Código de Referencia'}
+            ${isEN ? 'Who recommended you?' : isPT ? 'Quem te indicou?' : '¿Quién te recomendó?'}
             <span style="font-size:0.78rem;color:var(--text3);font-weight:400">(${isEN ? 'optional' : isPT ? 'opcional' : 'opcional'})</span>
           </label>
-          <input type="text" id="reg-referral" placeholder="${isEN ? 'e.g. tiburock' : isPT ? 'Ex: tiburock' : 'Ej: tiburock'}" autocomplete="off" style="text-transform:lowercase" />
+          <p style="font-size:0.8rem;color:var(--text3);margin:0 0 8px">
+            ${isEN
+              ? 'If someone recommended this app to you, select or type their code. Leave it blank if you found us on your own.'
+              : isPT
+              ? 'Se alguém te indicou este app, selecione ou digite o código. Deixe em branco se você nos encontrou por conta própria.'
+              : 'Si alguien te recomendó la app, seleccioná o escribí su código. Dejalo vacío si llegaste por tu cuenta.'}
+          </p>
+          <input type="text" id="reg-referral" list="referral-codes-list"
+            placeholder="${isEN ? 'Select or type a code' : isPT ? 'Selecione ou digite um código' : 'Seleccioná o escribí un código'}"
+            autocomplete="off" style="text-transform:lowercase" />
+          <datalist id="referral-codes-list"></datalist>
           <div id="reg-referral-feedback" style="font-size:0.8rem;margin-top:4px;min-height:16px"></div>
         </div>
         <!-- CAPTCHA -->
@@ -106,6 +116,17 @@ function renderRegister() {
     const refInput = document.getElementById('reg-referral');
     if (refInput) refInput.value = savedRef;
   }
+
+  // Cargar códigos de referido en el datalist
+  fetch('/api/referral/codes')
+    .then(r => r.json())
+    .then(data => {
+      const dl = document.getElementById('referral-codes-list');
+      if (dl && data.codes) {
+        dl.innerHTML = data.codes.map(c => `<option value="${c}">`).join('');
+      }
+    })
+    .catch(() => {}); // silencioso si falla
 
   // Referral code real-time validation
   let _referralTimer = null;

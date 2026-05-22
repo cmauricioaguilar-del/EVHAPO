@@ -2187,6 +2187,14 @@ def admin_export(export_type):
         headers={'Content-Disposition': f'attachment; filename="{filename}"'}
     )
 
+@app.route('/api/referral/codes', methods=['GET'])
+def list_referral_codes_public():
+    """Lista pública de códigos de referido (solo el código, sin notas internas)."""
+    db = get_db()
+    rows = db.execute("SELECT code FROM referral_codes ORDER BY code ASC").fetchall()
+    return jsonify({'codes': [r['code'] for r in rows]})
+
+
 @app.route('/api/referral/validate', methods=['POST'])
 def validate_referral_code():
     data = request.json or {}
