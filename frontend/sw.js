@@ -1,9 +1,9 @@
 // ─── MindEV-IA Service Worker ─────────────────────────────────────────────────
-// v29 — JS/CSS nunca se cachean (siempre van a la red); solo íconos y CDN.
+// v30 — JS/CSS nunca se cachean (siempre van a la red); solo íconos y CDN.
 // El banner de actualización en la app maneja el ciclo de update.
 
-const STATIC_CACHE = 'mindev-static-v29';
-const API_CACHE    = 'mindev-api-v29';
+const STATIC_CACHE = 'mindev-static-v30';
+const API_CACHE    = 'mindev-api-v30';
 
 // Solo se pre-cachean recursos que NO cambian con cada deploy:
 // íconos, imágenes y librerías CDN versionadas externamente.

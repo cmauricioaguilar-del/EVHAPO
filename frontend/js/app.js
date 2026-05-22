@@ -81,6 +81,9 @@ function renderNavbar() {
     ? `<div class="nav-user">
         ${langToggle}
         <button class="nav-btn" onclick="App.go('dashboard')">📊 ${isEN ? 'My Dashboard' : isPT ? 'Meu Painel' : 'Mi Dashboard'}</button>
+        <button class="nav-btn" onclick="openChangePasswordModal()"
+          title="${isEN ? 'Change password' : isPT ? 'Alterar senha' : 'Cambiar contraseña'}"
+          style="padding:7px 11px;font-size:1rem">🔑</button>
         <div class="nav-avatar" title="${user.nombre}" onclick="App.go('dashboard')">${initials}</div>
         <button class="nav-btn" onclick="doLogout()">${isEN ? 'Sign out' : isPT ? 'Sair' : 'Salir'}</button>
       </div>`
@@ -111,6 +114,85 @@ function renderNavbar() {
 function doLogout() {
   Api.logout();
   App.go('landing');
+}
+
+// ─── Modal: Cambiar contraseña (accesible desde cualquier pantalla) ──────────
+function openChangePasswordModal() {
+  document.getElementById('chpw-global-modal')?.remove();
+  const isEN = I18N.isEN(), isPT = I18N.isPT();
+  const overlay = document.createElement('div');
+  overlay.id = 'chpw-global-modal';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box';
+  overlay.innerHTML = `
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:16px;padding:32px;max-width:400px;width:100%;position:relative;box-shadow:0 20px 60px rgba(0,0,0,0.5)">
+      <button onclick="document.getElementById('chpw-global-modal').remove()"
+        style="position:absolute;top:14px;right:18px;background:none;border:none;color:var(--text3);cursor:pointer;font-size:1.5rem;line-height:1">✕</button>
+      <div style="text-align:center;margin-bottom:24px">
+        <div style="font-size:2rem;margin-bottom:8px">🔑</div>
+        <h3 style="margin:0;color:var(--accent)">${isEN ? 'Change Password' : isPT ? 'Alterar Senha' : 'Cambiar Contraseña'}</h3>
+      </div>
+      <div id="chpw-modal-msg" style="margin-bottom:4px"></div>
+      <div class="form-group">
+        <label style="display:block;margin-bottom:6px;color:var(--text2);font-size:0.9rem">${isEN ? 'Current password (or temporary)' : isPT ? 'Senha atual (ou temporária)' : 'Contraseña actual (o temporal)'}</label>
+        <input type="password" id="chpw-modal-current" placeholder="••••••••" autocomplete="current-password"
+          style="width:100%;box-sizing:border-box;background:var(--input);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text1);font-size:1rem" />
+      </div>
+      <div class="form-group">
+        <label style="display:block;margin-bottom:6px;color:var(--text2);font-size:0.9rem">${isEN ? 'New password' : isPT ? 'Nova senha' : 'Nueva contraseña'}</label>
+        <input type="password" id="chpw-modal-new" placeholder="${isEN ? 'Min. 6 characters' : isPT ? 'Mín. 6 caracteres' : 'Mínimo 6 caracteres'}" autocomplete="new-password"
+          style="width:100%;box-sizing:border-box;background:var(--input);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text1);font-size:1rem" />
+      </div>
+      <div class="form-group">
+        <label style="display:block;margin-bottom:6px;color:var(--text2);font-size:0.9rem">${isEN ? 'Confirm new password' : isPT ? 'Confirmar nova senha' : 'Confirmar nueva contraseña'}</label>
+        <input type="password" id="chpw-modal-confirm" placeholder="••••••••" autocomplete="new-password"
+          style="width:100%;box-sizing:border-box;background:var(--input);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text1);font-size:1rem" />
+      </div>
+      <button id="chpw-modal-btn" onclick="submitChangePasswordModal()"
+        class="btn btn-primary" style="width:100%;margin-top:8px">
+        🔒 ${isEN ? 'Update password' : isPT ? 'Atualizar senha' : 'Actualizar contraseña'}
+      </button>
+    </div>`;
+  document.body.appendChild(overlay);
+  // Cerrar al hacer click fuera del card
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  document.getElementById('chpw-modal-current').focus();
+}
+
+async function submitChangePasswordModal() {
+  const isEN = I18N.isEN(), isPT = I18N.isPT();
+  const current = (document.getElementById('chpw-modal-current')?.value || '').trim();
+  const newPw   = (document.getElementById('chpw-modal-new')?.value    || '').trim();
+  const confirm = (document.getElementById('chpw-modal-confirm')?.value || '').trim();
+  const msgEl   = document.getElementById('chpw-modal-msg');
+  const btn     = document.getElementById('chpw-modal-btn');
+
+  const err = (msg) => {
+    msgEl.innerHTML = `<div class="form-error" style="margin-bottom:12px">${msg}</div>`;
+  };
+
+  if (!current || !newPw || !confirm) { err(isEN ? 'All fields are required.' : isPT ? 'Todos os campos são obrigatórios.' : 'Todos los campos son obligatorios.'); return; }
+  if (newPw !== confirm)              { err(isEN ? 'Passwords do not match.'   : isPT ? 'As senhas não coincidem.'          : 'Las contraseñas no coinciden.');     return; }
+  if (newPw.length < 6)              { err(isEN ? 'Min. 6 characters.'        : isPT ? 'Mínimo 6 caracteres.'              : 'Mínimo 6 caracteres.');             return; }
+
+  btn.disabled = true;
+  btn.textContent = '⏳ ...';
+  msgEl.innerHTML = '';
+
+  try {
+    await Api.post('/api/me/change-password', { current_password: current, new_password: newPw });
+    msgEl.innerHTML = `<div style="padding:12px 14px;background:rgba(74,222,128,0.1);border:1px solid rgba(74,222,128,0.3);border-radius:8px;color:#4ade80;margin-bottom:12px">
+      ✅ ${isEN ? 'Password updated successfully.' : isPT ? 'Senha atualizada com sucesso.' : 'Contraseña actualizada correctamente.'}
+    </div>`;
+    document.getElementById('chpw-modal-current').value = '';
+    document.getElementById('chpw-modal-new').value     = '';
+    document.getElementById('chpw-modal-confirm').value = '';
+    btn.textContent = '✓ OK';
+    setTimeout(() => document.getElementById('chpw-global-modal')?.remove(), 2000);
+  } catch (e) {
+    err(e.message);
+    btn.disabled = false;
+    btn.textContent = `🔒 ${isEN ? 'Update password' : isPT ? 'Atualizar senha' : 'Actualizar contraseña'}`;
+  }
 }
 
 // ── Actualiza <title>, <meta description> y <html lang> según idioma activo ──
