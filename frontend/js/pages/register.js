@@ -73,7 +73,7 @@ function renderRegister() {
               ? 'If someone recommended this app to you, select or type their code. Leave it blank if you found us on your own.'
               : isPT
               ? 'Se alguém te indicou este app, selecione ou digite o código. Deixe em branco se você nos encontrou por conta própria.'
-              : 'Si alguien te recomendó la app, seleccioná o escribí su código. Dejalo vacío si llegaste por tu cuenta.'}
+              : 'Si alguien te recomendó la app, selecciona o escribe su código. Déjalo vacío si llegaste por tu cuenta.'}
           </p>
           <input type="text" id="reg-referral" list="referral-codes-list"
             placeholder="${isEN ? 'Select or type a code' : isPT ? 'Selecione ou digite um código' : 'Seleccioná o escribí un código'}"
