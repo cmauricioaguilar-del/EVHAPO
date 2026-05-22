@@ -548,6 +548,22 @@ function renderDashboardContent(data, user) {
     </div>
   </div>`;
 
+  // ─── Footer legal ────────────────────────────────────────────────────────
+  html += `
+    <div style="margin-top:48px;padding-top:20px;border-top:1px solid var(--border);text-align:center;display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap">
+      <span style="color:var(--text3);font-size:0.78rem">© 2026 MindEV-IA</span>
+      <span style="color:var(--border)">·</span>
+      <button onclick="openLegalModal('privacy')"
+        style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:0.78rem;padding:0;text-decoration:underline;text-underline-offset:2px">
+        ${isEN ? 'Privacy Policy' : isPT ? 'Política de Privacidade' : 'Política de Privacidad'}
+      </button>
+      <span style="color:var(--border)">·</span>
+      <button onclick="openLegalModal('terms')"
+        style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:0.78rem;padding:0;text-decoration:underline;text-underline-offset:2px">
+        ${isEN ? 'Terms of Use' : isPT ? 'Termos de Uso' : 'Términos de Uso'}
+      </button>
+    </div>`;
+
   document.getElementById('dashboard-content').innerHTML = html;
 
   // ─── Dibujar radares ──────────────────────────────────────────────────────
