@@ -40,10 +40,10 @@ async function renderPayment() {
             border:2px solid var(--accent);border-radius:12px;padding:16px 14px;cursor:pointer;
             background:rgba(212,175,55,0.08);transition:all 0.15s;position:relative">
             <div style="font-size:0.72rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px">
-              ${isEN ? 'One-Time Payment' : isPT ? 'Pagamento Único' : 'Pago Único'}
+              ${isEN ? 'Annual Plan' : isPT ? 'Plano Anual' : 'Plan Anual'}
             </div>
             <div style="font-size:1.5rem;font-weight:900;color:var(--accent);line-height:1">${prices.unique}</div>
-            <div style="font-size:0.75rem;color:var(--text3);margin-top:4px">${isEN ? 'lifetime access' : isPT ? 'acesso permanente' : 'acceso permanente'}</div>
+            <div style="font-size:0.75rem;color:var(--text3);margin-top:4px">${isEN ? '12 months access' : isPT ? '12 meses de acesso' : '12 meses de acceso'}</div>
             <div id="plan-unique-check" style="position:absolute;top:10px;right:10px;width:18px;height:18px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:0.65rem;color:#000;font-weight:800">✓</div>
           </div>
 
@@ -144,12 +144,12 @@ async function renderPayment() {
 function _renderPlanFeatures(plan, isPT, isEN) {
   if (plan === 'unique') {
     return isEN
-      ? `<strong style="color:var(--text1)">One-time payment — lifetime access</strong><br>
+      ? `<strong style="color:var(--text1)">Annual plan — 12 months access</strong><br>
          ✓ Unlimited Mental + Technical tests &nbsp;·&nbsp; ✓ AI Profile &nbsp;·&nbsp; ✓ Study Plan &nbsp;·&nbsp; ✓ Hand Analysis &nbsp;·&nbsp; ✓ Tracker + Bankroll`
       : isPT
-      ? `<strong style="color:var(--text1)">Pagamento único — acesso permanente</strong><br>
+      ? `<strong style="color:var(--text1)">Plano anual — 12 meses de acesso</strong><br>
          ✓ Testes Mental + Técnico ilimitados &nbsp;·&nbsp; ✓ Perfil IA &nbsp;·&nbsp; ✓ Plano de Estudo &nbsp;·&nbsp; ✓ Análise de Mãos &nbsp;·&nbsp; ✓ Tracker + Bankroll`
-      : `<strong style="color:var(--text1)">Pago único — acceso permanente</strong><br>
+      : `<strong style="color:var(--text1)">Plan anual — 12 meses de acceso</strong><br>
          ✓ Tests Mental + Técnico ilimitados &nbsp;·&nbsp; ✓ Perfil IA &nbsp;·&nbsp; ✓ Plan de Estudio &nbsp;·&nbsp; ✓ Análisis de Manos &nbsp;·&nbsp; ✓ Tracker + Bankroll`;
   }
   return isEN

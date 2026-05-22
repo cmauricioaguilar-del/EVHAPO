@@ -79,7 +79,7 @@ function renderLanding() {
       </div>
       <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:10px">
         <span style="background:rgba(212,175,55,0.12);border:1px solid rgba(212,175,55,0.3);color:#d4af37;border-radius:20px;padding:5px 14px;font-size:0.82rem;font-weight:700">
-          ♾️ ${isEN ? 'Lifetime · USD $9.90' : isPT ? 'Permanente · USD $9.90' : 'Permanente · USD $9.90'}
+          📆 ${isEN ? 'Annual · USD $9.90' : isPT ? 'Anual · USD $9.90' : 'Anual · USD $9.90'}
         </span>
         <span style="background:rgba(129,140,248,0.12);border:1px solid rgba(129,140,248,0.3);color:#818cf8;border-radius:20px;padding:5px 14px;font-size:0.82rem;font-weight:700">
           📅 ${isEN ? '30 days · USD $4.90' : isPT ? '30 dias · USD $4.90' : '30 días · USD $4.90'}
@@ -140,15 +140,15 @@ function renderLanding() {
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px">
 
-          <!-- Plan Permanente -->
+          <!-- Plan Anual -->
           <div style="border:2px solid var(--accent);border-radius:14px;padding:18px 14px;background:rgba(212,175,55,0.07);text-align:center;cursor:pointer" onclick="App.go('register')">
             <div style="font-size:0.7rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px">
-              ${isEN ? 'One-Time · Lifetime' : isPT ? 'Pagamento Único' : 'Pago Único · Permanente'}
+              ${isEN ? 'Annual Plan' : isPT ? 'Plano Anual' : 'Plan Anual'}
             </div>
             <div style="font-size:1.9rem;font-weight:900;color:var(--accent);line-height:1">$9.90</div>
             <div style="font-size:0.7rem;color:var(--text3);margin-top:2px">USD</div>
             <div style="margin-top:10px;font-size:0.78rem;color:var(--text2);line-height:1.5">
-              ✓ ${isEN ? 'Permanent access' : isPT ? 'Acesso permanente' : 'Acceso permanente'}<br>
+              ✓ ${isEN ? '12 months access' : isPT ? '12 meses de acesso' : '12 meses de acceso'}<br>
               ✓ ${isEN ? 'All features included' : isPT ? 'Todos os recursos' : 'Todas las funciones'}<br>
               ✓ ${isEN ? 'PDF report' : isPT ? 'Relatório PDF' : 'Informe PDF'}
             </div>
@@ -303,7 +303,7 @@ function renderLanding() {
             ♠ ${isEN ? 'I want my diagnosis' : isPT ? 'Quero meu diagnóstico' : 'Quiero mi diagnóstico'}
           </button>
           <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:10px">
-            <span style="font-size:0.8rem;color:var(--accent);font-weight:700">♾️ ${isEN ? 'Lifetime $9.90 USD' : isPT ? 'Permanente $9.90 USD' : 'Permanente $9.90 USD'}</span>
+            <span style="font-size:0.8rem;color:var(--accent);font-weight:700">📆 ${isEN ? 'Annual $9.90 USD' : isPT ? 'Anual $9.90 USD' : 'Anual $9.90 USD'}</span>
             <span style="font-size:0.8rem;color:var(--text3)">·</span>
             <span style="font-size:0.8rem;color:#818cf8;font-weight:700">📅 ${isEN ? '30 days $4.90 USD/mo' : isPT ? '30 dias $4.90 USD/mês' : '30 días $4.90 USD/mes'}</span>
           </div>
