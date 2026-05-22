@@ -121,6 +121,7 @@ function renderCouponsList(coupons) {
           <th style="text-align:left;padding:8px;color:var(--text3);font-size:0.78rem;font-weight:600;text-transform:uppercase">📝 Para quién</th>
           <th style="text-align:left;padding:8px;color:var(--text3);font-size:0.78rem;font-weight:600;text-transform:uppercase">Utilizado por</th>
           <th style="text-align:left;padding:8px;color:var(--text3);font-size:0.78rem;font-weight:600;text-transform:uppercase">Fecha uso</th>
+          <th style="width:90px"></th>
         </tr>
       </thead>
       <tbody>
@@ -161,6 +162,14 @@ function renderCouponsList(coupons) {
             <td style="padding:10px 8px;color:var(--text3);font-size:0.82rem">
               ${isUsed ? (c.used_at || '').slice(0, 10) : '—'}
             </td>
+            <td style="padding:6px 8px;text-align:right">
+              ${isUsed ? `
+                <button onclick="releaseCoupon('${escHtml(c.code)}')"
+                  title="Liberar cupón — vuelve a estar disponible"
+                  style="background:none;border:1px solid #f59e0b;color:#f59e0b;border-radius:6px;padding:3px 8px;cursor:pointer;font-size:0.75rem;white-space:nowrap">
+                  🔓 Liberar
+                </button>` : ''}
+            </td>
           </tr>`;
         }).join('')}
       </tbody>
@@ -200,6 +209,17 @@ function copyCodes() {
   }).catch(() => {
     prompt('Copia los códigos:', available.join(', '));
   });
+}
+
+async function releaseCoupon(code) {
+  if (!confirm(`¿Liberar el cupón ${code}?\n\nVuelve a estar "Disponible" para que otra persona lo use.\n\nSi hay un usuario activo con ese cupón, perderá su acceso.`)) return;
+  try {
+    const res = await Api.post(`/api/admin/coupons/${code}/release`, {});
+    alert(`✅ ${res.message}\n\nAhora puedes dárselo a alguien o dejar que el usuario anterior se re-registre y lo use de nuevo.`);
+    await loadAdminCoupons();
+  } catch (e) {
+    alert(`❌ Error: ${e.message}`);
+  }
 }
 
 async function saveCouponNote(inputEl) {

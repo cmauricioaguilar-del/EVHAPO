@@ -2595,6 +2595,27 @@ def list_coupons():
     return jsonify({'coupons': [dict(r) for r in rows]})
 
 
+@app.route('/api/admin/coupons/<code>/release', methods=['POST'])
+@require_auth
+def release_coupon(code):
+    """Libera un cupón usado: lo deja disponible para volver a ser usado."""
+    if not g.is_admin:
+        return jsonify({'error': 'Acceso denegado'}), 403
+    db = get_db()
+    coupon = db.execute("SELECT id, used_by FROM coupons WHERE code=?", (code,)).fetchone()
+    if not coupon:
+        return jsonify({'error': 'Cupón no encontrado'}), 404
+    # Limpiar también coupon_code/coupon_activated_at del usuario si aún existe
+    if coupon['used_by']:
+        db.execute(
+            "UPDATE users SET coupon_code='', coupon_activated_at=NULL WHERE id=?",
+            (coupon['used_by'],)
+        )
+    db.execute("UPDATE coupons SET used_by=NULL, used_at=NULL WHERE code=?", (code,))
+    db.commit()
+    return jsonify({'ok': True, 'message': f'Cupón {code} liberado correctamente.'})
+
+
 @app.route('/api/admin/coupons/<code>/note', methods=['POST'])
 @require_auth
 def update_coupon_note(code):
