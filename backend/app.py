@@ -3673,6 +3673,41 @@ def _parse_single_hand(block):
                         position = pos_map.get(dist, 'MP')
     hand['position'] = position
 
+    # ── Posiciones de oponentes que tomaron acción ────────────────────────────
+    # Mapa seat→posición usando la misma lógica que Hero
+    seat_to_pos = {}
+    name_to_pos = {}
+    seats_named = re.findall(r'^Seat (\d+):\s+([^\(\n]+?)(?:\s*\(|$)', block, re.MULTILINE)
+    dealer_m_all = re.search(r'Seat #(\d+) is the button', block)
+    if seats_named:
+        seats_list = [(int(s), n.strip()) for s, n in seats_named]
+        n_players = len(seats_list)
+        # Default pos_map por número de jugadores
+        pos_map_all = {0: 'BTN', 1: 'SB', 2: 'BB', 3: 'UTG'}
+        if n_players >= 6: pos_map_all[n_players - 1] = 'CO'
+        if n_players >= 7: pos_map_all[n_players - 2] = 'HJ'
+        if n_players >= 8: pos_map_all[n_players - 3] = 'LJ'
+        if dealer_m_all:
+            dealer_seat = int(dealer_m_all.group(1))
+            seat_nums = [s for s, _ in seats_list]
+            if dealer_seat in seat_nums:
+                d_idx = seat_nums.index(dealer_seat)
+                for idx, (s, name) in enumerate(seats_list):
+                    dist = (idx - d_idx) % n_players
+                    p = pos_map_all.get(dist, 'MP')
+                    seat_to_pos[s] = p
+                    name_to_pos[name] = p
+    # Identificar oponentes (no-Hero) que tomaron acción
+    action_re = re.compile(r'^([^:\n]+?):\s+(?:raises|calls|bets|folds|checks|all-in|posts)', re.MULTILINE)
+    actors = {m.group(1).strip() for m in action_re.finditer(block)}
+    opponents = []
+    for nm in actors:
+        if nm == 'Hero' or not nm:
+            continue
+        pos = name_to_pos.get(nm, '?')
+        opponents.append((nm[:20], pos))
+    hand['opponents'] = opponents[:4]
+
     # ── Neto de fichas de Hero en esta mano ───────────────────────────────────
     collected = sum(float(x.replace(',', '')) for x in
                     re.findall(r'Hero collected ([\d,]+(?:\.\d+)?)', block))
@@ -3703,6 +3738,9 @@ def _format_hand_compact(h):
     chips  = f"{h.get('hero_chips_start',0):,}" if h.get('hero_chips_start') else '?'
     board  = h.get('board') or '(sin board)'
     acts   = ' | '.join(h.get('hero_actions', []))[:120]
+    hero_pos = h.get('position') or '?'
+    opps = h.get('opponents') or []
+    opps_str = ', '.join(f"{n}({p})" for n, p in opps) if opps else '—'
 
     flags = []
     if h.get('hero_allin'):         flags.append('ALL-IN')
@@ -3710,7 +3748,9 @@ def _format_hand_compact(h):
     if h.get('hero_won'):           flags.append('GANÓ')
     flag_str = ' '.join(f'[{f}]' for f in flags) if flags else ''
 
-    return f"[{level_str}] Stack:{chips} Cards:[{cards}] {flag_str}\n  Acciones: {acts}\n  Board: {board}"
+    return (f"[{level_str}] Hero:{hero_pos} Stack:{chips} Cards:[{cards}] {flag_str}\n"
+            f"  vs: {opps_str}\n"
+            f"  Acciones: {acts}\n  Board: {board}")
 
 
 def _bg_tournament_analysis(job_id, meta, prompt, api_key):
@@ -3726,7 +3766,7 @@ def _bg_tournament_analysis(job_id, meta, prompt, api_key):
             },
             json={
                 'model': 'claude-sonnet-4-6',
-                'max_tokens': 10000,
+                'max_tokens': 24000,
                 'messages': [{'role': 'user', 'content': prompt}]
             },
             timeout=600
@@ -4084,12 +4124,15 @@ Una tabla HTML estilizada con: Torneo, Plataforma, Buy-in, Fecha, Nivel inicio/f
 Luego 1 párrafo de síntesis del resultado global de {nombre} (¿llegó tarde o temprano? ¿cómo fue su stack journey? ¿fue élite o por debajo del promedio?).
 
 ━━━ SECCIÓN 2: LAS 7 MEJORES DECISIONES ━━━
-Usa layout de 2 columnas HTML: left=Decisión (con example real de mano), right=Por qué fue correcta (análisis técnico).
-Cada decisión tiene: título h3 con badge-good, descripción de la mano real del historial, análisis de por qué fue +EV, impacto estimado.
+OBLIGATORIO: Exactamente 7 decisiones. Si solo encuentras menos casos +EV claros, igual completa hasta 7 (incluye decisiones sólidas/correctas aunque no espectaculares).
+Usa layout de 2 columnas HTML: left=Decisión (con ejemplo real de mano), right=Por qué fue correcta (análisis técnico).
+Cada decisión tiene: título h3 con badge-good, descripción de la mano real del historial INCLUYENDO posición de Hero y posición del/los oponente(s) ("Hero (BTN) vs Villain (BB)"), análisis de por qué fue +EV, impacto estimado.
 
 ━━━ SECCIÓN 3: LAS 7 PEORES DECISIONES ━━━
+OBLIGATORIO: Exactamente 7 errores. Numéralos "ERROR #1" a "ERROR #7" y NO te detengas antes del #7 bajo ningún concepto.
 Mismo layout 2 columnas: left=Decisión con ejemplo real, right=La jugada correcta alternativa.
 Cada error: título h3 con badge-bad, descripción de la mano real, jugada alternativa óptima, costo estimado en chips/EV.
+OBLIGATORIO en cada error: indica explícitamente la POSICIÓN de Hero y la POSICIÓN del/los oponente(s) involucrados (ej. "Hero (CO) enfrenta resistencia de Villain1 (BB) y Villain2 (BTN)"). Estos datos están en el campo Hero:{pos} y vs: {nombre(pos), ...} del historial de cada mano.
 
 ━━━ SECCIÓN 4: 7 RECOMENDACIONES DE MEJORA ━━━
 Una lista numerada con ítems card-gold. Cada recomendación conecta directamente con uno de los 7 errores. Accionable y específica.
