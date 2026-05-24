@@ -1227,10 +1227,16 @@ async function loadPositionAnalysis() {
 }
 
 function _tournInjectDisclaimer(html, isEN, isPT) {
-  // 1) Quitar h3 con "Jugada Óptima" / "Optimal Play" / "Jogada Ótima"
-  //    (el LLM los inyecta como subtítulos de columna y confunden al usuario
-  //    haciéndole creer que es output de un solver GTO).
-  html = html.replace(/<h3[^>]*>[^<]*(?:[óÓ]ptim[ao]|optimal|[óÓ]tim[ao])[^<]*<\/h3>/gi, '');
+  // 1) Reemplazar el texto de los h3 "Jugada Óptima" / "Optimal Play" / "Jogada Ótima"
+  //    por "Línea recomendada" (o su traducción). El LLM los inyecta como
+  //    subtítulos de columna y confunden al usuario haciéndole creer que es
+  //    output de un solver GTO. Conservamos el h3 (con su estilo) y solo
+  //    cambiamos el texto interior para no romper el layout de 2 columnas.
+  const recLine = isEN ? 'Recommended line' : isPT ? 'Linha recomendada' : 'Línea recomendada';
+  html = html.replace(
+    /(<h3[^>]*>)[^<]*(?:[óÓ]ptim[ao]|optimal|[óÓ]tim[ao])[^<]*(<\/h3>)/gi,
+    '$1' + recLine + '$2'
+  );
 
   // 2) Inyecta un bloque explicativo debajo del h2 de "Sección 3 / Section 3 / Seção 3"
   // del reporte generado por el LLM, con tipografía estilo footer (muted).
