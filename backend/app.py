@@ -4133,8 +4133,8 @@ Cada decisión tiene: título h3 con badge-good, descripción de la mano real de
 
 ━━━ SECCIÓN 3: LAS 7 PEORES DECISIONES ━━━
 OBLIGATORIO: Exactamente 7 errores. Numéralos "ERROR #1" a "ERROR #7" y NO te detengas antes del #7 bajo ningún concepto.
-Mismo layout 2 columnas: left=Decisión con ejemplo real, right=La jugada correcta alternativa.
-Cada error: título h3 con badge-bad, descripción de la mano real, jugada alternativa óptima, costo estimado en chips/EV.
+Mismo layout 2 columnas: left=Decisión con ejemplo real, right=Una línea de juego alternativa recomendada.
+Cada error: título h3 con badge-bad, descripción de la mano real, línea alternativa recomendada (NUNCA uses las palabras "óptima" ni "GTO" — usa "recomendada", "más sólida", "más rentable a largo plazo"), costo estimado en chips/EV.
 OBLIGATORIO en cada error: indica explícitamente la POSICIÓN de Hero y la POSICIÓN del/los oponente(s) involucrados (ej. "Hero (CO) enfrenta resistencia de Villain1 (BB) y Villain2 (BTN)"). Estos datos vienen en el resumen de cada mano como "Hero:POS" y "vs: nombre(POS), ...".
 
 ━━━ SECCIÓN 4: 7 RECOMENDACIONES DE MEJORA ━━━
