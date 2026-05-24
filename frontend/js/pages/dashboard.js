@@ -1242,7 +1242,12 @@ function _hfRenderResult(data, isEN, isPT) {
 
   const handsLabel = isEN ? 'hands analyzed' : isPT ? 'mãos analisadas' : 'manos analizadas';
   const worstLabel = isEN ? 'Worst position' : isPT ? 'Pior posição' : 'Peor posición';
-  const statsLabel = isEN ? 'Results by position' : isPT ? 'Resultados por posição' : 'Resultados por posición';
+  const statsLabel = isEN ? 'Net wins / losses by position' : isPT ? 'Ganhos / perdas líquidos por posição' : 'Ganancias / pérdidas Netas por posición';
+  const statsHelp  = isEN
+    ? 'If Hero collects more chips than invested → positive (P/L = +X). If invested more than collected → negative (P/L = −X).'
+    : isPT
+      ? 'Se Hero recebe mais fichas do que investe → positivo (P/L = +X). Se investe mais do que recebe → negativo (P/L = −X).'
+      : 'Si Hero suma más fichas de las que invierte → positivo (P/L = +X). Si invierte más de lo que cobra → negativo (P/L = −X).';
   const aiLabel    = isEN ? '🤖 AI Coach Analysis' : isPT ? '🤖 Análise do Coach de IA' : '🤖 Análisis del Coach de IA';
   const per100     = isEN ? 'per 100 hands' : isPT ? 'por 100 mãos' : 'por 100 manos';
   const thStyle    = 'padding:10px 12px;text-align:left;color:var(--text3);font-size:0.75rem;font-weight:700;text-transform:uppercase;border-bottom:1px solid var(--border)';
@@ -1276,7 +1281,9 @@ function _hfRenderResult(data, isEN, isPT) {
       + '<div class="stat-card" style="flex:1;min-width:140px;border-color:rgba(239,68,68,0.4)"><div class="stat-val" style="color:#f87171">' + worst_pos + '</div><div class="stat-label">' + worstLabel + '</div></div>'
     + '</div>'
     + '<div class="card" style="margin-bottom:20px">'
-      + '<div class="card-header"><span class="card-icon">📊</span><div><h2>' + statsLabel + '</h2></div></div>'
+      + '<div class="card-header"><span class="card-icon">📊</span><div><h2>' + statsLabel + '</h2>'
+        + '<p style="margin:4px 0 0;color:var(--text3);font-size:0.82rem;line-height:1.5">' + statsHelp + '</p>'
+      + '</div></div>'
       + '<div style="overflow-x:auto;margin-top:12px">'
         + '<table style="width:100%;border-collapse:collapse">'
           + '<thead><tr>'
