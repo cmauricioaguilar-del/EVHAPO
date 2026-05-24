@@ -4132,7 +4132,7 @@ Cada decisión tiene: título h3 con badge-good, descripción de la mano real de
 OBLIGATORIO: Exactamente 7 errores. Numéralos "ERROR #1" a "ERROR #7" y NO te detengas antes del #7 bajo ningún concepto.
 Mismo layout 2 columnas: left=Decisión con ejemplo real, right=La jugada correcta alternativa.
 Cada error: título h3 con badge-bad, descripción de la mano real, jugada alternativa óptima, costo estimado en chips/EV.
-OBLIGATORIO en cada error: indica explícitamente la POSICIÓN de Hero y la POSICIÓN del/los oponente(s) involucrados (ej. "Hero (CO) enfrenta resistencia de Villain1 (BB) y Villain2 (BTN)"). Estos datos están en el campo Hero:{pos} y vs: {nombre(pos), ...} del historial de cada mano.
+OBLIGATORIO en cada error: indica explícitamente la POSICIÓN de Hero y la POSICIÓN del/los oponente(s) involucrados (ej. "Hero (CO) enfrenta resistencia de Villain1 (BB) y Villain2 (BTN)"). Estos datos vienen en el resumen de cada mano como "Hero:POS" y "vs: nombre(POS), ...".
 
 ━━━ SECCIÓN 4: 7 RECOMENDACIONES DE MEJORA ━━━
 Una lista numerada con ítems card-gold. Cada recomendación conecta directamente con uno de los 7 errores. Accionable y específica.
