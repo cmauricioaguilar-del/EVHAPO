@@ -1227,7 +1227,12 @@ async function loadPositionAnalysis() {
 }
 
 function _tournInjectDisclaimer(html, isEN, isPT) {
-  // Inyecta un bloque explicativo debajo del h2 de "Sección 3 / Section 3 / Seção 3"
+  // 1) Quitar h3 con "Jugada Óptima" / "Optimal Play" / "Jogada Ótima"
+  //    (el LLM los inyecta como subtítulos de columna y confunden al usuario
+  //    haciéndole creer que es output de un solver GTO).
+  html = html.replace(/<h3[^>]*>[^<]*(?:[óÓ]ptim[ao]|optimal|[óÓ]tim[ao])[^<]*<\/h3>/gi, '');
+
+  // 2) Inyecta un bloque explicativo debajo del h2 de "Sección 3 / Section 3 / Seção 3"
   // del reporte generado por el LLM, con tipografía estilo footer (muted).
   const title    = isEN ? 'About the recommendations'
                  : isPT ? 'Sobre as recomendações de jogada'
