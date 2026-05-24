@@ -3574,6 +3574,7 @@ def _parse_hand_history(content):
         'level_first': level_first,
         'level_last': level_last,
         'selected_hands': selected_hands,
+        'hero_hands': hero_hands,
     }
 
 
@@ -3853,9 +3854,11 @@ def analyze_tournament():
     prompt = _build_tournament_prompt(nombre, meta, player_profile, lang=lang)
 
     # ── 5. Calcular estadísticas por posición ─────────────────────────────────
+    # Usar TODAS las manos de Hero (no solo selected_hands), para que folds
+    # pre-flop perdiendo blinds/antes también cuenten y los netos negativos aparezcan.
     import json as _json
     pos_stats = {}
-    for h in meta.get('selected_hands', []):
+    for h in meta.get('hero_hands', meta.get('selected_hands', [])):
         pos = h.get('position')
         if not pos:
             continue
