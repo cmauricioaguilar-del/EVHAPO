@@ -99,8 +99,9 @@ PADDLE_WEBHOOK_SECRET     = os.environ.get('PADDLE_WEBHOOK_SECRET', '')
 WOMPI_PUBLIC_KEY            = os.environ.get('WOMPI_PUBLIC_KEY', '')
 WOMPI_PRIVATE_KEY           = os.environ.get('WOMPI_PRIVATE_KEY', '')
 WOMPI_INTEGRITY_SECRET      = os.environ.get('WOMPI_INTEGRITY_SECRET', '')
-MERCADOPAGO_BR_ACCESS_TOKEN = os.environ.get('MERCADOPAGO_BR_ACCESS_TOKEN', '')
-MERCADOPAGO_BR_PUBLIC_KEY   = os.environ.get('MERCADOPAGO_BR_PUBLIC_KEY', '')
+MERCADOPAGO_BR_ACCESS_TOKEN    = os.environ.get('MERCADOPAGO_BR_ACCESS_TOKEN', '')
+MERCADOPAGO_BR_PUBLIC_KEY      = os.environ.get('MERCADOPAGO_BR_PUBLIC_KEY', '')
+MERCADOPAGO_BR_WEBHOOK_SECRET  = os.environ.get('MERCADOPAGO_BR_WEBHOOK_SECRET', '')
 PADDLE_WEBHOOK_SECRET_SIM = os.environ.get('PADDLE_WEBHOOK_SECRET_SIM', '')
 PADDLE_CLIENT_TOKEN       = os.environ.get('PADDLE_CLIENT_TOKEN', '')
 BASE_URL = os.environ.get('BASE_URL', 'http://localhost:5000')
@@ -1508,7 +1509,12 @@ def new_test_session():
 @app.route('/api/payment/webhook/mp', methods=['POST'])
 def mp_webhook():
     # ── Verificación de firma HMAC (MercadoPago x-signature) ──────────────────
-    if MERCADOPAGO_WEBHOOK_SECRET:
+    # Intentar con todos los secrets configurados (CL y BR usan el mismo endpoint)
+    _mp_secrets = [s for s in [
+        os.environ.get('MERCADOPAGO_WEBHOOK_SECRET') or MERCADOPAGO_WEBHOOK_SECRET,
+        os.environ.get('MERCADOPAGO_BR_WEBHOOK_SECRET') or MERCADOPAGO_BR_WEBHOOK_SECRET,
+    ] if s]
+    if _mp_secrets:
         sig_header = request.headers.get('x-signature', '')
         req_id     = request.headers.get('x-request-id', '')
         ts = v1 = ''
@@ -1518,16 +1524,16 @@ def mp_webhook():
             if k == 'v1':  v1 = v
         if not (ts and v1):
             return jsonify({'error': 'Firma inválida'}), 401
-        # El payload firmado incluye el id del evento, el request-id y el timestamp
         raw_data = request.get_json(silent=True) or {}
         data_id  = str(raw_data.get('data', {}).get('id', ''))
         signed_template = f'id:{data_id};request-id:{req_id};ts:{ts}'
-        expected = hmac.new(
-            MERCADOPAGO_WEBHOOK_SECRET.encode(),
-            signed_template.encode(),
-            'sha256'
-        ).hexdigest()
-        if not hmac.compare_digest(expected, v1):
+        # Válido si cualquiera de los secrets (CL o BR) coincide
+        valid_sig = any(
+            hmac.compare_digest(
+                hmac.new(s.encode(), signed_template.encode(), 'sha256').hexdigest(), v1
+            ) for s in _mp_secrets
+        )
+        if not valid_sig:
             return jsonify({'error': 'Firma inválida'}), 401
     # ──────────────────────────────────────────────────────────────────────────
     data = request.json or {}
