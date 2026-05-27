@@ -77,6 +77,11 @@ PADDLE_API_KEY           = os.environ.get('PADDLE_API_KEY', '')
 PADDLE_PRICE_ONE_TIME    = os.environ.get('PADDLE_PRICE_ONE_TIME', '')
 PADDLE_PRICE_SUBSCRIPTION= os.environ.get('PADDLE_PRICE_SUBSCRIPTION', '')
 PADDLE_WEBHOOK_SECRET     = os.environ.get('PADDLE_WEBHOOK_SECRET', '')
+WOMPI_PUBLIC_KEY            = os.environ.get('WOMPI_PUBLIC_KEY', '')
+WOMPI_PRIVATE_KEY           = os.environ.get('WOMPI_PRIVATE_KEY', '')
+WOMPI_INTEGRITY_SECRET      = os.environ.get('WOMPI_INTEGRITY_SECRET', '')
+MERCADOPAGO_BR_ACCESS_TOKEN = os.environ.get('MERCADOPAGO_BR_ACCESS_TOKEN', '')
+MERCADOPAGO_BR_PUBLIC_KEY   = os.environ.get('MERCADOPAGO_BR_PUBLIC_KEY', '')
 PADDLE_WEBHOOK_SECRET_SIM = os.environ.get('PADDLE_WEBHOOK_SECRET_SIM', '')
 PADDLE_CLIENT_TOKEN       = os.environ.get('PADDLE_CLIENT_TOKEN', '')
 BASE_URL = os.environ.get('BASE_URL', 'http://localhost:5000')
@@ -639,8 +644,14 @@ def create_payment():
     ).lastrowid
     db.commit()
 
-    if method == 'mercadopago' and MERCADOPAGO_ACCESS_TOKEN:
-        return _create_mercadopago_payment(payment_id, local_amount, currency, test_type)
+    if method in ('wompi', 'wompi_nequi') and (WOMPI_PRIVATE_KEY or os.environ.get('WOMPI_PRIVATE_KEY')):
+        return _create_wompi_payment(payment_id, local_amount, currency, method)
+    elif method == 'mercadopago_pix':
+        br_token = os.environ.get('MERCADOPAGO_BR_ACCESS_TOKEN') or MERCADOPAGO_BR_ACCESS_TOKEN
+        if br_token:
+            return _create_mercadopago_payment(payment_id, local_amount, currency, test_type, method)
+    elif method == 'mercadopago' and MERCADOPAGO_ACCESS_TOKEN:
+        return _create_mercadopago_payment(payment_id, local_amount, currency, test_type, method)
     elif method == 'stripe' and (STRIPE_SECRET_KEY or os.environ.get('STRIPE_SECRET_KEY')):
         return _create_stripe_payment(payment_id)
     elif method == 'paddle':
@@ -704,11 +715,56 @@ def _create_paddle_checkout(price_id, user_email, success_url, custom_data=None)
     data = resp.json()
     return data['data']['checkout']['url'], data['data']['id']
 
-def _create_mercadopago_payment(payment_id, amount, currency, test_type='mental'):
+def _create_wompi_payment(payment_id, amount, currency, method):
+    """Genera URL de Wompi Web Checkout para Nequi o checkout completo (PSE, tarjeta, etc.)."""
+    import hashlib
+    from urllib.parse import urlencode
+
+    pk  = os.environ.get('WOMPI_PUBLIC_KEY')  or WOMPI_PUBLIC_KEY
+    sk  = os.environ.get('WOMPI_PRIVATE_KEY') or WOMPI_PRIVATE_KEY
+    sig = os.environ.get('WOMPI_INTEGRITY_SECRET') or WOMPI_INTEGRITY_SECRET
+
+    # COP no tiene centavos reales; Wompi representa 40.000 COP como 4.000.000 "centavos"
+    amount_in_cents = int(float(amount) * 100)
+    reference       = f"mindev-{payment_id}"
+
+    # Firma de integridad: SHA-256 de reference + amount_in_cents + currency + secret
+    raw = f"{reference}{amount_in_cents}{currency}{sig}"
+    signature = hashlib.sha256(raw.encode()).hexdigest()
+
+    is_sandbox = pk.startswith('pub_test_')
+    api_base   = 'https://sandbox.wompi.co/v1'  if is_sandbox else 'https://production.wompi.co/v1'
+
+    params = {
+        'public-key':         pk,
+        'currency':           currency,
+        'amount-in-cents':    amount_in_cents,
+        'reference':          reference,
+        'signature:integrity': signature,
+        'redirect-url':       f"{BASE_URL}/?wompi_result=pending&ref={reference}&pid={payment_id}",
+    }
+    if method == 'wompi_nequi':
+        params['payment-method-type'] = 'NEQUI'
+
+    checkout_url = 'https://checkout.wompi.co/p/?' + urlencode(params)
+
+    return jsonify({
+        'mode':         'wompi',
+        'checkout_url': checkout_url,
+        'payment_id':   payment_id,
+        '_api_base':    api_base,
+    })
+
+
+def _create_mercadopago_payment(payment_id, amount, currency, test_type='mental', method='mercadopago'):
     try:
         import mercadopago
-        sdk = mercadopago.SDK(MERCADOPAGO_ACCESS_TOKEN)
-        pref = sdk.preference().create({
+        token = (os.environ.get('MERCADOPAGO_BR_ACCESS_TOKEN') or MERCADOPAGO_BR_ACCESS_TOKEN) \
+                if method == 'mercadopago_pix' \
+                else (os.environ.get('MERCADOPAGO_ACCESS_TOKEN') or MERCADOPAGO_ACCESS_TOKEN)
+        sdk = mercadopago.SDK(token)
+
+        preference_data = {
             "items": [{
                 "title": f"MindEV – Diagnóstico {'Mental' if test_type == 'mental' else 'Técnico'} Poker",
                 "quantity": 1,
@@ -723,7 +779,19 @@ def _create_mercadopago_payment(payment_id, amount, currency, test_type='mental'
             "auto_return": "approved",
             "external_reference": str(payment_id),
             "statement_descriptor": "MindEV Poker"
-        })
+        }
+
+        if method == 'mercadopago_pix':
+            preference_data["payment_methods"] = {
+                "default_payment_method_id": "pix",
+                "excluded_payment_types": [
+                    {"id": "credit_card"},
+                    {"id": "debit_card"},
+                    {"id": "ticket"}
+                ]
+            }
+
+        pref = sdk.preference().create(preference_data)
         return jsonify({
             'mode': 'mercadopago',
             'init_point': pref['response']['init_point'],
@@ -759,12 +827,15 @@ def mp_verify():
         db.commit()
         return jsonify({'ok': True, 'session_id': session_id, 'test_type': pay['test_type']})
 
-    # Consultar estado en MercadoPago
+    # Consultar estado en MercadoPago (usa cuenta BR si el método fue PIX)
     mp_payment_id = data.get('mp_payment_id')
-    if mp_payment_id and MERCADOPAGO_ACCESS_TOKEN:
+    _mp_token = (os.environ.get('MERCADOPAGO_BR_ACCESS_TOKEN') or MERCADOPAGO_BR_ACCESS_TOKEN) \
+                if pay['method'] == 'mercadopago_pix' \
+                else (os.environ.get('MERCADOPAGO_ACCESS_TOKEN') or MERCADOPAGO_ACCESS_TOKEN)
+    if mp_payment_id and _mp_token:
         try:
             import mercadopago
-            sdk = mercadopago.SDK(MERCADOPAGO_ACCESS_TOKEN)
+            sdk = mercadopago.SDK(_mp_token)
             info = sdk.payment().get(mp_payment_id)
             status = info['response'].get('status')
             if status == 'approved':
@@ -853,6 +924,80 @@ def stripe_verify():
         return jsonify({'ok': True})
     except Exception as e:
         return jsonify({'ok': False, 'error': str(e)}), 500
+
+@app.route('/api/payment/wompi-verify', methods=['POST'])
+@require_auth
+def wompi_verify():
+    """Consulta el estado de un pago Wompi por referencia y activa el acceso si fue aprobado."""
+    data       = request.json or {}
+    reference  = data.get('reference', '')
+    payment_id = data.get('payment_id')
+
+    if not reference:
+        return jsonify({'ok': False, 'error': 'Falta referencia de pago'}), 400
+
+    db  = get_db()
+    pay = db.execute(
+        "SELECT * FROM payments WHERE id=? AND user_id=?", (payment_id, g.user_id)
+    ).fetchone()
+    if not pay:
+        return jsonify({'ok': False, 'error': 'Pago no encontrado'}), 404
+
+    if pay['status'] == 'approved':
+        existing = db.execute(
+            "SELECT id FROM test_sessions WHERE payment_id=?", (payment_id,)
+        ).fetchone()
+        if existing:
+            return jsonify({'ok': True, 'session_id': existing['id'], 'test_type': pay['test_type']})
+        session_id = db.execute(
+            "INSERT INTO test_sessions (user_id, payment_id, test_type) VALUES (?,?,?)",
+            (g.user_id, payment_id, pay['test_type'])
+        ).lastrowid
+        db.commit()
+        return jsonify({'ok': True, 'session_id': session_id, 'test_type': pay['test_type']})
+
+    try:
+        pk = os.environ.get('WOMPI_PUBLIC_KEY') or WOMPI_PUBLIC_KEY
+        sk = os.environ.get('WOMPI_PRIVATE_KEY') or WOMPI_PRIVATE_KEY
+        is_sandbox = pk.startswith('pub_test_')
+        api_base   = 'https://sandbox.wompi.co/v1' if is_sandbox else 'https://production.wompi.co/v1'
+
+        import requests as _req
+        resp = _req.get(
+            f"{api_base}/transactions",
+            params={'reference': reference},
+            headers={'Authorization': f'Bearer {sk}'},
+            timeout=10
+        )
+        if not resp.ok:
+            return jsonify({'ok': False, 'error': f'Wompi API {resp.status_code}'}), 502
+
+        txns = resp.json().get('data', [])
+        if not txns:
+            return jsonify({'ok': False, 'status': 'pending'})
+
+        status = txns[0].get('status', '')
+        txn_id = txns[0].get('id', '')
+
+        if status == 'APPROVED':
+            db.execute(
+                "UPDATE payments SET status='approved', external_id=? WHERE id=?",
+                (txn_id, payment_id)
+            )
+            db.commit()
+            threading.Thread(target=_send_referral_notification, args=(g.user_id,), daemon=True).start()
+            session_id = db.execute(
+                "INSERT INTO test_sessions (user_id, payment_id, test_type) VALUES (?,?,?)",
+                (g.user_id, payment_id, pay['test_type'])
+            ).lastrowid
+            db.commit()
+            return jsonify({'ok': True, 'session_id': session_id, 'test_type': pay['test_type']})
+
+        return jsonify({'ok': False, 'status': status.lower()})
+
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
 
 @app.route('/api/payment/confirm', methods=['POST'])
 @require_auth

@@ -60,6 +60,11 @@ function renderNavbar() {
   const langActive   = isEN ? 'en' : isPT ? 'pt' : 'es';
   const langToggle = `
     <div style="display:flex;gap:4px;align-items:center;margin-right:8px">
+      <button onclick="I18N.set('pt')" title="Português"
+        style="display:flex;align-items:center;gap:5px;background:${isPT ? 'var(--accent)' : 'transparent'};border:2px solid ${isPT ? 'var(--accent)' : 'var(--border)'};border-radius:8px;padding:4px 8px;cursor:pointer;opacity:${isPT ? '1' : '0.6'};transition:all 0.15s">
+        ${flagBR}
+        <span style="font-size:0.72rem;font-weight:700;color:${isPT ? '#000' : 'var(--text2)'}">PT</span>
+      </button>
       <button onclick="I18N.set('en')" title="English"
         style="display:flex;align-items:center;gap:5px;background:${isEN ? 'var(--accent)' : 'transparent'};border:2px solid ${isEN ? 'var(--accent)' : 'var(--border)'};border-radius:8px;padding:4px 8px;cursor:pointer;opacity:${isEN ? '1' : '0.6'};transition:all 0.15s">
         ${flagEN}
@@ -69,11 +74,6 @@ function renderNavbar() {
         style="display:flex;align-items:center;gap:5px;background:${langActive === 'es' ? 'var(--accent)' : 'transparent'};border:2px solid ${langActive === 'es' ? 'var(--accent)' : 'var(--border)'};border-radius:8px;padding:4px 8px;cursor:pointer;opacity:${langActive === 'es' ? '1' : '0.6'};transition:all 0.15s">
         ${flagES}
         <span style="font-size:0.72rem;font-weight:700;color:${langActive === 'es' ? '#000' : 'var(--text2)'}">ES</span>
-      </button>
-      <button onclick="I18N.set('pt')" title="Português"
-        style="display:flex;align-items:center;gap:5px;background:${isPT ? 'var(--accent)' : 'transparent'};border:2px solid ${isPT ? 'var(--accent)' : 'var(--border)'};border-radius:8px;padding:4px 8px;cursor:pointer;opacity:${isPT ? '1' : '0.6'};transition:all 0.15s">
-        ${flagBR}
-        <span style="font-size:0.72rem;font-weight:700;color:${isPT ? '#000' : 'var(--text2)'}">PT</span>
       </button>
     </div>`;
 
@@ -313,6 +313,36 @@ window.addEventListener('load', async () => {
           payment_id:  parseInt(stripePid),
         });
         App.go(res.ok ? 'dashboard' : 'payment');
+      } catch { App.go('payment'); }
+    } else {
+      App.go('payment');
+    }
+    return;
+  }
+
+  // ── Retorno desde Wompi (Colombia) ────────────────────────────────────────
+  const wompiResult = params.get('wompi_result');
+  const wompiRef    = params.get('ref');
+  const wompiPid    = params.get('pid');
+
+  if (wompiResult) {
+    history.replaceState(null, '', '/');
+    if (!Api.isLoggedIn()) { App.go('landing'); return; }
+
+    if (wompiResult === 'pending') {
+      try {
+        const res = await Api.post('/api/payment/wompi-verify', {
+          reference:  wompiRef,
+          payment_id: parseInt(wompiPid),
+        });
+        if (res.ok) {
+          App.go('dashboard');
+        } else if (res.status === 'pending') {
+          alert('⏳ Tu pago está siendo procesado. Recibirás acceso cuando se confirme.');
+          App.go('dashboard');
+        } else {
+          App.go('payment');
+        }
       } catch { App.go('payment'); }
     } else {
       App.go('payment');

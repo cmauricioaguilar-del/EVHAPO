@@ -23,7 +23,7 @@ const LEGAL = {
           '🎯 Solo usamos esos datos para generar tu diagnóstico personalizado con IA.',
           '🚫 Nunca vendemos tus datos ni los usamos para publicidad dirigida.',
           '📊 Solo hacemos análisis estadísticos generales, anónimos y agregados.',
-          '🤝 Terceros que procesan datos: OpenAI (perfil IA), Stripe/MercadoPago (pagos), Railway (servidores).',
+          '🤝 Terceros que procesan datos: OpenAI (perfil IA), Stripe/MercadoPago/Wompi (pagos), Railway (servidores).',
           '🔑 Puedes acceder, corregir o eliminar tus datos cuando quieras.',
           '📧 Contacto: c.mauricio.aguilar@gmail.com',
         ],
@@ -38,7 +38,7 @@ const LEGAL = {
           body: `<b>Datos de registro:</b> nombre, apellido, correo electrónico, país de residencia, sala de póker preferida.<br><br>
 <b>Datos del test:</b> tus respuestas a las preguntas del diagnóstico mental y técnico (94 preguntas).<br><br>
 <b>Datos de acceso:</b> dirección IP, tipo de dispositivo y fecha/hora de conexión (solo para seguridad).<br><br>
-<b>Datos de pago:</b> gestionados íntegramente por Stripe o MercadoPago. MindEV-IA <u>no almacena</u> números de tarjeta ni datos bancarios.`,
+<b>Datos de pago:</b> gestionados íntegramente por Stripe, MercadoPago o Wompi según tu país. MindEV-IA <u>no almacena</u> números de tarjeta ni datos bancarios.`,
         },
         {
           title: '3. Para qué usamos tus datos',
@@ -55,7 +55,7 @@ const LEGAL = {
         {
           title: '5. Terceros que acceden a tus datos',
           body: `<b>OpenAI (EE.UU.):</b> recibe tus respuestas del test para generar el perfil de IA. Sujeto a la <a href="https://openai.com/privacy" target="_blank" style="color:var(--accent)">política de OpenAI</a>.<br><br>
-<b>Stripe (EE.UU.) / MercadoPago (Argentina):</b> procesan los pagos. Solo confirman si el pago fue exitoso; no comparten datos financieros con MindEV-IA.<br><br>
+<b>Stripe (EE.UU.) / MercadoPago (LATAM) / Wompi-Bancolombia (Colombia):</b> procesan los pagos según el país del usuario. Solo confirman si el pago fue exitoso; no comparten datos financieros con MindEV-IA.<br><br>
 <b>Railway (EE.UU.):</b> proveedor de hosting y base de datos.<br><br>
 No compartimos tus datos con ningún otro tercero ni los vendemos bajo ninguna circunstancia.`,
         },
@@ -99,7 +99,7 @@ Para ejercer cualquiera de estos derechos, escríbenos a <a href="mailto:c.mauri
           '🎯 We only use that data to generate your personalized AI diagnostic.',
           '🚫 We never sell your data or use it for individual advertising.',
           '📊 We only run general, anonymous, aggregated statistical analysis.',
-          '🤝 Third parties that process data: OpenAI (AI profile), Stripe/MercadoPago (payments), Railway (servers).',
+          '🤝 Third parties that process data: OpenAI (AI profile), Stripe/MercadoPago/Wompi (payments), Railway (servers).',
           '🔑 You can access, correct, or delete your data at any time.',
           '📧 Contact: c.mauricio.aguilar@gmail.com',
         ],
@@ -114,7 +114,7 @@ Para ejercer cualquiera de estos derechos, escríbenos a <a href="mailto:c.mauri
           body: `<b>Registration data:</b> first name, last name, email address, country of residence, preferred poker room.<br><br>
 <b>Test data:</b> your answers to the mental and technical diagnostic questions (94 questions).<br><br>
 <b>Access logs:</b> IP address, device type, and connection timestamp (for security purposes only).<br><br>
-<b>Payment data:</b> handled entirely by Stripe or MercadoPago. MindEV-IA <u>does not store</u> card numbers or bank details.`,
+<b>Payment data:</b> handled entirely by Stripe, MercadoPago or Wompi depending on your country. MindEV-IA <u>does not store</u> card numbers or bank details.`,
         },
         {
           title: '3. How We Use Your Data',
@@ -132,7 +132,7 @@ Para ejercer cualquiera de estos derechos, escríbenos a <a href="mailto:c.mauri
         {
           title: '5. Third Parties That Access Your Data',
           body: `<b>OpenAI (USA):</b> receives your test answers to generate the AI profile. Subject to <a href="https://openai.com/privacy" target="_blank" style="color:var(--accent)">OpenAI's privacy policy</a>.<br><br>
-<b>Stripe (USA) / MercadoPago (Argentina):</b> process payments. They only confirm whether payment succeeded; they do not share financial data with MindEV-IA.<br><br>
+<b>Stripe (USA) / MercadoPago (LATAM) / Wompi-Bancolombia (Colombia):</b> process payments based on the user's country. They only confirm whether payment succeeded; they do not share financial data with MindEV-IA.<br><br>
 <b>Railway (USA):</b> hosting and database provider.<br><br>
 We do not share your data with any other third party, and we never sell it.`,
         },
@@ -176,7 +176,7 @@ To exercise any of these rights, contact us at <a href="mailto:c.mauricio.aguila
           '🎯 Usamos esses dados apenas para gerar seu diagnóstico personalizado com IA.',
           '🚫 Jamais vendemos seus dados ou os usamos para publicidade individual.',
           '📊 Realizamos apenas análises estatísticas gerais, anônimas e agregadas.',
-          '🤝 Terceiros que processam dados: OpenAI (perfil IA), Stripe/MercadoPago (pagamentos), Railway (servidores).',
+          '🤝 Terceiros que processam dados: OpenAI (perfil IA), Stripe/MercadoPago/Wompi (pagamentos), Railway (servidores).',
           '🔑 Você pode acessar, corrigir ou excluir seus dados a qualquer momento.',
           '📧 Contato: c.mauricio.aguilar@gmail.com',
         ],
@@ -192,7 +192,7 @@ To exercise any of these rights, contact us at <a href="mailto:c.mauricio.aguila
           body: `<b>Dados de cadastro:</b> nome, sobrenome, e-mail, país de residência, sala de poker preferida.<br><br>
 <b>Dados do teste:</b> suas respostas às perguntas do diagnóstico mental e técnico (94 perguntas).<br><br>
 <b>Logs de acesso:</b> endereço IP, tipo de dispositivo e data/hora de conexão (apenas para segurança).<br><br>
-<b>Dados de pagamento:</b> gerenciados integralmente pela Stripe ou MercadoPago. O MindEV-IA <u>não armazena</u> números de cartão nem dados bancários.`,
+<b>Dados de pagamento:</b> gerenciados integralmente pela Stripe, MercadoPago ou Wompi conforme o país do usuário. O MindEV-IA <u>não armazena</u> números de cartão nem dados bancários.`,
         },
         {
           title: '3. Finalidade do Tratamento',
@@ -209,7 +209,7 @@ Você pode revogar seu consentimento a qualquer momento entrando em contato cono
         {
           title: '5. Terceiros que Acessam seus Dados',
           body: `<b>OpenAI (EUA):</b> recebe suas respostas do teste para gerar o perfil de IA. Sujeito à <a href="https://openai.com/privacy" target="_blank" style="color:var(--accent)">política de privacidade da OpenAI</a>.<br><br>
-<b>Stripe (EUA) / MercadoPago (Argentina):</b> processam pagamentos. Apenas confirmam se o pagamento foi realizado com sucesso; não compartilham dados financeiros com o MindEV-IA.<br><br>
+<b>Stripe (EUA) / MercadoPago (LATAM) / Wompi-Bancolombia (Colômbia):</b> processam pagamentos de acordo com o país do usuário. Apenas confirmam se o pagamento foi realizado com sucesso; não compartilham dados financeiros com o MindEV-IA.<br><br>
 <b>Railway (EUA):</b> provedor de hospedagem e banco de dados.<br><br>
 Não compartilhamos seus dados com nenhum outro terceiro e <b>jamais os vendemos</b>.`,
         },
@@ -289,7 +289,7 @@ Para exercer esses direitos, escreva para <a href="mailto:c.mauricio.aguilar@gma
           title: '4. Pagos y acceso',
           body: `• El <b>plan anual</b> otorga acceso por 12 meses desde la fecha de pago.<br>
 • Los <b>cupones de acceso</b> tienen la duración especificada al momento de su entrega.<br>
-• Los pagos se procesan de forma segura mediante Stripe o MercadoPago.<br>
+• Los pagos se procesan de forma segura mediante Stripe, MercadoPago o Wompi según el país del usuario.<br>
 • <b>No ofrecemos reembolsos</b> una vez activado el acceso, salvo que la legislación de tu país lo exija expresamente.`,
         },
         {
@@ -365,7 +365,7 @@ Para usuarios en <b>Brasil</b>, se aplica adicionalmente la LGPD (Lei 13.709/201
           title: '4. Payments and Access',
           body: `• The <b>annual plan</b> grants access for 12 months from the payment date.<br>
 • <b>Access coupons</b> are valid for the duration specified at the time of delivery.<br>
-• Payments are processed securely via Stripe or MercadoPago.<br>
+• Payments are processed securely via Stripe, MercadoPago or Wompi depending on the user's country.<br>
 • <b>We do not offer refunds</b> once access is activated, unless required by the laws of your country.`,
         },
         {
@@ -442,7 +442,7 @@ For users in the <b>UK / EU</b>, UK GDPR / EU GDPR additionally applies with res
           title: '4. Pagamentos e Acesso',
           body: `• O <b>plano anual</b> concede acesso por 12 meses a partir da data do pagamento.<br>
 • Os <b>cupons de acesso</b> têm a duração especificada no momento da entrega.<br>
-• Os pagamentos são processados com segurança pela Stripe ou MercadoPago.<br>
+• Os pagamentos são processados com segurança pela Stripe, MercadoPago ou Wompi conforme o país do usuário.<br>
 • <b>Não oferecemos reembolsos</b> após a ativação do acesso, salvo exigência da legislação do seu país (incluindo o Código de Defesa do Consumidor brasileiro).`,
         },
         {

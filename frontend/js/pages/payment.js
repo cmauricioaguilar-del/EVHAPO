@@ -8,7 +8,9 @@ async function renderPayment() {
 
   const pais    = (JSON.parse(localStorage.getItem('evhapo_user') || '{}').pais || 'CL').toUpperCase();
   const isLatam = ['CL','AR','MX','CO','PE','UY','BR'].includes(pais);
-  _selectedMethod = isLatam ? 'mercadopago' : 'paddle';
+  const isCO    = pais === 'CO';
+  const isBR    = pais === 'BR';
+  _selectedMethod = isCO ? 'wompi_nequi' : isBR ? 'mercadopago_pix' : isLatam ? 'mercadopago' : 'paddle';
 
   const priceMap = {
     CL: { unique: '$9.500 CLP', sub: '$4.750 CLP' },
@@ -102,6 +104,38 @@ async function renderPayment() {
         <h3 style="font-size:0.9rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px">
           ${isEN ? 'Payment method' : isPT ? 'Método de pagamento' : 'Método de pago'}
         </h3>
+
+        ${isBR ? `
+        <div class="payment-methods">
+          <div class="method-card selected" id="method-mercadopago_pix" onclick="selectMethod('mercadopago_pix')" style="position:relative">
+            <div style="position:absolute;top:-8px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#32BCAD,#1e9e90);color:#fff;font-size:0.6rem;font-weight:800;padding:2px 8px;border-radius:20px;white-space:nowrap;text-transform:uppercase;letter-spacing:0.05em">
+              ${isEN ? 'Recommended' : isPT ? 'Recomendado' : 'Recomendado'}
+            </div>
+            <span class="method-icon">⚡</span>
+            <h3 style="color:#32BCAD;font-weight:900">PIX</h3>
+            <p>${isEN ? 'Instant · 24h · Free' : isPT ? 'Instantâneo · 24h · Grátis' : 'Instantáneo · 24h · Gratis'}</p>
+          </div>
+          <div class="method-card" id="method-mercadopago" onclick="selectMethod('mercadopago')">
+            <span class="method-icon">💳</span>
+            <h3>${isEN ? 'Card' : isPT ? 'Cartão' : 'Tarjeta'}</h3>
+            <p>${isEN ? 'Credit · Debit' : isPT ? 'Crédito · Débito' : 'Crédito · Débito'}</p>
+          </div>
+        </div>` : isCO ? `
+        <div class="payment-methods">
+          <div class="method-card selected" id="method-wompi_nequi" onclick="selectMethod('wompi_nequi')" style="position:relative">
+            <div style="position:absolute;top:-8px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#160C45,#DA0081);color:#fff;font-size:0.6rem;font-weight:800;padding:2px 8px;border-radius:20px;white-space:nowrap;text-transform:uppercase;letter-spacing:0.05em">
+              ${isEN ? 'For Colombia' : isPT ? 'Para Colômbia' : 'Para Colombia'}
+            </div>
+            <span class="method-icon">📱</span>
+            <h3 style="color:#DA0081;font-weight:900">Nequi</h3>
+            <p>${isEN ? 'Instant payment from your app' : isPT ? 'Pagamento instantâneo pelo app' : 'Pago instantáneo desde tu app'}</p>
+          </div>
+          <div class="method-card" id="method-wompi" onclick="selectMethod('wompi')">
+            <span class="method-icon">🏦</span>
+            <h3>${isEN ? 'Other methods' : isPT ? 'Outros métodos' : 'Otros métodos'}</h3>
+            <p>PSE · ${isEN ? 'Card' : isPT ? 'Cartão' : 'Tarjeta'} · Bancolombia</p>
+          </div>
+        </div>` : `
         <div class="payment-methods">
           <div class="method-card ${isLatam ? 'selected' : ''}" id="method-mercadopago" onclick="selectMethod('mercadopago')">
             <span class="method-icon">💙</span>
@@ -113,9 +147,30 @@ async function renderPayment() {
             <h3>${isEN ? 'International Card' : isPT ? 'Cartão Internacional' : 'Tarjeta Internacional'}</h3>
             <p>Visa · Mastercard · Amex</p>
           </div>
-        </div>
+        </div>`}
 
-        <div id="mp-info" class="alert alert-info" style="margin-bottom:16px;${isLatam ? '' : 'display:none'}">
+        <div id="mercadopago_pix-info" class="alert alert-info" style="margin-bottom:16px;background:rgba(50,188,173,0.08);border:1px solid rgba(50,188,173,0.3);${isBR ? '' : 'display:none'}">
+          ⚡ ${isEN
+            ? 'You\'ll receive a <strong>PIX</strong> QR code to scan and confirm the payment instantly. Available 24/7, no extra cost.'
+            : isPT
+            ? 'Você receberá um QR code <strong style="color:#32BCAD">PIX</strong> para escanear e confirmar o pagamento na hora. Disponível 24h, sem custo adicional.'
+            : 'Recibirás un QR code <strong style="color:#32BCAD">PIX</strong> para escanear y confirmar el pago al instante. Disponible 24h, sin costo adicional.'}
+        </div>
+        <div id="wompi_nequi-info" class="alert alert-info" style="margin-bottom:16px;background:rgba(218,0,129,0.08);border:1px solid rgba(218,0,129,0.3);${isCO ? '' : 'display:none'}">
+          📱 ${isEN
+            ? 'You\'ll receive a push notification in your <strong>Nequi</strong> app to confirm the payment in seconds. Processed by Wompi (Bancolombia).'
+            : isPT
+            ? 'Você receberá uma notificação no seu app <strong>Nequi</strong> para confirmar o pagamento em segundos. Processado pela Wompi (Bancolombia).'
+            : 'Recibirás una notificación en tu app <strong style="color:#DA0081">Nequi</strong> para confirmar el pago en segundos. Procesado por Wompi (Bancolombia).'}
+        </div>
+        <div id="wompi-info" class="alert alert-info" style="margin-bottom:16px;display:none">
+          🏦 ${isEN
+            ? 'You\'ll be redirected to <strong>Wompi</strong> to choose from PSE, card, Bancolombia and more.'
+            : isPT
+            ? 'Você será redirecionado para a <strong>Wompi</strong> para escolher entre PSE, cartão, Bancolombia e outros.'
+            : 'Serás redirigido a <strong>Wompi</strong> para elegir entre PSE, tarjeta, Bancolombia y más.'}
+        </div>
+        <div id="mp-info" class="alert alert-info" style="margin-bottom:16px;${isLatam && !isCO ? '' : 'display:none'}">
           ${isEN
             ? '💙 You will be redirected to <strong>Mercado Pago</strong> to complete your payment securely. We accept Visa, Mastercard, debit and bank transfer.'
             : isPT
@@ -192,11 +247,13 @@ function selectPlan(plan) {
 
 function selectMethod(method) {
   _selectedMethod = method;
-  ['mercadopago','paddle'].forEach(m => {
+  ['mercadopago','mercadopago_pix','paddle','wompi','wompi_nequi'].forEach(m => {
     document.getElementById(`method-${m}`)?.classList.toggle('selected', m === method);
   });
-  document.getElementById('mp-info').style.display     = method === 'mercadopago' ? 'block' : 'none';
-  document.getElementById('paddle-info').style.display = method === 'paddle'      ? 'block' : 'none';
+  ['mercadopago','mercadopago_pix','paddle','wompi','wompi_nequi'].forEach(m => {
+    const el = document.getElementById(`${m}-info`);
+    if (el) el.style.display = m === method ? 'block' : 'none';
+  });
 }
 
 function toggleCouponSection() {
