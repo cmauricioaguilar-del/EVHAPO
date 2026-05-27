@@ -15,6 +15,15 @@ const Api = {
     if (body) opts.body = JSON.stringify(body);
     const r = await fetch(API_BASE + path, opts);
     const data = await r.json().catch(() => ({}));
+    if (r.status === 401 && path !== '/api/login') {
+      // Sesión inválida o desplazada por otro login — limpiar y redirigir
+      localStorage.removeItem('evhapo_token');
+      localStorage.removeItem('evhapo_user');
+      localStorage.removeItem('evhapo_session');
+      localStorage.removeItem('evhapo_coupon');
+      window.location.href = '/';
+      return;
+    }
     if (!r.ok) {
       const err = new Error(data.error || `HTTP ${r.status}`);
       err.status = r.status;

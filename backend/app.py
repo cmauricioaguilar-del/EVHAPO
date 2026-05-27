@@ -324,6 +324,9 @@ def create_token(user_id):
     token = secrets.token_hex(32)
     expires = (datetime.datetime.utcnow() + datetime.timedelta(days=30)).isoformat()
     db = sqlite3.connect(DB_PATH)
+    # Sesión única: eliminar todos los tokens anteriores del usuario
+    # Si alguien comparte credenciales y otro inicia sesión, el anterior queda desconectado
+    db.execute("DELETE FROM tokens WHERE user_id=?", (user_id,))
     db.execute("INSERT INTO tokens (user_id, token, expires_at) VALUES (?,?,?)", (user_id, token, expires))
     db.commit()
     db.close()
