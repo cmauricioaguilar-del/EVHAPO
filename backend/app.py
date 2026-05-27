@@ -20,9 +20,28 @@ from email.mime.multipart import MIMEMultipart
 from functools import wraps
 from flask import Flask, request, jsonify, send_from_directory, g
 from flask_cors import CORS
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 app = Flask(__name__, static_folder='../frontend', static_url_path='')
-CORS(app)
+
+# CORS restringido: solo dominios propios de MinDev
+CORS(app, origins=[
+    'https://mindev-ia.com',
+    'https://www.mindev-ia.com',
+    'https://mindev-ia.cl',
+    'https://www.mindev-ia.cl',
+    'http://localhost:5000',
+    'http://127.0.0.1:5000',
+])
+
+# Rate limiting: protección contra fuerza bruta
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=[],          # sin límite global — solo donde se aplique
+    storage_uri="memory://",
+)
 
 # Versión de la app: cambia en cada deploy (timestamp de inicio del proceso)
 _APP_VERSION = str(int(_time.time()))
@@ -399,6 +418,7 @@ def static_files(path):
 VALID_ROOMS = {'pokerstars', 'ggpoker', 'wpt global', 'acr', 'coolbet', '888 poker', 'coin poker', 'ninguna'}
 
 @app.route('/api/register', methods=['POST'])
+@limiter.limit("10 per minute; 30 per hour")
 def register():
     data = request.json or {}
     nombre = (data.get('nombre') or '').strip()
@@ -461,6 +481,7 @@ def register():
     return jsonify({'token': token, 'nombre': nombre, 'email': email}), 201
 
 @app.route('/api/login', methods=['POST'])
+@limiter.limit("5 per minute; 20 per hour")
 def login():
     data = request.json or {}
     email = (data.get('email') or '').strip().lower()
