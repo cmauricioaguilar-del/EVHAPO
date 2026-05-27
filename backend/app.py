@@ -1046,6 +1046,20 @@ def confirm_payment():
     threading.Thread(target=_send_payment_confirmed_email, args=(pay['user_id'],), daemon=True).start()
     return jsonify({'ok': True})
 
+
+@app.route('/api/admin/test-email', methods=['POST'])
+@require_auth
+def admin_test_email():
+    """Endpoint temporal de diagnóstico: envía el email de confirmación al usuario actual (solo admin)."""
+    if not g.is_admin:
+        return jsonify({'error': 'No autorizado'}), 403
+    try:
+        _send_payment_confirmed_email(g.user_id)
+        return jsonify({'ok': True, 'message': f'Email enviado a {g.user_email}'})
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
+
 # ─── Subscription routes ─────────────────────────────────────────────────────
 
 @app.route('/api/payment/create-subscription', methods=['POST'])
