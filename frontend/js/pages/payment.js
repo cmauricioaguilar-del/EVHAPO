@@ -1,10 +1,19 @@
 let _selectedMethod = 'mercadopago';
 let _selectedPlan   = 'unique';   // 'unique' | 'subscription'
+let _pixPollingActive = false;    // flag para detener polling si el usuario navega
 
 // ─── Renderizado ──────────────────────────────────────────────────────────────
 async function renderPayment() {
   const user = Api.currentUser();
   if (!user) { App.go('register'); return; }
+
+  // ── Detectar retorno desde PIX pendiente ──────────────────────────────────
+  const _pendingPix = JSON.parse(localStorage.getItem('evhapo_pending_pix') || 'null');
+  if (_pendingPix && (Date.now() - _pendingPix.created_at) < 2 * 60 * 60 * 1000) {
+    _startPixPolling(_pendingPix.payment_id);
+    return;
+  }
+  // ─────────────────────────────────────────────────────────────────────────
 
   const pais    = (JSON.parse(localStorage.getItem('evhapo_user') || '{}').pais || 'CL').toUpperCase();
   const isLatam = ['CL','AR','MX','CO','PE','UY','BR'].includes(pais);
@@ -315,6 +324,13 @@ async function doPayment() {
     if (result.mode === 'demo') { App.go('dashboard'); return; }
 
     if (result.checkout_url || result.init_point) {
+      // Para PIX: guardar payment_id antes de salir, para polling al volver
+      if (_selectedMethod === 'mercadopago_pix' && result.payment_id) {
+        localStorage.setItem('evhapo_pending_pix', JSON.stringify({
+          payment_id: result.payment_id,
+          created_at: Date.now()
+        }));
+      }
       window.location.href = result.checkout_url || result.init_point;
       return;
     }
@@ -325,4 +341,98 @@ async function doPayment() {
     btn.disabled    = false;
     btn.textContent = `♠ ${isEN ? 'Pay and start' : isPT ? 'Pagar e começar' : 'Pagar y comenzar'}`;
   }
+}
+
+// ─── PIX Polling — espera confirmación asíncrona del banco ────────────────────
+function _startPixPolling(payment_id) {
+  const isPT = I18N.isPT();
+  const isEN = I18N.isEN();
+  _pixPollingActive = true;
+
+  document.getElementById('app').innerHTML = `${renderNavbar()}
+    <div class="auth-container">
+      <div class="auth-card" style="max-width:460px;text-align:center">
+        <div style="font-size:3.5rem;margin-bottom:8px">⚡</div>
+        <h2 style="color:#32BCAD;margin-bottom:8px">
+          ${isPT ? 'Aguardando confirmação do PIX' : isEN ? 'Waiting for PIX confirmation' : 'Esperando confirmación PIX'}
+        </h2>
+        <p style="color:var(--text2);font-size:0.92rem;margin-bottom:24px">
+          ${isPT
+            ? 'Seu pagamento está sendo processado. Assim que o banco confirmar, você será redirecionado automaticamente.'
+            : isEN
+            ? 'Your payment is being processed. Once the bank confirms, you\'ll be redirected automatically.'
+            : 'Tu pago está siendo procesado. En cuanto el banco confirme, serás redirigido automáticamente.'}
+        </p>
+
+        <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:24px">
+          <div style="width:10px;height:10px;border-radius:50%;background:#32BCAD;animation:pixPulse 1.2s ease-in-out infinite"></div>
+          <div style="width:10px;height:10px;border-radius:50%;background:#32BCAD;animation:pixPulse 1.2s ease-in-out infinite 0.4s"></div>
+          <div style="width:10px;height:10px;border-radius:50%;background:#32BCAD;animation:pixPulse 1.2s ease-in-out infinite 0.8s"></div>
+        </div>
+        <style>
+          @keyframes pixPulse {
+            0%,100% { opacity:0.3; transform:scale(0.8); }
+            50%      { opacity:1;   transform:scale(1.2); }
+          }
+        </style>
+
+        <div id="pix-poll-status" style="color:var(--text3);font-size:0.82rem;margin-bottom:20px"></div>
+
+        <button onclick="cancelPixWait()"
+          style="background:none;border:1px solid var(--border);color:var(--text3);cursor:pointer;
+                 font-size:0.82rem;padding:8px 18px;border-radius:8px;margin-top:4px">
+          ${isPT ? 'Cancelar e tentar novamente' : isEN ? 'Cancel and try again' : 'Cancelar y volver al pago'}
+        </button>
+      </div>
+    </div>`;
+
+  let attempts = 0;
+  const MAX_ATTEMPTS = 120; // 10 minutos (120 × 5 seg)
+
+  const poll = async () => {
+    if (!_pixPollingActive) return;
+    attempts++;
+    const statusEl = document.getElementById('pix-poll-status');
+
+    try {
+      const result = await Api.post('/api/payment/mp-verify', { payment_id });
+      if (result && result.ok && result.session_id) {
+        _pixPollingActive = false;
+        localStorage.removeItem('evhapo_pending_pix');
+        if (statusEl) statusEl.innerHTML = `<span style="color:#4ade80;font-weight:700">
+          ✅ ${isPT ? 'Pagamento confirmado! Redirecionando...' : isEN ? 'Payment confirmed! Redirecting...' : '¡Pago confirmado! Redirigiendo...'}
+        </span>`;
+        setTimeout(() => App.go('test', { session_id: result.session_id, test_type: result.test_type || 'mental' }), 1200);
+        return;
+      }
+    } catch (_) { /* red error — seguir intentando */ }
+
+    if (attempts >= MAX_ATTEMPTS) {
+      _pixPollingActive = false;
+      if (statusEl) statusEl.innerHTML = `<span style="color:#fbbf24;font-size:0.85rem">
+        ${isPT
+          ? '⏱ Tempo limite atingido. Verifique seu email — o acesso pode já estar ativo.'
+          : isEN
+          ? '⏱ Timeout reached. Check your email — access may already be active.'
+          : '⏱ Tiempo límite alcanzado. Revisa tu email — el acceso puede ya estar activo.'}
+      </span>`;
+      return;
+    }
+
+    if (statusEl) statusEl.textContent = isPT
+      ? `Verificando com o banco... (${attempts}/${MAX_ATTEMPTS})`
+      : isEN
+      ? `Checking with bank... (${attempts}/${MAX_ATTEMPTS})`
+      : `Verificando con el banco... (${attempts}/${MAX_ATTEMPTS})`;
+
+    setTimeout(poll, 5000);
+  };
+
+  poll();
+}
+
+function cancelPixWait() {
+  _pixPollingActive = false;
+  localStorage.removeItem('evhapo_pending_pix');
+  renderPayment();
 }
