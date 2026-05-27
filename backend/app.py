@@ -1519,31 +1519,40 @@ def mp_webhook():
     data = request.json or {}
     if data.get('type') == 'payment':
         payment_id_external = data.get('data', {}).get('id')
-        if payment_id_external and MERCADOPAGO_ACCESS_TOKEN:
-            try:
-                import mercadopago
-                sdk = mercadopago.SDK(MERCADOPAGO_ACCESS_TOKEN)
-                info = sdk.payment().get(payment_id_external)
-                if info['response']['status'] == 'approved':
-                    ref = info['response']['external_reference']
-                    db = sqlite3.connect(DB_PATH)
-                    db.row_factory = sqlite3.Row
-                    db.execute("UPDATE payments SET status='approved', external_id=? WHERE id=?",
-                               (str(payment_id_external), ref))
-                    row = db.execute("SELECT user_id, test_type FROM payments WHERE id=?", (ref,)).fetchone()
-                    if row:
-                        existing = db.execute("SELECT id FROM test_sessions WHERE payment_id=?", (ref,)).fetchone()
-                        if not existing:
-                            db.execute(
-                                "INSERT INTO test_sessions (user_id, payment_id, test_type) VALUES (?,?,?)",
-                                (row['user_id'], ref, row['test_type'] or 'mental')
-                            )
-                        threading.Thread(target=_send_referral_notification, args=(row['user_id'],), daemon=True).start()
-                        threading.Thread(target=_send_payment_confirmed_email, args=(row['user_id'],), daemon=True).start()
-                    db.commit()
-                    db.close()
-            except:
-                pass
+        if payment_id_external:
+            # Intentar con ambos tokens (CL y BR): el webhook llega al mismo endpoint
+            # sin indicar a qué cuenta pertenece el pago.
+            _cl_token = os.environ.get('MERCADOPAGO_ACCESS_TOKEN') or MERCADOPAGO_ACCESS_TOKEN
+            _br_token = os.environ.get('MERCADOPAGO_BR_ACCESS_TOKEN') or MERCADOPAGO_BR_ACCESS_TOKEN
+            _tokens_to_try = [t for t in [_cl_token, _br_token] if t]
+            for _token in _tokens_to_try:
+                try:
+                    import mercadopago
+                    sdk  = mercadopago.SDK(_token)
+                    info = sdk.payment().get(payment_id_external)
+                    if info.get('status') != 200:
+                        continue  # pago no pertenece a esta cuenta — probar el siguiente token
+                    if info['response']['status'] == 'approved':
+                        ref = info['response']['external_reference']
+                        db = sqlite3.connect(DB_PATH)
+                        db.row_factory = sqlite3.Row
+                        db.execute("UPDATE payments SET status='approved', external_id=? WHERE id=?",
+                                   (str(payment_id_external), ref))
+                        row = db.execute("SELECT user_id, test_type FROM payments WHERE id=?", (ref,)).fetchone()
+                        if row:
+                            existing = db.execute("SELECT id FROM test_sessions WHERE payment_id=?", (ref,)).fetchone()
+                            if not existing:
+                                db.execute(
+                                    "INSERT INTO test_sessions (user_id, payment_id, test_type) VALUES (?,?,?)",
+                                    (row['user_id'], ref, row['test_type'] or 'mental')
+                                )
+                            threading.Thread(target=_send_referral_notification, args=(row['user_id'],), daemon=True).start()
+                            threading.Thread(target=_send_payment_confirmed_email, args=(row['user_id'],), daemon=True).start()
+                        db.commit()
+                        db.close()
+                        break  # pago procesado — no intentar con el otro token
+                except Exception:
+                    pass  # token incorrecto o error transitorio — intentar el siguiente
     return jsonify({'ok': True})
 
 # ─── Test routes ──────────────────────────────────────────────────────────────
