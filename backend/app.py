@@ -867,6 +867,7 @@ def mp_verify():
                            (str(mp_payment_id), payment_id))
                 db.commit()
                 threading.Thread(target=_send_referral_notification, args=(g.user_id,), daemon=True).start()
+                threading.Thread(target=_send_payment_confirmed_email, args=(g.user_id,), daemon=True).start()
                 session_id = db.execute(
                     "INSERT INTO test_sessions (user_id, payment_id, test_type) VALUES (?,?,?)",
                     (g.user_id, payment_id, pay['test_type'])
@@ -945,6 +946,7 @@ def stripe_verify():
         )
         db.commit()
         threading.Thread(target=_send_referral_notification, args=(g.user_id,), daemon=True).start()
+        threading.Thread(target=_send_payment_confirmed_email, args=(g.user_id,), daemon=True).start()
         return jsonify({'ok': True})
     except Exception as e:
         return jsonify({'ok': False, 'error': str(e)}), 500
@@ -1010,6 +1012,7 @@ def wompi_verify():
             )
             db.commit()
             threading.Thread(target=_send_referral_notification, args=(g.user_id,), daemon=True).start()
+            threading.Thread(target=_send_payment_confirmed_email, args=(g.user_id,), daemon=True).start()
             session_id = db.execute(
                 "INSERT INTO test_sessions (user_id, payment_id, test_type) VALUES (?,?,?)",
                 (g.user_id, payment_id, pay['test_type'])
@@ -1040,6 +1043,7 @@ def confirm_payment():
     db.execute("UPDATE payments SET status='approved' WHERE id=?", (payment_id,))
     db.commit()
     threading.Thread(target=_send_referral_notification, args=(pay['user_id'],), daemon=True).start()
+    threading.Thread(target=_send_payment_confirmed_email, args=(pay['user_id'],), daemon=True).start()
     return jsonify({'ok': True})
 
 # ─── Subscription routes ─────────────────────────────────────────────────────
@@ -1241,6 +1245,7 @@ def paddle_webhook():
             if pid and uid:
                 db.execute("UPDATE payments SET status='approved', external_id=? WHERE id=?", (txn_id, pid))
                 db.commit()
+                threading.Thread(target=_send_payment_confirmed_email, args=(uid,), daemon=True).start()
             sub_id = event_data.get('subscription_id')
             if sub_id and uid:
                 items      = event_data.get('items', [{}])
@@ -1534,6 +1539,7 @@ def mp_webhook():
                                 (row['user_id'], ref, row['test_type'] or 'mental')
                             )
                         threading.Thread(target=_send_referral_notification, args=(row['user_id'],), daemon=True).start()
+                        threading.Thread(target=_send_payment_confirmed_email, args=(row['user_id'],), daemon=True).start()
                     db.commit()
                     db.close()
             except:
@@ -1706,6 +1712,101 @@ def _generate_posttest_email_html(nombre, test_type, overall, scores, lang='es')
       </div>
     </div>
     """
+
+
+def _generate_payment_confirmed_html(nombre, lang, base_url):
+    """HTML del correo de confirmación de pago / acceso activo."""
+    logo_url = f"{base_url}/icons/mindev-logo.png"
+    if lang == 'pt':
+        subject_text  = f'Olá {nombre}, seu acesso ao MinDev está ativo! 🎉'
+        body_text     = 'Seu pagamento foi processado com sucesso. Você já tem acesso completo à plataforma.'
+        features      = ['✅ Diagnóstico Mental com IA', '✅ Diagnóstico Técnico com IA', '✅ Análise de mãos e torneios', '✅ Perfil de jogador personalizado', '✅ Tracker + Bankroll']
+        cta_label     = 'Acessar MinDev agora'
+        footer_text   = 'Diagnóstico Mental e Técnico para Poker'
+        tagline       = 'Sua EV+ começa aqui.'
+    elif lang == 'en':
+        subject_text  = f'Hi {nombre}, your MinDev access is now active! 🎉'
+        body_text     = 'Your payment was processed successfully. You now have full access to the platform.'
+        features      = ['✅ Mental Diagnosis with AI', '✅ Technical Diagnosis with AI', '✅ Hand and tournament analysis', '✅ Personalized player profile', '✅ Tracker + Bankroll']
+        cta_label     = 'Access MinDev now'
+        footer_text   = 'Mental & Technical Diagnosis for Poker'
+        tagline       = 'Your EV+ starts here.'
+    else:
+        subject_text  = f'Hola {nombre}, ¡tu acceso a MinDev está activo! 🎉'
+        body_text     = 'Tu pago fue procesado exitosamente. Ya tienes acceso completo a la plataforma.'
+        features      = ['✅ Diagnóstico Mental con IA', '✅ Diagnóstico Técnico con IA', '✅ Análisis de manos y torneos', '✅ Perfil de jugador personalizado', '✅ Tracker + Bankroll']
+        cta_label     = 'Acceder a MinDev ahora'
+        footer_text   = 'Diagnóstico Mental y Técnico para Poker'
+        tagline       = 'Tu EV+ empieza aquí.'
+
+    features_html = ''.join(
+        f'<li style="padding:5px 0;color:#94a3b8;font-size:0.9rem">{f}</li>' for f in features
+    )
+    return f"""
+    <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;background:#0a0e1a;color:#e2e8f0;padding:36px 32px;border-radius:14px">
+      <div style="text-align:center;margin-bottom:24px">
+        <img src="{logo_url}" alt="MinDev" style="height:48px;max-width:180px;object-fit:contain">
+        <p style="margin:8px 0 0;color:#64748b;font-size:0.78rem;letter-spacing:0.05em;text-transform:uppercase">{footer_text}</p>
+      </div>
+
+      <div style="background:linear-gradient(135deg,#0c2240,#0d2f35);border:1px solid #4DB6AC;border-radius:12px;padding:24px;text-align:center;margin-bottom:24px">
+        <div style="font-size:2.5rem;margin-bottom:8px">🎉</div>
+        <h2 style="margin:0 0 8px;font-size:1.3rem;color:#4DB6AC">{subject_text}</h2>
+        <p style="margin:0;color:#94a3b8;font-size:0.9rem">{body_text}</p>
+      </div>
+
+      <div style="background:#0f172a;border-radius:10px;padding:20px;margin-bottom:24px">
+        <ul style="margin:0;padding:0;list-style:none">{features_html}</ul>
+      </div>
+
+      <p style="text-align:center;color:#d4af37;font-weight:700;font-size:1rem;margin-bottom:20px">{tagline}</p>
+
+      <div style="text-align:center;margin-bottom:28px">
+        <a href="{base_url}"
+           style="display:inline-block;background:#4DB6AC;color:#0a0e1a;font-weight:800;font-size:1rem;padding:14px 36px;border-radius:8px;text-decoration:none">
+          ♠ {cta_label}
+        </a>
+      </div>
+
+      <div style="border-top:1px solid #1e293b;padding-top:16px;text-align:center">
+        <p style="margin:0;color:#334155;font-size:0.75rem">{footer_text} · mindev-ia.com</p>
+      </div>
+    </div>
+    """
+
+
+def _send_payment_confirmed_email(user_id):
+    """Envía el correo de confirmación de pago al usuario. Se llama en thread separado."""
+    try:
+        _db = sqlite3.connect(DB_PATH)
+        _db.row_factory = sqlite3.Row
+        row = _db.execute("SELECT nombre, email, pais, idioma FROM users WHERE id=?", (user_id,)).fetchone()
+        _db.close()
+        if not row:
+            return
+        nombre = row['nombre']
+        email  = row['email']
+        pais   = (row['pais'] or '').upper()
+        idioma = row['idioma'] or ''
+        # Prioridad: idioma guardado → pais BR → español
+        if idioma in ('pt', 'en', 'es'):
+            lang = idioma
+        elif pais == 'BR':
+            lang = 'pt'
+        else:
+            lang = 'es'
+        base_url = os.environ.get('BASE_URL', BASE_URL)
+        html = _generate_payment_confirmed_html(nombre, lang, base_url)
+        if lang == 'pt':
+            subject = f'✅ Seu acesso ao MinDev está ativo, {nombre}!'
+        elif lang == 'en':
+            subject = f'✅ Your MinDev access is active, {nombre}!'
+        else:
+            subject = f'✅ ¡Tu acceso a MinDev está activo, {nombre}!'
+        _smtp_send(email, subject, html)
+        print(f"[PAYMENT] Confirmation email sent to {email} (lang={lang})")
+    except Exception as e:
+        print(f"[PAYMENT] Confirmation email error for user {user_id}: {e}")
 
 
 def _send_posttest_email(nombre, email, pais, test_type, overall, scores):
