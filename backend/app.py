@@ -1061,6 +1061,39 @@ def admin_test_email():
         return jsonify({'ok': False, 'error': str(e)}), 500
 
 
+@app.route('/api/admin/confirm-by-email', methods=['POST'])
+@require_auth
+def admin_confirm_by_email():
+    """Admin: aprueba el último pago pendiente de un usuario por email y crea su sesión de test."""
+    if not g.is_admin:
+        return jsonify({'error': 'No autorizado'}), 403
+    data  = request.json or {}
+    email = (data.get('email') or '').strip().lower()
+    if not email:
+        return jsonify({'error': 'Falta email'}), 400
+    db = get_db()
+    user = db.execute("SELECT id, nombre FROM users WHERE email=?", (email,)).fetchone()
+    if not user:
+        return jsonify({'error': 'Usuario no encontrado'}), 404
+    pay = db.execute(
+        "SELECT id, test_type FROM payments WHERE user_id=? AND status='pending' ORDER BY id DESC LIMIT 1",
+        (user['id'],)
+    ).fetchone()
+    if not pay:
+        return jsonify({'error': 'No hay pagos pendientes para este usuario'}), 404
+    db.execute("UPDATE payments SET status='approved' WHERE id=?", (pay['id'],))
+    db.commit()
+    existing = db.execute("SELECT id FROM test_sessions WHERE payment_id=?", (pay['id'],)).fetchone()
+    if not existing:
+        db.execute(
+            "INSERT INTO test_sessions (user_id, payment_id, test_type) VALUES (?,?,?)",
+            (user['id'], pay['id'], pay['test_type'] or 'mental')
+        )
+        db.commit()
+    threading.Thread(target=_send_payment_confirmed_email, args=(user['id'],), daemon=True).start()
+    return jsonify({'ok': True, 'message': f"Pago aprobado para {email}", 'payment_id': pay['id']})
+
+
 # ─── Subscription routes ─────────────────────────────────────────────────────
 
 @app.route('/api/payment/create-subscription', methods=['POST'])
