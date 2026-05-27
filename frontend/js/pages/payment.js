@@ -152,7 +152,7 @@ async function renderPayment() {
         <div id="mercadopago_pix-info" class="alert alert-info" style="margin-bottom:16px;background:rgba(50,188,173,0.08);border:1px solid rgba(50,188,173,0.3);${isBR ? '' : 'display:none'}">
           ⚡ ${isEN
             ? 'You\'ll receive a <strong>PIX</strong> QR code to scan and confirm the payment instantly. Available 24/7, no extra cost.'
-            : isPT
+            : (isPT || isBR)
             ? 'Você receberá um QR code <strong style="color:#32BCAD">PIX</strong> para escanear e confirmar o pagamento na hora. Disponível 24h, sem custo adicional.'
             : 'Recibirás un QR code <strong style="color:#32BCAD">PIX</strong> para escanear y confirmar el pago al instante. Disponible 24h, sin costo adicional.'}
         </div>
