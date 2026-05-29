@@ -302,11 +302,7 @@ function renderLanding() {
           <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px 22px;display:flex;flex-direction:column;gap:12px">
             <div style="color:#fbbf24;font-size:0.85rem;letter-spacing:2px">★★★★★</div>
             <p style="margin:0;color:var(--text2);font-size:0.88rem;line-height:1.6;font-style:italic;flex:1">
-              ${isPT
-                ? '"Achei que meu problema era técnico. O MinDev mostrou que era mental. Agora jogo com muito mais consistência."'
-                : isEN
-                  ? '"I thought my problem was technical. MinDev showed me it was mental. Now I play with way more consistency."'
-                  : '"Creía que mi problema era técnico. MinDev me mostró que era mental. Ahora juego con mucha más consistencia."'}
+              "Achei que meu problema era técnico. O MinDev mostrou que era mental. Agora jogo com muito mais consistência."
             </p>
             <div style="display:flex;align-items:center;gap:10px;border-top:1px solid var(--border);padding-top:12px">
               <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#32BCAD,#1a8a7f);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:0.9rem;color:#fff;flex-shrink:0">
