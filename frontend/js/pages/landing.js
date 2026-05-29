@@ -322,6 +322,26 @@ function renderLanding() {
             </div>
           </div>
 
+          <!-- Testimonio Colombia -->
+          <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px 22px;display:flex;flex-direction:column;gap:12px">
+            <div style="color:#fbbf24;font-size:0.85rem;letter-spacing:2px">★★★★★</div>
+            <p style="margin:0;color:var(--text2);font-size:0.88rem;line-height:1.6;font-style:italic;flex:1">
+              "Excelente apoyo para jugar y aprender de POKER. Se enfocó directamente donde estoy fallando y me ayudó a solucionar fallas. El cruce de perfil+mental me sorprendió mucho, ¡súper recomendada!!"
+            </p>
+            <div style="display:flex;align-items:center;gap:10px;border-top:1px solid var(--border);padding-top:12px">
+              <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#fcd116,#ce1126);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:0.9rem;color:#000;flex-shrink:0">
+                C
+              </div>
+              <div>
+                <div style="font-weight:700;font-size:0.88rem">Chispas</div>
+                <div style="display:flex;align-items:center;gap:5px;margin-top:2px">
+                  <img src="https://flagcdn.com/w20/co.png" alt="Colombia" style="height:11px;border-radius:1px">
+                  <span style="color:var(--text3);font-size:0.75rem">Colombia</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
         </div>
 
         <!-- CTA final -->
