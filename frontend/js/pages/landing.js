@@ -59,15 +59,15 @@ function renderLanding() {
       </div>
       <div class="hero-suits">♠ ♥ ♦ ♣</div>
       <h1>${isEN
-        ? 'Evaluation Test of<br><span>Strengths and Weaknesses</span><br>of the Poker Player'
+        ? 'MindEV — <span>Improve your poker game,</span><br>fast and easy'
         : isPT
-        ? 'Teste de Avaliação das<br><span>Forças e Fraquezas</span><br>do Jogador de Poker'
-        : 'Test de Evaluación de las<br><span>Fortalezas y Debilidades</span><br>del Jugador de Poker'}</h1>
+        ? 'MindEV — <span>Melhore seu jogo de poker,</span><br>rápido e fácil'
+        : 'MindEV — <span>Mejora tu juego de poker,</span><br>rápido y fácil'}</h1>
       <p class="subtitle">${isEN
-        ? 'Poker is much more than cards and bets. It is a game of mental skills, strategy and emotional resilience. Discover where you stand and how far you can go.'
+        ? 'The only system that correlates your mind, your technique and your tension moments with every hand you play. Without being an expert, discover exactly what you are doing right, what to correct and how your body reacts at the key moments of the tournament.'
         : isPT
-        ? 'O poker é muito mais do que cartas e apostas. É um jogo de habilidades mentais, estratégia e resistência emocional. Descubra onde você está e até onde pode chegar.'
-        : 'El poker es mucho más que cartas y apuestas. Es un juego de habilidades mentales, estrategia y resistencia emocional. Descubre dónde estás y hasta dónde puedes llegar.'}</p>
+        ? 'O único sistema que correlaciona sua mente, sua técnica e seus momentos de tensão com cada mão que você joga. Sem ser especialista, descubra exatamente o que está fazendo certo, o que corrigir e como seu corpo reage nos momentos-chave do torneio.'
+        : 'El único sistema que correlaciona tu mente, tu técnica y tus momentos de tensión con cada mano que juegas. Sin ser experto, descubre exactamente qué estás haciendo bien, qué debes corregir y cómo reacciona tu cuerpo en los momentos clave del torneo.'}</p>
 
       <div class="hero-cta">
         <button class="btn btn-primary btn-lg" onclick="App.go('register')">
