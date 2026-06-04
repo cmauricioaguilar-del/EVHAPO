@@ -4160,6 +4160,19 @@ def analyze_tournament():
     except Exception as e:
         return jsonify({'error': f'Error leyendo el archivo: {str(e)}'}), 400
 
+    # ── Guardar último archivo del usuario para MinDev Bio ────────────────────
+    try:
+        uploads_dir = os.path.join(os.path.dirname(__file__), 'uploads')
+        os.makedirs(uploads_dir, exist_ok=True)
+        last_path = os.path.join(uploads_dir, f'last_hand_{g.user_id}.txt')
+        with open(last_path, 'w', encoding='utf-8') as lf:
+            lf.write(content)
+        last_name_path = os.path.join(uploads_dir, f'last_hand_{g.user_id}.name')
+        with open(last_name_path, 'w', encoding='utf-8') as nf:
+            nf.write(file.filename)
+    except Exception:
+        pass
+
     # ── 2. Parsear manos ───────────────────────────────────────────────────────
     try:
         meta = _parse_hand_history(content)
@@ -5084,6 +5097,216 @@ def analyze_hands_file():
 
 # Iniciar scheduler de recordatorios de cupones
 threading.Thread(target=_coupon_email_scheduler, daemon=True).start()
+
+
+# ─── MinDev Bio ────────────────────────────────────────────────────────────────
+
+@app.route('/api/bio/analyze', methods=['POST'])
+@require_auth
+def bio_analyze():
+    """
+    Recibe un archivo de hand history (.txt o .zip) y retorna
+    los datos biométricos correlacionados con las manos del torneo.
+    """
+    import sys, os, tempfile, zipfile, json as json_mod
+    from datetime import datetime, timezone
+
+    # Agregar el módulo biometria al path
+    bio_path = os.path.join(os.path.dirname(__file__), 'biometria')
+    if bio_path not in sys.path:
+        sys.path.insert(0, os.path.dirname(__file__))
+
+    try:
+        from biometria.hand_history import load_hand_history
+        from biometria.persistence import load_session, list_sessions
+        from biometria.correlator import correlate
+    except ImportError as e:
+        return jsonify({'error': f'Módulo biometría no disponible: {e}'}), 500
+
+    f = request.files.get('file')
+    uploads_dir = os.path.join(os.path.dirname(__file__), 'uploads')
+
+    if not f:
+        # Usar último archivo del usuario
+        last_path = os.path.join(uploads_dir, f'last_hand_{g.user_id}.txt')
+        last_name_path = os.path.join(uploads_dir, f'last_hand_{g.user_id}.name')
+        if not os.path.exists(last_path):
+            return jsonify({'error': 'no_file', 'message': 'No hay historial cargado. Ve a Análisis de Manos primero.'}), 400
+        filepath_to_parse = last_path
+        saved_filename = open(last_name_path).read().strip() if os.path.exists(last_name_path) else 'ultimo_torneo.txt'
+        use_saved = True
+    else:
+        use_saved = False
+        saved_filename = f.filename
+
+    if not use_saved:
+        # Guardar en temp
+        suffix = '.zip' if f.filename.lower().endswith('.zip') else '.txt'
+        tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+        f.save(tmp.name)
+        tmp.close()
+
+        filepath_to_parse = tmp.name
+        if suffix == '.zip':
+            tmpdir = tempfile.mkdtemp()
+            with zipfile.ZipFile(tmp.name, 'r') as z:
+                z.extractall(tmpdir)
+                txts = [x for x in z.namelist() if x.endswith('.txt')]
+                if txts:
+                    filepath_to_parse = os.path.join(tmpdir, txts[0])
+
+    # Parsear hand history
+    try:
+        hands = load_hand_history(filepath_to_parse)
+    except Exception as e:
+        return jsonify({'error': f'Error parseando archivo: {e}'}), 400
+
+    if not hands:
+        return jsonify({'error': 'No se encontraron manos en el archivo'}), 400
+
+    # Buscar sesión HR más reciente con datos
+    has_hr = False
+    sessions_dir = os.path.join(os.path.expanduser('~'), '.mindev-bio', 'sessions')
+    if os.path.exists(sessions_dir):
+        session_files = sorted(
+            [f2 for f2 in os.listdir(sessions_dir) if f2.endswith('.json')],
+            key=lambda x: os.path.getmtime(os.path.join(sessions_dir, x)),
+            reverse=True
+        )
+        for sf in session_files:
+            session = load_session(sf.replace('.json', ''))
+            if session and session.hr_samples:
+                # Correlacionar por tiempo relativo
+                hands_timed = sorted([h for h in hands if h.timestamp], key=lambda h: h.timestamp)
+                if hands_timed:
+                    t0_h = hands_timed[0].timestamp
+                    t0_r = session.hr_samples[0].timestamp
+                    for hand in hands_timed:
+                        t_rel = hand.timestamp - t0_h
+                        hr_win = [s.bpm for s in session.hr_samples if abs((s.timestamp - t0_r) - t_rel) <= 60]
+                        if hr_win:
+                            hand.hr_avg = round(sum(hr_win) / len(hr_win), 1)
+                            hand.hr_preflop = hand.hr_avg
+                        else:
+                            closest = min(session.hr_samples, key=lambda s: abs((s.timestamp - t0_r) - t_rel))
+                            hand.hr_avg = float(closest.bpm)
+                            hand.hr_preflop = hand.hr_avg
+                    has_hr = any(h.hr_avg is not None for h in hands_timed)
+                break
+
+    # Serializar manos
+    sorted_hands = sorted(hands, key=lambda h: h.timestamp or 0)
+    n_won    = sum(1 for h in sorted_hands if h.result == 'won')
+    n_folded = sum(1 for h in sorted_hands if h.result == 'folded')
+    n_lost   = sum(1 for h in sorted_hands if h.result == 'lost')
+    total_net = sum(h.net_amount for h in sorted_hands if h.net_amount is not None)
+
+    # Stack real — agregar 0 al final si el hero fue eliminado
+    stack_data = [h.hero_stack for h in sorted_hands]
+    if stack_data and stack_data[-1] is not None and stack_data[-1] > 0:
+        stack_data.append(0)
+
+    # Timeline fichas
+    running = 0.0
+    timeline = []
+    for h in sorted_hands:
+        if h.net_amount: running += h.net_amount
+        timeline.append(round(running, 1))
+
+    # HR data
+    hr_data = [h.hr_avg for h in sorted_hands]
+
+    # Manos detalle — calcular NET real usando diferencia de stacks consecutivos
+    hands_detail = []
+    for i, h in enumerate(sorted_hands, 1):
+        # NET real: diferencia de stack entre manos consecutivas
+        net_real = None
+        if h.hero_stack is not None:
+            if h.net_amount is not None and h.net_amount > 0:
+                # Mano ganada — usar net_amount del parser
+                net_real = round(h.net_amount)
+            else:
+                # Mano perdida/fold — calcular por diferencia de stack
+                next_stack = sorted_hands[i].hero_stack if i < len(sorted_hands) else 0
+                if next_stack is not None:
+                    diff = next_stack - h.hero_stack
+                    if diff < 0:
+                        net_real = round(diff)
+
+        net_str = ''
+        if net_real is not None:
+            net_str = f"+{net_real:,}" if net_real >= 0 else f"{net_real:,}"
+        elif h.net_amount is not None:
+            net_real = round(h.net_amount)
+            net_str = f"+{net_real:,}" if net_real >= 0 else f"{net_real:,}"
+
+        hands_detail.append({
+            'n': i,
+            'position': h.position or '—',
+            'hole_cards': h.hole_cards or '—',
+            'board': h.board or '—',
+            'result': h.result or '—',
+            'net_str': net_str,
+            'net': net_real,
+            'showdown': h.went_to_showdown,
+            'hr_avg': h.hr_avg,
+            'hr_preflop': h.hr_preflop,
+            'level': h.level or '',
+        })
+
+    # Estadísticas por nivel
+    from collections import defaultdict
+    level_buckets = defaultdict(lambda: {'manos': 0, 'won': 0, 'net': 0.0, 'hands': []})
+    for hd in hands_detail:
+        lv = hd['level']
+        if lv:
+            level_buckets[lv]['manos'] += 1
+            if hd['result'] == 'won': level_buckets[lv]['won'] += 1
+            if hd['net'] is not None: level_buckets[lv]['net'] += hd['net']
+            level_buckets[lv]['hands'].append(hd)
+
+    def _lv_sort(x):
+        try: return int(x.split('/')[0].replace(',', ''))
+        except: return 0
+
+    levels = [
+        {
+            'level': lv,
+            'manos': d['manos'],
+            'won_pct': round(d['won'] / d['manos'] * 100, 1) if d['manos'] > 0 else 0,
+            'net': round(d['net']),
+            'net_str': f"+{d['net']:,.0f}" if d['net'] >= 0 else f"{d['net']:,.0f}",
+            'hands': d['hands'],
+        }
+        for lv, d in sorted(level_buckets.items(), key=lambda x: _lv_sort(x[0]))
+    ]
+
+    room = sorted_hands[0].room if sorted_hands else 'Unknown'
+    tourn_id = sorted_hands[0].tournament_id if sorted_hands else ''
+    filename = saved_filename
+
+    return jsonify({
+        'ok': True,
+        'filename': filename,
+        'room': room,
+        'tournament_id': tourn_id,
+        'total': len(sorted_hands),
+        'n_won': n_won,
+        'n_folded': n_folded,
+        'n_lost': n_lost,
+        'won_pct': round(n_won / len(sorted_hands) * 100, 1) if sorted_hands else 0,
+        'sd_pct': round(sum(1 for h in sorted_hands if h.went_to_showdown) / len(sorted_hands) * 100, 1) if sorted_hands else 0,
+        'total_net': round(total_net),
+        'total_net_str': f"+{total_net:,.0f}" if total_net >= 0 else f"{total_net:,.0f}",
+        'has_hr': has_hr,
+        'hr_data': hr_data,
+        'timeline': timeline,
+        'stack_data': stack_data,
+        'hands_detail': hands_detail,
+        'levels': levels,
+        'hole_cards': [h['hole_cards'] for h in hands_detail],
+    })
+
 
 # ─── Entry point ──────────────────────────────────────────────────────────────
 

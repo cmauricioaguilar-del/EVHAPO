@@ -23,6 +23,7 @@ const App = {
       case 'study-plan':        renderStudyPlan(); break;
       case 'sessions':          renderSessions(); break;
       case 'bankroll':          renderBankroll(); break;
+      case 'mindevbio':         renderMindevBio(); break;
       default: renderLanding();
     }
 

@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MinDev Bio — {{ room }}</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg:      #0d1117;
+      --surface: #161b27;
+      --card:    #1c2333;
+      --border:  #2d3748;
+      --text:    #e2e8f0;
+      --muted:   #64748b;
+      --green:   #4ade80;
+      --red:     #f87171;
+      --blue:    #60a5fa;
+      --yellow:  #facc15;
+      --pink:    #f472b6;
+      --purple:  #a78bfa;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    /* ── Cards ── */
+    .card         { background: var(--card); border: 1px solid var(--border); border-radius: 12px; }
+    .card-hr      { background: linear-gradient(135deg, #1a1033 0%, #1c2333 60%);
+                    border: 1px solid #4a2070; border-radius: 12px; }
+    .card-detail  { background: var(--card); border: 1px solid var(--border); border-radius: 12px; }
+
+    /* ── KPIs ── */
+    .kpi-value { font-size: 2rem; font-weight: 700; line-height: 1.1; }
+    .kpi-sub   { font-size: 0.72rem; color: var(--muted); margin-top: 2px; }
+    .kpi-label { font-size: 0.7rem; color: var(--muted); text-transform: uppercase;
+                 letter-spacing: 0.06em; margin-top: 6px; }
+
+    /* ── Colors ── */
+    .text-green  { color: var(--green) !important; }
+    .text-red    { color: var(--red) !important; }
+    .text-blue   { color: var(--blue) !important; }
+    .text-yellow { color: var(--yellow) !important; }
+    .text-pink   { color: var(--pink) !important; }
+    .text-purple { color: var(--purple) !important; }
+    .text-muted  { color: var(--muted) !important; }
+
+    /* ── Tables ── */
+    .table-dark { --bs-table-bg: transparent; --bs-table-border-color: var(--border); }
+    .table > :not(caption) > * > * { padding: 0.4rem 0.7rem; }
+    .table thead th {
+      color: var(--muted); font-weight: 600; font-size: 0.68rem;
+      text-transform: uppercase; letter-spacing: 0.06em;
+      border-bottom: 1px solid var(--border);
+    }
+    .table tbody tr:hover { background: rgba(255,255,255,0.025); }
+
+    /* ── Position badges ── */
+    .pos-btn  { background:#14532d; color:#86efac; }
+    .pos-co   { background:#1e3a5f; color:#93c5fd; }
+    .pos-hj   { background:#1e3a5f; color:#93c5fd; }
+    .pos-mid  { background:#451a03; color:#fde68a; }
+    .pos-utg  { background:#3b0f0f; color:#fca5a5; }
+    .pos-blind{ background:#1e293b; color:#94a3b8; }
+    .pos-badge { display:inline-block; padding:1px 7px; border-radius:4px;
+                 font-size:0.7rem; font-weight:700; letter-spacing:0.04em; }
+
+    /* ── Result badges ── */
+    .result-won    { background:#14532d; color:#86efac; }
+    .result-lost   { background:#3b0f0f; color:#fca5a5; }
+    .result-folded { background:#1e293b; color:#94a3b8; }
+    .result-badge  { display:inline-block; padding:1px 7px; border-radius:4px;
+                     font-size:0.68rem; font-weight:600; }
+
+    /* ── Net ── */
+    .net-pos  { color: var(--green); }
+    .net-neg  { color: var(--red); }
+    .net-zero { color: var(--muted); }
+
+    /* ── HR cell coloring ── */
+    .hr-cold   { color: #64748b; }
+    .hr-warm   { color: #a78bfa; font-weight: 600; }
+    .hr-hot    { color: #f472b6; font-weight: 700; }
+    .hr-fire   { color: #fbbf24; font-weight: 700; }
+
+    /* ── HR delta arrow ── */
+    .hr-delta-up   { color: #f472b6; font-size: 0.65rem; }
+    .hr-delta-down { color: #64748b; font-size: 0.65rem; }
+
+    /* ── Section titles ── */
+    .section-title {
+      font-size: 0.7rem; color: var(--muted); text-transform: uppercase;
+      letter-spacing: 0.08em; margin-bottom: 14px; font-weight: 600;
+    }
+
+    /* ── Header ── */
+    .header-title { font-size: 1.35rem; font-weight: 700; letter-spacing: -0.01em; }
+    .header-sub   { font-size: 0.82rem; color: var(--muted); margin-top: 3px; }
+
+    /* ── Badges ── */
+    .badge-demo { background:#4a2070; color:#d8b4fe; font-size:0.68rem;
+                  padding:3px 10px; border-radius:20px; font-weight:600; letter-spacing:0.06em; }
+    .badge-hr   { background:#1f1235; color:#f472b6; border:1px solid #be185d;
+                  font-size:0.7rem; padding:3px 10px; border-radius:20px; font-weight:600; }
+
+    hr { border-color: var(--border); opacity: 1; }
+
+    /* ── Street header chips ── */
+    .street-chip {
+      display: inline-block; padding: 1px 6px; border-radius: 4px;
+      font-size: 0.65rem; font-weight: 700; letter-spacing: 0.05em;
+    }
+    .chip-pf { background:#1e293b; color:#94a3b8; }
+    .chip-fl { background:#1e3a5f; color:#93c5fd; }
+    .chip-tu { background:#451a03; color:#fde68a; }
+    .chip-ri { background:#3b0f0f; color:#fca5a5; }
+
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+    .pulse { animation: pulse 1.4s ease-in-out infinite; }
+  </style>
+</head>
+<body>
+<div class="container-fluid px-4 py-4" style="max-width:1280px; margin:0 auto;">
+
+  <!-- ══════════════════════════════ HEADER ══════════════════════════════ -->
+  <div class="d-flex align-items-start justify-content-between mb-4">
+    <div>
+      <div class="header-title">
+        MinDev Bio
+        <span style="font-size:1rem; font-weight:400; color:var(--muted)"> / {{ room }}</span>
+      </div>
+      <div class="header-sub mt-1">
+        {{ date_start }}{% if date_end %} — {{ date_end }}{% endif %}
+        {% if duration != '—' %} &nbsp;·&nbsp; {{ duration }}{% endif %}
+        {% if tournament_id != '—' %} &nbsp;·&nbsp; Torneo #{{ tournament_id }}{% endif %}
+        {% if filepath %} &nbsp;·&nbsp; {{ filepath }}{% endif %}
+      </div>
+    </div>
+    <div class="d-flex gap-2 align-items-center mt-1">
+      {% if has_hr %}
+      <span class="badge-hr"><span class="pulse">♥</span> BPM activo</span>
+      {% endif %}
+      {% if demo %}
+      <span class="badge-demo">DEMO</span>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════ UPLOAD ══════════════════════════════ -->
+  <div class="card p-3 mb-4" style="border-color:#4DB6AC;">
+    <form action="/upload" method="post" enctype="multipart/form-data" class="d-flex align-items-center gap-3 flex-wrap">
+      <div style="font-size:0.8rem; color:#4DB6AC; font-weight:600;">📂 Cargar hand history</div>
+      <input type="file" name="hand_history" accept=".txt,.zip"
+             style="font-size:0.78rem; color:var(--text); background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:4px 8px; flex:1; min-width:200px;">
+      <button type="submit"
+              style="background:#4DB6AC; color:#000; border:none; border-radius:6px; padding:5px 16px; font-size:0.78rem; font-weight:600; cursor:pointer;">
+        Analizar
+      </button>
+      {% if upload_msg %}
+        {% if upload_msg.startswith('ok_') %}
+          <span style="color:#4ade80; font-size:0.75rem;">✓ {{ upload_msg[3:] }} manos cargadas</span>
+        {% else %}
+          <span style="color:#f87171; font-size:0.75rem;">✗ Error al cargar el archivo</span>
+        {% endif %}
+      {% endif %}
+    </form>
+  </div>
+
+  <!-- ══════════════════════════════ KPIs ══════════════════════════════ -->
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-2">
+      <div class="card p-3 text-center">
+        <div class="kpi-value text-blue">{{ total }}</div>
+        <div class="kpi-label">Manos</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-2">
+      <div class="card p-3 text-center">
+        <div class="kpi-value text-green">{{ won_pct }}%</div>
+        <div class="kpi-label">Win Rate</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-2">
+      <div class="card p-3 text-center">
+        <div class="kpi-value text-yellow">{{ sd_pct }}%</div>
+        <div class="kpi-label">Showdown</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card p-3 text-center">
+        <div class="{% if total_net >= 0 %}text-green{% else %}text-red{% endif %}"
+             style="font-size: clamp(1.2rem, 2vw, 2rem); font-weight:700; line-height:1.2; white-space:nowrap;">
+          {{ total_net_str }}
+        </div>
+        <div class="kpi-label">Total fichas ganadas</div>
+      </div>
+    </div>
+    {% if has_hr %}
+    <div class="col-6 col-md-3">
+      <div class="card p-3 text-center" style="border-color:#4a2070;">
+        <div class="d-flex justify-content-center align-items-baseline gap-2">
+          <div>
+            <div class="kpi-value text-pink" style="font-size:1.4rem;">{{ hr_avg_session }}</div>
+            <div class="kpi-label">prom BPM</div>
+          </div>
+          <div style="border-left:1px solid var(--border); padding-left:0.7rem;">
+            <div style="font-size:1rem; font-weight:700; color:#fbbf24;">{{ hr_max_session }}</div>
+            <div class="kpi-sub">máx</div>
+          </div>
+          <div style="border-left:1px solid var(--border); padding-left:0.7rem;">
+            <div style="font-size:1rem; font-weight:700; color:var(--purple);">{{ hr_min_session }}</div>
+            <div class="kpi-sub">mín</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  {% if has_hr %}
+  <!-- ══════════════════════════════ HR CHART ══════════════════════════════ -->
+  <div class="card-hr p-3 mb-4">
+    <div class="d-flex justify-content-between align-items-start mb-2">
+      <div>
+        <div class="section-title mb-0" style="color:#d8b4fe;">
+          ♥ Frecuencia cardíaca — evolución por mano
+        </div>
+        <div style="font-size:0.72rem; color:var(--muted); margin-top:3px;">
+          <span style="color:#a78bfa;">——</span> Preflop (inicio de mano) &nbsp;&nbsp;
+          <span style="color:#f472b6;">——</span> Promedio de calles jugadas &nbsp;&nbsp;
+          <span style="color:rgba(248,113,113,0.5);">- - -</span> Zona tensión 90 BPM
+          {% if demo %} &nbsp;·&nbsp; <em style="color:var(--muted);">valores simulados</em>{% endif %}
+        </div>
+      </div>
+      <div class="text-end" style="font-size:0.78rem; white-space:nowrap;">
+        <span class="text-pink fw-bold">{{ hr_max_session }} BPM</span> máx &nbsp;
+        <span class="text-purple">{{ hr_avg_session }} BPM</span> prom &nbsp;
+        <span class="text-muted">{{ hr_min_session }} BPM</span> mín
+      </div>
+    </div>
+    <div style="position:relative; height:210px; margin-top:8px;">
+      <canvas id="hrChart"></canvas>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ══════════════════════════════ CHARTS ROW ══════════════════════════════ -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-12">
+      <div class="card p-3">
+        <div class="section-title">Fichas ganadas acumuladas por mano</div>
+        <div style="position:relative; height:180px;">
+          <canvas id="timelineChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% if has_stack %}
+  <!-- ══════════════════════════════ STACK REAL ══════════════════════════════ -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-12">
+      <div class="card p-3">
+        <div class="section-title">Net acumulado por mano — stack real del hero</div>
+        <div style="position:relative; height:180px;">
+          <canvas id="stackChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if has_hr and tension_hands %}
+  <!-- ══════════════════════════════ TENSIÓN ══════════════════════════════ -->
+  <div class="card p-3 mb-4" style="border-color:#4a2070;">
+    <div class="section-title" style="color:#d8b4fe;">Momentos de mayor tensión — top 5 por BPM</div>
+    <div class="table-responsive">
+      <table class="table table-dark align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Mano</th>
+            <th>Pos.</th>
+            <th>Resultado</th>
+            <th class="text-end">Net</th>
+            <th><span class="street-chip chip-pf">PF</span></th>
+            <th><span class="street-chip chip-fl">FL</span></th>
+            <th><span class="street-chip chip-tu">TU</span></th>
+            <th><span class="street-chip chip-ri">RI</span></th>
+            <th class="text-end">SD</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in tension_hands %}
+          <tr>
+            <td style="font-weight:600; color:var(--blue);">{{ t.hole_cards }}</td>
+            <td>{% include '_pos_badge.html' ignore missing %}
+              {% set pos = t.position %}
+              {% if pos == 'BTN' %}<span class="pos-badge pos-btn">BTN</span>
+              {% elif pos in ['CO','HJ'] %}<span class="pos-badge pos-co">{{ pos }}</span>
+              {% elif pos in ['MP','UTG+2','UTG+1'] %}<span class="pos-badge pos-mid">{{ pos }}</span>
+              {% elif pos == 'UTG' %}<span class="pos-badge pos-utg">UTG</span>
+              {% elif pos == '—' %}<span class="text-muted">—</span>
+              {% else %}<span class="pos-badge pos-blind">{{ pos }}</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if t.result == 'won' %}<span class="result-badge result-won">Won</span>
+              {% elif t.result == 'lost' %}<span class="result-badge result-lost">Lost</span>
+              {% elif t.result == 'folded' %}<span class="result-badge result-folded">Fold</span>
+              {% else %}<span class="text-muted">{{ t.result }}</span>{% endif %}
+            </td>
+            <td class="text-end {% if t.net is not none and t.net > 0 %}net-pos{% elif t.net is not none and t.net < 0 %}net-neg{% else %}text-muted{% endif %}">
+              {{ t.net_str or '—' }}
+            </td>
+            {% set hvals = [t.hr_preflop, t.hr_flop, t.hr_turn, t.hr_river] if t.hr_preflop is defined else [none, none, none, none] %}
+            {% for hv in hvals %}
+            <td>
+              {% if hv %}
+                <span class="{% if hv >= 105 %}hr-fire{% elif hv >= 92 %}hr-hot{% elif hv >= 82 %}hr-warm{% else %}hr-cold{% endif %}">{{ hv }}</span>
+              {% else %}<span class="text-muted" style="font-size:0.7rem;">—</span>{% endif %}
+            </td>
+            {% endfor %}
+            <td class="text-end">
+              {% if t.showdown %}<span class="text-yellow" style="font-size:0.72rem;">SD</span>
+              {% else %}<span class="text-muted">·</span>{% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if hands_detail %}
+  <!-- ══════════════════════════════ DETALLE POR MANO ══════════════════════════════ -->
+  <div class="card-detail p-3 mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <div>
+        <div class="section-title mb-0">Detalle por mano — BPM por calle</div>
+        {% if has_hr %}
+        <div style="font-size:0.7rem; color:var(--muted); margin-top:3px;">
+          <span class="street-chip chip-pf">PF</span> Preflop &nbsp;
+          <span class="street-chip chip-fl">FL</span> Flop &nbsp;
+          <span class="street-chip chip-tu">TU</span> Turn &nbsp;
+          <span class="street-chip chip-ri">RI</span> River &nbsp;&nbsp;·&nbsp;&nbsp;
+          Colores: <span class="hr-cold">calm</span> &lt;75 &nbsp;
+          <span class="hr-warm">↑</span> 75–92 &nbsp;
+          <span class="hr-hot">↑↑</span> 92–105 &nbsp;
+          <span class="hr-fire">↑↑↑</span> &gt;105
+        </div>
+        {% endif %}
+      </div>
+      <div style="font-size:0.7rem; color:var(--muted);">{{ hands_detail | length }} manos</div>
+    </div>
+
+    <div class="table-responsive" style="max-height:420px; overflow-y:auto;">
+      <table class="table table-dark table-hover align-middle mb-0" style="font-size:0.78rem;">
+        <thead style="position:sticky; top:0; background:var(--card); z-index:2;">
+          <tr>
+            <th style="width:36px;" class="text-end">#</th>
+            <th>Pos.</th>
+            <th>Cartas</th>
+            <th>Board</th>
+            <th>Resultado</th>
+            <th class="text-end">Net</th>
+            <th class="text-end">SD</th>
+            {% if has_hr %}
+            <th class="text-end"><span class="street-chip chip-pf">PF</span></th>
+            <th class="text-end"><span class="street-chip chip-fl">FL</span></th>
+            <th class="text-end"><span class="street-chip chip-tu">TU</span></th>
+            <th class="text-end"><span class="street-chip chip-ri">RI</span></th>
+            {% endif %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for h in hands_detail %}
+          {% set is_hot = h.hr_river and h.hr_river >= 100 %}
+          <tr {% if is_hot %}style="background:rgba(244,114,182,0.05);"{% endif %}>
+            <td class="text-end" style="color:var(--muted); font-size:0.68rem;">{{ h.n }}</td>
+            <td>
+              {% set pos = h.position %}
+              {% if pos == 'BTN' %}<span class="pos-badge pos-btn">BTN</span>
+              {% elif pos in ['CO','HJ'] %}<span class="pos-badge pos-co">{{ pos }}</span>
+              {% elif pos in ['MP','UTG+2','UTG+1'] %}<span class="pos-badge pos-mid">{{ pos }}</span>
+              {% elif pos == 'UTG' %}<span class="pos-badge pos-utg">UTG</span>
+              {% elif pos == '—' %}<span class="text-muted">—</span>
+              {% else %}<span class="pos-badge pos-blind">{{ pos }}</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if h.hole_cards != '—' %}
+                <code style="color:var(--blue); font-size:0.75rem;">{{ h.hole_cards }}</code>
+              {% else %}<span class="text-muted">—</span>{% endif %}
+            </td>
+            <td>
+              {% if h.board != '—' %}
+                <code style="color:#94a3b8; font-size:0.72rem; letter-spacing:0.02em;">{{ h.board }}</code>
+              {% else %}<span class="text-muted">—</span>{% endif %}
+            </td>
+            <td>
+              {% if h.result == 'won' %}<span class="result-badge result-won">Won</span>
+              {% elif h.result == 'lost' %}<span class="result-badge result-lost">Lost</span>
+              {% elif h.result == 'folded' %}<span class="result-badge result-folded">Fold</span>
+              {% else %}<span class="text-muted">—</span>{% endif %}
+            </td>
+            <td class="text-end {% if h.net is not none and h.net > 0 %}net-pos{% elif h.net is not none and h.net < 0 %}net-neg{% else %}text-muted{% endif %}">
+              {{ h.net_str or '—' }}
+            </td>
+            <td class="text-end">
+              {% if h.showdown %}<span class="text-yellow" style="font-size:0.7rem;">SD</span>
+              {% else %}<span class="text-muted" style="font-size:0.7rem;">·</span>{% endif %}
+            </td>
+            {% if has_hr %}
+            {% for hv in [h.hr_preflop, h.hr_flop, h.hr_turn, h.hr_river] %}
+            <td class="text-end">
+              {% if hv is not none %}
+                <span class="{% if hv >= 105 %}hr-fire{% elif hv >= 92 %}hr-hot{% elif hv >= 75 %}hr-warm{% else %}hr-cold{% endif %}">{{ hv }}</span>
+              {% else %}<span class="text-muted" style="font-size:0.68rem;">·</span>{% endif %}
+            </td>
+            {% endfor %}
+            {% endif %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if levels %}
+  <!-- ══════════════════════════════ NIVELES ══════════════════════════════ -->
+  <div class="card p-3 mb-4">
+    <div class="section-title">Estadísticas por nivel de blinds</div>
+    <div class="table-responsive">
+      <table class="table table-dark align-middle mb-0" style="font-size:0.82rem;">
+        <thead>
+          <tr>
+            <th style="width:24px;"></th>
+            <th>Blinds</th>
+            <th class="text-end">Manos</th>
+            <th class="text-end">Win%</th>
+            <th class="text-end">Net</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for lv in levels %}
+          <!-- Fila del nivel -->
+          <tr style="cursor:pointer;" onclick="toggleLevel('lvl-{{ loop.index }}', this)">
+            <td style="color:var(--muted); font-size:0.7rem; user-select:none;">▶</td>
+            <td><code style="color:var(--blue); font-size:0.8rem;">{{ lv.level }}</code></td>
+            <td class="text-end">{{ lv.manos }}</td>
+            <td class="text-end {% if lv.won_pct > 15 %}text-green{% elif lv.won_pct > 0 %}text-yellow{% else %}text-muted{% endif %}">{{ lv.won_pct }}%</td>
+            <td class="text-end {% if lv.net > 0 %}net-pos{% elif lv.net < 0 %}net-neg{% else %}net-zero{% endif %}">
+              {{ lv.net_str }}
+            </td>
+          </tr>
+          <!-- Detalle expandible -->
+          <tr id="lvl-{{ loop.index }}" style="display:none;">
+            <td colspan="5" style="padding:0; background:var(--surface);">
+              <table class="table table-dark mb-0" style="font-size:0.75rem; margin:0;">
+                <thead>
+                  <tr style="background:var(--bg);">
+                    <th class="text-end" style="width:40px;">#</th>
+                    <th>Pos.</th>
+                    <th>Cartas</th>
+                    <th>Board</th>
+                    <th>Resultado</th>
+                    <th class="text-end">Net</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for h in lv.hands %}
+                  <tr>
+                    <td class="text-end text-muted">{{ h.n }}</td>
+                    <td>
+                      {% set pos = h.position %}
+                      {% if pos == 'BTN' %}<span class="pos-badge pos-btn">BTN</span>
+                      {% elif pos in ['CO','HJ'] %}<span class="pos-badge pos-co">{{ pos }}</span>
+                      {% elif pos in ['MP','UTG+2','UTG+1'] %}<span class="pos-badge pos-mid">{{ pos }}</span>
+                      {% elif pos == 'UTG' %}<span class="pos-badge pos-utg">UTG</span>
+                      {% elif pos == '—' %}<span class="text-muted">—</span>
+                      {% else %}<span class="pos-badge pos-blind">{{ pos }}</span>{% endif %}
+                    </td>
+                    <td style="color:var(--blue);">{{ h.hole_cards }}</td>
+                    <td style="color:var(--muted);">{{ h.board }}</td>
+                    <td>
+                      {% if h.result == 'won' %}<span class="result-badge result-won">Won</span>
+                      {% elif h.result == 'lost' %}<span class="result-badge result-lost">Lost</span>
+                      {% elif h.result == 'folded' %}<span class="result-badge result-folded">Fold</span>
+                      {% else %}<span class="text-muted">{{ h.result }}</span>{% endif %}
+                    </td>
+                    <td class="text-end {% if h.net_str and h.net_str.startswith('+') %}net-pos{% elif h.net_str and not h.net_str.startswith('+') and h.net_str != '' %}net-neg{% else %}text-muted{% endif %}">
+                      {{ h.net_str or '—' }}
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="text-center text-muted mt-2 mb-5" style="font-size:0.68rem;">
+    MinDev Bio &nbsp;·&nbsp; {{ date_start }}
+    {% if session_id %}&nbsp;·&nbsp; Sesión {{ session_id[:8] }}{% endif %}
+    {% if demo %}&nbsp;·&nbsp; <em>BPM simulado — modo demo</em>{% endif %}
+  </div>
+
+</div>
+
+<!-- ══════════════════════════════ JAVASCRIPT ══════════════════════════════ -->
+<script>
+const TL_LABELS        = {{ timeline_labels  | tojson }};
+const TL_DATA          = {{ timeline_data    | tojson }};
+const STACK_DATA       = {{ stack_data       | tojson }};
+const STACK_LABELS     = {{ timeline_labels_stack | tojson }};
+const HAS_STACK        = {{ 'true' if has_stack else 'false' }};
+const HOLE_CARDS       = {{ hands_detail | map(attribute='hole_cards') | list | tojson }};
+const N_WON            = {{ n_won   }};
+const N_FOLDED         = {{ n_folded }};
+const N_LOST           = {{ n_lost  }};
+const HR_DATA          = {{ hr_data          | tojson }};
+const HR_PREFLOP_DATA  = {{ hr_preflop_data  | tojson }};
+const HR_RIVER_DATA    = {{ hr_river_data    | tojson }};
+const HAS_HR           = {{ 'true' if has_hr else 'false' }};
+
+const DARK_GRID = 'rgba(255,255,255,0.05)';
+const DARK_TICK = '#64748b';
+
+Chart.defaults.color       = DARK_TICK;
+Chart.defaults.borderColor = DARK_GRID;
+Chart.defaults.font.family = "'Segoe UI', system-ui, sans-serif";
+
+// ── 1. BPM Timeline (protagonista) ──────────────────────────────────────────
+if (HAS_HR && document.getElementById('hrChart')) {
+  const validHR = HR_DATA.filter(v => v !== null);
+  const hrMin   = Math.max(50, Math.min(...validHR) - 6);
+  const hrMax   = Math.min(160, Math.max(...validHR) + 8);
+  const refLine = HR_DATA.map(() => 90);
+
+  new Chart(document.getElementById('hrChart'), {
+    type: 'line',
+    data: {
+      labels: TL_LABELS,
+      datasets: [
+        {
+          label: 'BPM promedio por mano',
+          data: HR_DATA,
+          borderColor: '#f472b6',
+          backgroundColor: 'rgba(244,114,182,0.10)',
+          fill: true,
+          tension: 0.4,
+          pointRadius: 0,
+          pointHoverRadius: 4,
+          borderWidth: 2.5,
+          spanGaps: true,
+          order: 1,
+        },
+        {
+          label: 'Preflop BPM',
+          data: HR_PREFLOP_DATA,
+          borderColor: 'rgba(167,139,250,0.55)',
+          borderDash: [3, 3],
+          fill: false,
+          tension: 0.4,
+          pointRadius: 0,
+          borderWidth: 1.5,
+          spanGaps: true,
+          order: 2,
+        },
+        {
+          label: 'Tensión (90 BPM)',
+          data: refLine,
+          borderColor: 'rgba(248,113,113,0.3)',
+          borderDash: [5, 4],
+          fill: false,
+          pointRadius: 0,
+          borderWidth: 1.0,
+          spanGaps: true,
+          order: 3,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            title: ctx => {
+              const i = ctx[0].dataIndex;
+              const cards = HOLE_CARDS[i] && HOLE_CARDS[i] !== '—' ? `  🃏 ${HOLE_CARDS[i]}` : '';
+              return `Mano ${i + 1}${cards}`;
+            },
+            label: ctx => {
+              if (ctx.datasetIndex === 0) return ` Avg: ${ctx.raw} BPM`;
+              if (ctx.datasetIndex === 1) return ` Preflop: ${ctx.raw} BPM`;
+              return ` Tensión: 90 BPM`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { maxTicksLimit: 12, font: { size: 10 } } },
+        y: {
+          min: hrMin, max: hrMax,
+          ticks: { callback: v => v + ' bpm', font: { size: 10 } }
+        }
+      }
+    }
+  });
+}
+
+// ── 2. Toggle niveles de blinds ──────────────────────────────────────────────
+function toggleLevel(id, row) {
+  const detail = document.getElementById(id);
+  const arrow = row.querySelector('td:first-child');
+  if (detail.style.display === 'none') {
+    detail.style.display = 'table-row';
+    arrow.textContent = '▼';
+    arrow.style.color = 'var(--blue)';
+  } else {
+    detail.style.display = 'none';
+    arrow.textContent = '▶';
+    arrow.style.color = 'var(--muted)';
+  }
+}
+
+// ── 3. Net timeline ─────────────────────────────────────────────────────────
+const finalNet = TL_DATA[TL_DATA.length - 1] || 0;
+const netColor = finalNet >= 0 ? '#4ade80' : '#f87171';
+const netFill  = finalNet >= 0 ? 'rgba(74,222,128,0.1)' : 'rgba(248,113,113,0.1)';
+
+new Chart(document.getElementById('timelineChart'), {
+  type: 'line',
+  data: {
+    labels: TL_LABELS,
+    datasets: [{
+      data: TL_DATA,
+      borderColor: netColor,
+      backgroundColor: netFill,
+      fill: true,
+      tension: 0.3,
+      pointRadius: 0,
+      pointHoverRadius: 4,
+      borderWidth: 2,
+    }],
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: false,
+    interaction: { mode: 'index', intersect: false },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: {
+          title: ctx => {
+            const i = ctx[0].dataIndex;
+            const cards = HOLE_CARDS[i] && HOLE_CARDS[i] !== '—' ? `  🃏 ${HOLE_CARDS[i]}` : '';
+            return `Mano ${i + 1}${cards}`;
+          },
+          label: ctx => ` ${ctx.raw >= 0 ? '+' : ''}${ctx.raw.toLocaleString()} fichas`
+        }
+      }
+    },
+    scales: {
+      x: { grid: { display: false }, ticks: { maxTicksLimit: 10, font: { size: 10 } } },
+      y: { ticks: { callback: v => (v >= 0 ? '+' : '') + v.toLocaleString(), font: { size: 10 } } }
+    }
+  }
+});
+
+// ── 4. Stack real del hero ────────────────────────────────────────────────────
+if (HAS_STACK && document.getElementById('stackChart')) {
+  const validStack = STACK_DATA.filter(v => v !== null);
+  const stackMin = Math.max(0, Math.min(...validStack) * 0.95);
+  const stackMax = Math.max(...validStack) * 1.05;
+
+  new Chart(document.getElementById('stackChart'), {
+    type: 'line',
+    data: {
+      labels: STACK_LABELS,
+      datasets: [{
+        label: 'Stack hero',
+        data: STACK_DATA,
+        borderColor: '#60a5fa',
+        backgroundColor: 'rgba(96,165,250,0.08)',
+        fill: true,
+        tension: 0.3,
+        pointRadius: 0,
+        pointHoverRadius: 4,
+        borderWidth: 2,
+        spanGaps: true,
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            title: ctx => {
+              const i = ctx[0].dataIndex;
+              const cards = HOLE_CARDS[i] && HOLE_CARDS[i] !== '—' ? `  🃏 ${HOLE_CARDS[i]}` : '';
+              return `Mano ${i + 1}${cards}`;
+            },
+            label: ctx => ` Stack: ${ctx.raw !== null ? ctx.raw.toLocaleString() + ' fichas' : 'eliminado'}`
+          }
+        }
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { maxTicksLimit: 10, font: { size: 10 } } },
+        y: {
+          min: stackMin,
+          max: stackMax,
+          ticks: { callback: v => v.toLocaleString(), font: { size: 10 } }
+        }
+      }
+    }
+  });
+}
+</script>
+</body>
+</html>

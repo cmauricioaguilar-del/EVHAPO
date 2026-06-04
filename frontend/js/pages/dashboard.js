@@ -19,7 +19,7 @@ async function renderDashboard() {
           <h1 style="font-size:1.8rem;font-weight:800">${isEN ? 'My Dashboard' : isPT ? 'Meu Painel' : 'Mi Dashboard'}</h1>
           <p class="text-muted">${isEN ? 'Welcome,' : isPT ? 'Bem-vindo/a,' : 'Bienvenido/a,'} <strong>${user.nombre}</strong>. ${isEN ? 'Your diagnosis and improvement centre.' : isPT ? 'Seu centro de diagnóstico e melhoria.' : 'Tu centro de diagnóstico y mejora.'}</p>
         </div>
-        <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
           <button class="btn btn-secondary" onclick="showGuide()" style="border-color:#ef4444;color:#ef4444;font-weight:700;border-width:2px">📖 ${isEN ? 'How to use MindEV' : isPT ? 'Como usar MindEV' : 'Cómo usar MindEV'}</button>
           <button class="btn btn-secondary" onclick="openTutorialVideo()" style="border-color:#ff0000;color:#ff0000;font-weight:700;border-width:2px">▶ ${isEN ? 'Watch Tutorial' : isPT ? 'Ver Tutorial' : 'Ver Tutorial'}</button>
           <button class="btn btn-secondary" onclick="App.go('study-plan')" style="border-color:#818cf8;color:#818cf8">📚 ${isEN ? 'Plan' : 'Plan'}</button>
@@ -31,6 +31,26 @@ async function renderDashboard() {
           ${user.is_admin ? `<button class="btn btn-secondary" onclick="App.go('admin-coupons')" style="border-color:var(--accent);color:var(--accent)">🎟️ ${isEN ? 'Coupons' : isPT ? 'Cupons' : 'Cupones'}</button>` : ''}
           <button class="btn btn-secondary" onclick="startNewTest('mental')">🧠 ${isEN ? 'Mental Test' : isPT ? 'Teste Mental' : 'Test Mental'}</button>
           <button class="btn btn-primary"   onclick="startNewTest('technical')">⚙️ ${isEN ? 'Technical Test' : isPT ? 'Teste Técnico' : 'Test Técnico'}</button>
+          <button class="btn btn-secondary" onclick="App.go('mindevbio')"
+            style="border-color:#f472b6;color:#f472b6;background:rgba(244,114,182,0.08);position:relative"
+            onmouseenter="this.querySelector('.bio-tt').style.display='block'"
+            onmouseleave="this.querySelector('.bio-tt').style.display='none'">
+            💓 MindEV BIO <span style="font-size:0.65rem;font-weight:800;color:#f472b6;opacity:0.85">BETA</span>
+            <div class="bio-tt" style="display:none;position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);
+              background:#1c2333;border:1px solid #f472b6;border-radius:10px;padding:14px 16px;
+              min-width:290px;z-index:999;box-shadow:0 4px 24px rgba(244,114,182,0.2);text-align:left;pointer-events:none">
+              <div style="font-size:0.75rem;font-weight:700;color:#f472b6;margin-bottom:8px">
+                ${isEN ? '💓 What you get with MindEV BIO:' : isPT ? '💓 O que você recebe com MindEV BIO:' : '💓 Qué incluye MindEV BIO:'}
+              </div>
+              <div style="font-size:0.78rem;color:#e2e8f0;line-height:1.9;white-space:nowrap">
+                📈 ${isEN ? 'Chips won — cumulative chart' : isPT ? 'Fichas ganadas acumuladas' : 'Gráfico de fichas ganadas acumuladas'}<br>
+                📊 ${isEN ? 'Real hero stack chart' : isPT ? 'Stack real do hero' : 'Gráfico de stack real del hero'}<br>
+                🃏 ${isEN ? 'Hand detail — position, cards, board, result, NET' : isPT ? 'Detalhe por mão — posição, cartas, board, resultado, NET' : 'Detalle por mano — posición, cartas, board, resultado, NET'}<br>
+                📋 ${isEN ? 'Stats by blind level (expandable)' : isPT ? 'Estatísticas por nível de blinds' : 'Estadísticas por nivel de blinds expandibles'}<br>
+                💓 ${isEN ? 'BPM correlation (requires smartwatch)' : isPT ? 'Correlação de BPM (requer smartwatch)' : 'Correlación BPM (requiere smartwatch)'}
+              </div>
+            </div>
+          </button>
           <div style="display:inline-flex;flex-direction:column;border:2px solid #d4af37;border-radius:10px;overflow:hidden;box-shadow:0 0 16px rgba(212,175,55,0.28);background:rgba(212,175,55,0.08)">
             <div style="font-size:0.65rem;font-weight:800;color:#d4af37;text-transform:uppercase;letter-spacing:0.07em;text-align:center;padding:5px 14px 2px;border-bottom:1px solid rgba(212,175,55,0.25)">
               📒 ${isEN ? 'Export Control Workbook' : isPT ? 'Exportar Caderno de Controle' : 'Exportar Cuaderno de Control'}

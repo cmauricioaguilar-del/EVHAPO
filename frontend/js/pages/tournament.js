@@ -105,6 +105,16 @@ function _tournSetFile(file) {
     return;
   }
   _tournFile = file;
+  window._mindevBioFile = file; // compartido con MinDev Bio
+  // Guardar en sessionStorage para sobrevivir recargas
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      sessionStorage.setItem('mindevbio_file_name', file.name);
+      sessionStorage.setItem('mindevbio_file_data', e.target.result);
+    } catch (_) {}
+  };
+  reader.readAsDataURL(file);
   document.getElementById('tourn-file-name').textContent = file.name;
   document.getElementById('tourn-file-size').textContent = (file.size / 1024).toFixed(0) + ' KB';
   document.getElementById('tourn-file-info').style.display = 'block';
