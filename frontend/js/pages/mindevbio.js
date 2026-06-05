@@ -34,34 +34,24 @@ async function renderMindevBio() {
         </button>
       </div>
 
-      <!-- Requisitos de hardware -->
-      <div style="background:rgba(244,114,182,0.06);border:1px solid rgba(244,114,182,0.2);border-radius:12px;padding:14px 18px;margin-bottom:20px;font-size:0.82rem;color:#94a3b8">
-        <span style="color:#f472b6;font-weight:700">BETA</span> &nbsp;·&nbsp;
-        ${isEN
-          ? '⌚ Requires: <strong style="color:var(--text)">Windows PC</strong> + <strong style="color:var(--text)">Wear OS smartwatch</strong> (Galaxy Watch). Install <strong style="color:#f472b6">MinDevBio</strong> on your PC to capture BPM in real time.'
-          : isPT
-          ? '⌚ Requer: <strong style="color:var(--text)">PC Windows</strong> + <strong style="color:var(--text)">smartwatch Wear OS</strong> (Galaxy Watch). Instale o <strong style="color:#f472b6">MinDevBio</strong> no seu PC para capturar BPM em tempo real.'
-          : '⌚ Requiere: <strong style="color:var(--text)">PC Windows</strong> + <strong style="color:var(--text)">smartwatch Wear OS</strong> (Galaxy Watch). Instala <strong style="color:#f472b6">MinDevBio</strong> en tu PC para capturar BPM en tiempo real.'}
-      </div>
+      <!-- Wizard de activación + estado HR en tiempo real -->
+      <div id="bio-setup-wizard" style="margin-bottom:20px"></div>
 
-      <!-- Estado HR en tiempo real -->
-      <div style="display:flex;gap:16px;margin-bottom:20px;flex-wrap:wrap">
-        <div style="flex:1;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;min-width:200px">
-          <div style="font-size:0.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px">
-            ${isEN ? 'HR Server' : isPT ? 'Servidor HR' : 'Servidor HR'}
-          </div>
-          <div id="bio-server-status" style="font-weight:600;color:#f87171">
-            ● ${isEN ? 'Not connected' : isPT ? 'Não conectado' : 'No conectado'}
-          </div>
-          <div style="font-size:0.75rem;color:var(--muted);margin-top:4px">
-            ${isEN ? 'Start MinDevBio on your PC to capture BPM.' : isPT ? 'Inicie o MinDevBio no seu PC para capturar BPM.' : 'Inicia MinDevBio en tu PC para capturar BPM.'}
-          </div>
+      <!-- BPM live (solo visible cuando servidor activo) -->
+      <div id="bio-bpm-card" style="display:none;background:rgba(244,114,182,0.08);border:2px solid #f472b6;border-radius:12px;padding:18px;text-align:center;margin-bottom:20px">
+        <div style="font-size:0.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px">
+          ${isEN ? 'HR Server' : 'Servidor HR'} &nbsp;·&nbsp; <span id="bio-server-status" style="color:#4ade80">● ${isEN ? 'Active' : isPT ? 'Ativo' : 'Activo'}</span>
         </div>
-        <div id="bio-bpm-card" style="display:none;background:rgba(244,114,182,0.08);border:2px solid #f472b6;border-radius:12px;padding:18px;text-align:center;min-width:120px">
-          <div id="bio-bpm-value" style="font-size:2.8rem;font-weight:800;color:#f472b6;line-height:1">--</div>
-          <div style="font-size:0.72rem;color:var(--muted);margin-top:4px">BPM live</div>
+        <div style="display:flex;align-items:center;justify-content:center;gap:24px;flex-wrap:wrap">
+          <div>
+            <div id="bio-bpm-value" style="font-size:3rem;font-weight:800;color:#f472b6;line-height:1">--</div>
+            <div style="font-size:0.72rem;color:var(--muted);margin-top:4px">BPM live</div>
+          </div>
+          <div id="bio-bpm-bar" style="display:flex;align-items:flex-end;gap:3px;height:40px"></div>
         </div>
       </div>
+      <!-- status oculto para compatibilidad con polling -->
+      <span id="bio-server-status-hidden" style="display:none"></span>
 
       <!-- Contenido -->
       <div id="bio-content">
@@ -396,33 +386,188 @@ function bioDrawCharts(d, isEN, isPT) {
 }
 
 // ── Polling servidor HR ──────────────────────────────────────────────────────
+let _bioBpmHistory = [];
+
 function bioPollServer() {
   if (_bioPollTimer) clearInterval(_bioPollTimer);
+
+  // Render inicial del wizard (desconectado)
+  bioRenderSetupWizard(false, 0);
+
   _bioPollTimer = setInterval(async () => {
-    const statusEl = document.getElementById('bio-server-status');
-    if (!statusEl) { clearInterval(_bioPollTimer); return; }
+    const wizardEl = document.getElementById('bio-setup-wizard');
+    if (!wizardEl) { clearInterval(_bioPollTimer); return; }
     const isPT = I18N.isPT();
     const isEN = I18N.isEN();
     try {
       const r = await fetch(`${BIO_SERVER}/status`, { signal: AbortSignal.timeout(1000) });
       if (!r.ok) throw new Error();
       const data = await r.json();
+      const wasConnected = _bioHasServer;
       _bioHasServer = true;
       _bioBpm = data.last_bpm || 0;
-      statusEl.innerHTML = `<span style="color:#4ade80">● ${isEN ? 'Server active' : isPT ? 'Servidor ativo' : 'Servidor activo'} :5150</span>`;
+
+      // Ocultar wizard, mostrar tarjeta BPM
+      wizardEl.style.display = 'none';
       const bpmCard = document.getElementById('bio-bpm-card');
       const bpmVal  = document.getElementById('bio-bpm-value');
-      if (bpmCard && _bioBpm > 0) {
+      if (bpmCard) {
         bpmCard.style.display = 'block';
-        bpmVal.textContent = _bioBpm;
+        if (bpmVal && _bioBpm > 0) {
+          bpmVal.textContent = _bioBpm;
+          _bioBpmHistory.push(_bioBpm);
+          if (_bioBpmHistory.length > 20) _bioBpmHistory.shift();
+          bioUpdateBpmBar();
+        }
       }
     } catch {
+      const wasConnected = _bioHasServer;
       _bioHasServer = false;
-      statusEl.innerHTML = `<span style="color:#f87171">● ${isEN ? 'Not connected' : isPT ? 'Não conectado' : 'No conectado'}</span>`;
+      _bioBpm = 0;
+
+      // Mostrar wizard, ocultar tarjeta BPM
+      if (wasConnected || wizardEl.innerHTML === '') {
+        bioRenderSetupWizard(false, 0);
+      }
+      wizardEl.style.display = '';
       const bpmCard = document.getElementById('bio-bpm-card');
       if (bpmCard) bpmCard.style.display = 'none';
     }
   }, 2000);
+}
+
+// ── Mini bar chart de BPM ────────────────────────────────────────────────────
+function bioUpdateBpmBar() {
+  const bar = document.getElementById('bio-bpm-bar');
+  if (!bar || _bioBpmHistory.length < 2) return;
+  const min = Math.min(..._bioBpmHistory) - 5;
+  const max = Math.max(..._bioBpmHistory) + 5;
+  bar.innerHTML = _bioBpmHistory.map(v => {
+    const h = Math.max(4, Math.round(((v - min) / (max - min)) * 36));
+    return `<div style="width:4px;height:${h}px;background:#f472b6;border-radius:2px;opacity:0.7"></div>`;
+  }).join('');
+}
+
+// ── Wizard de setup ──────────────────────────────────────────────────────────
+function bioRenderSetupWizard(connected, bpm) {
+  const el = document.getElementById('bio-setup-wizard');
+  if (!el) return;
+  const isPT = I18N.isPT();
+  const isEN = I18N.isEN();
+
+  const t = {
+    title:   isEN ? 'Connect your smartwatch' : isPT ? 'Conecte seu smartwatch' : 'Conecta tu smartwatch',
+    sub:     isEN ? 'Follow these 3 steps to see your BPM live while you play.'
+                  : isPT ? 'Siga estes 3 passos para ver seu BPM em tempo real enquanto joga.'
+                  : 'Sigue estos 3 pasos para ver tu BPM en tiempo real mientras juegas.',
+    s1t:     isEN ? 'Download MinDev Bio for Windows' : isPT ? 'Baixe o MinDev Bio para Windows' : 'Descarga MinDev Bio para Windows',
+    s1d:     isEN ? 'The local server that bridges your watch and the web. Install it and click <strong>Start HR Server</strong>.'
+                  : isPT ? 'O servidor local que conecta seu relógio com a web. Instale e clique em <strong>Iniciar servidor HR</strong>.'
+                  : 'El servidor local que conecta tu reloj con la web. Instálalo y haz click en <strong>Iniciar servidor HR</strong>.',
+    s1btn:   isEN ? '⬇ Download .exe' : isPT ? '⬇ Baixar .exe' : '⬇ Descargar .exe',
+    s2t:     isEN ? 'Install MinDev HR on your Galaxy Watch' : isPT ? 'Instale o MinDev HR no seu Galaxy Watch' : 'Instala MinDev HR en tu Galaxy Watch',
+    s2d:     isEN ? 'Open <strong>Galaxy Store</strong> on your watch, search for <strong>MinDev HR</strong> and install it.'
+                  : isPT ? 'Abra a <strong>Galaxy Store</strong> no seu relógio, busque <strong>MinDev HR</strong> e instale.'
+                  : 'Abre <strong>Galaxy Store</strong> en tu reloj, busca <strong>MinDev HR</strong> e instálala.',
+    s3t:     isEN ? 'Open MinDev HR → enter your PC\'s IP' : isPT ? 'Abra o MinDev HR → insira o IP do seu PC' : 'Abre MinDev HR → ingresa la IP de tu PC',
+    s3d:     isEN ? 'Your PC\'s IP is shown in MinDev Bio. Both devices must be on the same WiFi network.'
+                  : isPT ? 'O IP do seu PC é exibido no MinDev Bio. Ambos os dispositivos devem estar na mesma rede WiFi.'
+                  : 'La IP de tu PC se muestra en MinDev Bio. Ambos deben estar en la misma red WiFi.',
+    detect:  isEN ? 'Waiting for server… detecting automatically'
+                  : isPT ? 'Aguardando servidor… detectando automaticamente'
+                  : 'Esperando servidor… detectando automáticamente',
+    help:    isEN ? 'Need help?' : isPT ? 'Precisa de ajuda?' : '¿Necesitas ayuda?',
+  };
+
+  el.innerHTML = `
+    <div style="background:var(--card);border:1px solid rgba(244,114,182,0.25);border-radius:16px;padding:24px 28px">
+
+      <!-- Header -->
+      <div style="margin-bottom:22px">
+        <div style="font-size:1.1rem;font-weight:800;color:#f472b6;margin-bottom:4px">⌚ ${t.title}</div>
+        <div style="font-size:0.82rem;color:var(--muted)">${t.sub}</div>
+      </div>
+
+      <!-- Pasos -->
+      <div style="display:flex;flex-direction:column;gap:0">
+
+        ${bioWizardStep(1, t.s1t, t.s1d, `
+          <a href="#" onclick="bioDownloadExe(event)"
+            style="display:inline-block;background:#f472b6;color:#fff;font-weight:700;font-size:0.82rem;
+                   padding:8px 16px;border-radius:8px;text-decoration:none;margin-top:10px">
+            ${t.s1btn}
+          </a>`)}
+
+        ${bioWizardStep(2, t.s2t, t.s2d, `
+          <a href="https://galaxy.store/mindevhr" target="_blank" rel="noopener"
+            style="display:inline-block;background:#1428A0;color:#fff;font-weight:700;font-size:0.82rem;
+                   padding:8px 16px;border-radius:8px;text-decoration:none;margin-top:10px">
+            🏪 Galaxy Store
+          </a>`)}
+
+        ${bioWizardStep(3, t.s3t, t.s3d, '', true)}
+
+      </div>
+
+      <!-- Indicador de detección automática -->
+      <div style="display:flex;align-items:center;gap:10px;margin-top:20px;padding-top:18px;border-top:1px solid var(--border)">
+        <div style="width:8px;height:8px;border-radius:50%;background:#f472b6;animation:bioPulse 1.4s ease-in-out infinite;flex-shrink:0"></div>
+        <div style="font-size:0.78rem;color:var(--muted)">${t.detect}</div>
+        <a href="#" onclick="bioShowHelp(event)" style="margin-left:auto;font-size:0.75rem;color:#f472b6;text-decoration:none;white-space:nowrap">${t.help}</a>
+      </div>
+
+    </div>
+
+    <style>
+      @keyframes bioPulse {
+        0%,100% { opacity:1; transform:scale(1); }
+        50%      { opacity:0.4; transform:scale(1.5); }
+      }
+    </style>`;
+}
+
+function bioWizardStep(n, title, desc, action = '', last = false) {
+  return `
+    <div style="display:flex;gap:16px;padding-bottom:${last ? '0' : '20px'};position:relative">
+      <!-- línea vertical conectora -->
+      ${!last ? `<div style="position:absolute;left:15px;top:32px;bottom:0;width:2px;background:rgba(244,114,182,0.15)"></div>` : ''}
+      <!-- número -->
+      <div style="width:32px;height:32px;border-radius:50%;border:2px solid rgba(244,114,182,0.4);
+                  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+                  font-size:0.85rem;font-weight:800;color:#f472b6;background:rgba(244,114,182,0.08)">
+        ${n}
+      </div>
+      <!-- contenido -->
+      <div style="flex:1;padding-top:4px">
+        <div style="font-weight:700;font-size:0.92rem;color:var(--text);margin-bottom:4px">${title}</div>
+        <div style="font-size:0.8rem;color:var(--muted);line-height:1.5">${desc}</div>
+        ${action}
+      </div>
+    </div>`;
+}
+
+function bioDownloadExe(e) {
+  e.preventDefault();
+  const isPT = I18N.isPT();
+  const isEN = I18N.isEN();
+  // Placeholder hasta que el .exe esté disponible
+  alert(isEN
+    ? 'MinDev Bio for Windows is coming soon. We\'ll notify you by email when it\'s ready.'
+    : isPT
+    ? 'MinDev Bio para Windows estará disponível em breve. Você será notificado por e-mail.'
+    : 'MinDev Bio para Windows estará disponible muy pronto. Te notificaremos por email cuando esté listo.');
+}
+
+function bioShowHelp(e) {
+  e.preventDefault();
+  const isPT = I18N.isPT();
+  const isEN = I18N.isEN();
+  const msg = isEN
+    ? `MinDev Bio — Setup guide\n\n1. Download and install MinDev Bio on your Windows PC.\n2. Install MinDev HR on your Galaxy Watch from Galaxy Store.\n3. Open MinDev Bio → note your PC's IP address shown in the app.\n4. Open MinDev HR on your watch → enter that IP → tap Connect.\n5. In MinDev Bio, click "Start HR Server".\n6. Come back here — BPM will appear automatically.\n\nBoth devices must be connected to the same WiFi network.`
+    : isPT
+    ? `MinDev Bio — Guia de configuração\n\n1. Baixe e instale o MinDev Bio no seu PC Windows.\n2. Instale o MinDev HR no seu Galaxy Watch pela Galaxy Store.\n3. Abra o MinDev Bio → anote o IP do seu PC mostrado no app.\n4. Abra o MinDev HR no relógio → insira esse IP → toque em Conectar.\n5. No MinDev Bio, clique em "Iniciar servidor HR".\n6. Volte aqui — o BPM aparecerá automaticamente.\n\nAmbos os dispositivos devem estar na mesma rede WiFi.`
+    : `MinDev Bio — Guía de configuración\n\n1. Descarga e instala MinDev Bio en tu PC Windows.\n2. Instala MinDev HR en tu Galaxy Watch desde Galaxy Store.\n3. Abre MinDev Bio → anota la IP de tu PC que muestra la app.\n4. Abre MinDev HR en el reloj → ingresa esa IP → toca Conectar.\n5. En MinDev Bio, haz click en "Iniciar servidor HR".\n6. Vuelve aquí — el BPM aparecerá automáticamente.\n\nAmbos dispositivos deben estar en la misma red WiFi.`;
+  alert(msg);
 }
 
 function bioClear() {
