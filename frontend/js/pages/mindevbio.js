@@ -473,9 +473,9 @@ function bioRenderSetupWizard(connected, bpm) {
                   : 'El servidor local que conecta tu reloj con la web. Instálalo y haz click en <strong>Iniciar servidor HR</strong>.',
     s1btn:   isEN ? '⬇ Download .exe' : isPT ? '⬇ Baixar .exe' : '⬇ Descargar .exe',
     s2t:     isEN ? 'Install MinDev HR on your Galaxy Watch' : isPT ? 'Instale o MinDev HR no seu Galaxy Watch' : 'Instala MinDev HR en tu Galaxy Watch',
-    s2d:     isEN ? 'Open <strong>Galaxy Store</strong> on your watch, search for <strong>MinDev HR</strong> and install it.'
-                  : isPT ? 'Abra a <strong>Galaxy Store</strong> no seu relógio, busque <strong>MinDev HR</strong> e instale.'
-                  : 'Abre <strong>Galaxy Store</strong> en tu reloj, busca <strong>MinDev HR</strong> e instálala.',
+    s2d:     isEN ? 'Download the APK and install it on your Galaxy Watch using <strong>Galaxy Wearable</strong> or sideload via ADB.'
+                  : isPT ? 'Baixe o APK e instale no seu Galaxy Watch via <strong>Galaxy Wearable</strong> ou sideload por ADB.'
+                  : 'Descarga el APK y cárgalo en tu Galaxy Watch mediante <strong>Galaxy Wearable</strong> en tu teléfono.',
     s3t:     isEN ? 'Open MinDev HR → enter your PC\'s IP' : isPT ? 'Abra o MinDev HR → insira o IP do seu PC' : 'Abre MinDev HR → ingresa la IP de tu PC',
     s3d:     isEN ? 'Your PC\'s IP is shown in MinDev Bio. Both devices must be on the same WiFi network.'
                   : isPT ? 'O IP do seu PC é exibido no MinDev Bio. Ambos os dispositivos devem estar na mesma rede WiFi.'
@@ -563,10 +563,10 @@ function bioShowHelp(e) {
   const isPT = I18N.isPT();
   const isEN = I18N.isEN();
   const msg = isEN
-    ? `MinDev Bio — Setup guide\n\n1. Download and install MinDev Bio on your Windows PC.\n2. Install MinDev HR on your Galaxy Watch from Galaxy Store.\n3. Open MinDev Bio → note your PC's IP address shown in the app.\n4. Open MinDev HR on your watch → enter that IP → tap Connect.\n5. In MinDev Bio, click "Start HR Server".\n6. Come back here — BPM will appear automatically.\n\nBoth devices must be connected to the same WiFi network.`
+    ? `MinDev Bio — Setup guide\n\n1. Download and install MinDev Bio on your Windows PC.\n2. Download the MinDev HR APK and install it on your Galaxy Watch via Galaxy Wearable.\n3. Open MinDev Bio → note your PC's IP address shown in the app.\n4. Open MinDev HR on your watch → enter that IP → tap Connect.\n5. In MinDev Bio, click "Start HR Server".\n6. Come back here — BPM will appear automatically.\n\nBoth devices must be connected to the same WiFi network.`
     : isPT
-    ? `MinDev Bio — Guia de configuração\n\n1. Baixe e instale o MinDev Bio no seu PC Windows.\n2. Instale o MinDev HR no seu Galaxy Watch pela Galaxy Store.\n3. Abra o MinDev Bio → anote o IP do seu PC mostrado no app.\n4. Abra o MinDev HR no relógio → insira esse IP → toque em Conectar.\n5. No MinDev Bio, clique em "Iniciar servidor HR".\n6. Volte aqui — o BPM aparecerá automaticamente.\n\nAmbos os dispositivos devem estar na mesma rede WiFi.`
-    : `MinDev Bio — Guía de configuración\n\n1. Descarga e instala MinDev Bio en tu PC Windows.\n2. Instala MinDev HR en tu Galaxy Watch desde Galaxy Store.\n3. Abre MinDev Bio → anota la IP de tu PC que muestra la app.\n4. Abre MinDev HR en el reloj → ingresa esa IP → toca Conectar.\n5. En MinDev Bio, haz click en "Iniciar servidor HR".\n6. Vuelve aquí — el BPM aparecerá automáticamente.\n\nAmbos dispositivos deben estar en la misma red WiFi.`;
+    ? `MinDev Bio — Guia de configuração\n\n1. Baixe e instale o MinDev Bio no seu PC Windows.\n2. Baixe o APK do MinDev HR e instale no seu Galaxy Watch via Galaxy Wearable.\n3. Abra o MinDev Bio → anote o IP do seu PC mostrado no app.\n4. Abra o MinDev HR no relógio → insira esse IP → toque em Conectar.\n5. No MinDev Bio, clique em "Iniciar servidor HR".\n6. Volte aqui — o BPM aparecerá automaticamente.\n\nAmbos os dispositivos devem estar na mesma rede WiFi.`
+    : `MinDev Bio — Guía de configuración\n\n1. Descarga e instala MinDev Bio en tu PC Windows.\n2. Descarga el APK de MinDev HR e instálalo en tu Galaxy Watch mediante Galaxy Wearable.\n3. Abre MinDev Bio → anota la IP de tu PC que muestra la app.\n4. Abre MinDev HR en el reloj → ingresa esa IP → toca Conectar.\n5. En MinDev Bio, haz click en "Iniciar servidor HR".\n6. Vuelve aquí — el BPM aparecerá automáticamente.\n\nAmbos dispositivos deben estar en la misma red WiFi.`;
   alert(msg);
 }
 
