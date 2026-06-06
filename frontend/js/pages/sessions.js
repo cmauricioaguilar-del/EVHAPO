@@ -3,7 +3,7 @@
 let _allSessions = [];
 let _sessionsChart = null;
 
-const SESSION_FORMATS = ['Cash Game', 'MTT', 'SNG', 'Spin & Go', 'Live', 'Home Game'];
+const SESSION_FORMATS = ['MTT', 'Cash Game', 'SNG', 'Spin & Go', 'Live', 'Home Game'];
 
 async function renderSessions() {
   const isEN = I18N.isEN();
