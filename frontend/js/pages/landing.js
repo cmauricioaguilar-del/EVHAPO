@@ -338,6 +338,26 @@ function renderLanding() {
             </div>
           </div>
 
+          <!-- Testimonio Malque77 -->
+          <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px 22px;display:flex;flex-direction:column;gap:12px">
+            <div style="color:#fbbf24;font-size:0.85rem;letter-spacing:2px">★★★★★</div>
+            <p style="margin:0;color:var(--text2);font-size:0.88rem;line-height:1.6;font-style:italic;flex:1">
+              "Excelente herramienta. Lo que más me sorprendió fue la precisión con que captura el lado mental del jugador: paciencia, control del tilt y mentalidad de crecimiento. Y no se queda solo en describir, te entrega un plan de acción estructurado por fases con objetivos medibles. Identificó justo mis áreas a mejorar y me dio una hoja de ruta clara para estudiar. Muy recomendable para cualquier jugador que quiera entenderse mejor y tener dirección."
+            </p>
+            <div style="display:flex;align-items:center;gap:10px;border-top:1px solid var(--border);padding-top:12px">
+              <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#22c55e,#15803d);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:0.9rem;color:#fff;flex-shrink:0">
+                M
+              </div>
+              <div>
+                <div style="font-weight:700;font-size:0.88rem">Mauricio "Malque77" Alarcón</div>
+                <div style="display:flex;align-items:center;gap:5px;margin-top:2px">
+                  <img src="/icons/flags/cl.png" alt="Chile" style="height:11px;border-radius:1px">
+                  <span style="color:var(--text3);font-size:0.75rem">Chile</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
         </div>
 
         <!-- CTA final -->
