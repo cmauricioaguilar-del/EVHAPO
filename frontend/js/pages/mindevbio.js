@@ -278,7 +278,6 @@ function bioRenderDashboard(d, isEN, isPT) {
                     <th style="padding:4px 8px;width:80px">${isEN ? 'Result' : 'Resultado'}</th>
                     <th style="padding:4px 8px;text-align:right;width:90px">Net</th>
                     ${d.has_hr ? '<th style="padding:4px 8px;text-align:right;width:60px;color:#f472b6">BPM</th>' : ''}
-                    <th style="padding:4px 8px;width:160px;color:#fbbf24">${isEN ? 'Notes' : 'Notas'}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -291,10 +290,6 @@ function bioRenderDashboard(d, isEN, isPT) {
                     <td style="padding:4px 8px">${bioResultTag(h.result)}</td>
                     <td style="padding:4px 8px;text-align:right;${h.net > 0 ? 'color:#4ade80' : h.net < 0 ? 'color:#f87171' : 'color:var(--muted)'}">${h.net_str || '—'}</td>
                     ${d.has_hr ? `<td style="padding:4px 8px;text-align:right;color:#f472b6;font-weight:600">${h.hr_avg || '—'}</td>` : ''}
-                    <td style="padding:4px 6px"><input type="text" placeholder="…" data-hand="${h.n}" data-level="${idx}"
-                      style="width:100%;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:5px;padding:3px 7px;color:#e2e8f0;font-size:0.72rem;outline:none"
-                      oninput="bioSaveNote(${idx},${h.n},this.value)"
-                      value="${bioGetNote(idx,${h.n})}"></td>
                   </tr>`).join('')}
                 </tbody>
               </table>
@@ -579,21 +574,7 @@ function bioClear() {
   if (_bioPollTimer) { clearInterval(_bioPollTimer); _bioPollTimer = null; }
 }
 
-// ── Notas por mano (guardadas en localStorage) ────────────────────────────────
-const _bioNotesKey = () => `mindev_bio_notes_${(window._bioCurFilename||'x')}`;
-
-function bioSaveNote(levelIdx, handN, val) {
-  const store = JSON.parse(localStorage.getItem(_bioNotesKey()) || '{}');
-  store[`${levelIdx}_${handN}`] = val;
-  localStorage.setItem(_bioNotesKey(), JSON.stringify(store));
-}
-
-function bioGetNote(levelIdx, handN) {
-  const store = JSON.parse(localStorage.getItem(_bioNotesKey()) || '{}');
-  return (store[`${levelIdx}_${handN}`] || '').replace(/"/g, '&quot;');
-}
-
-// ── Exportar a Excel (SheetJS CDN) ────────────────────────────────────────────
+// ── Exportar a Excel (SheetJS CDN) — una sola hoja agrupada por nivel ─────────
 function bioExportExcel() {
   if (typeof XLSX === 'undefined') {
     const s = document.createElement('script');
@@ -608,29 +589,30 @@ function bioExportExcel() {
 function _bioDoExport() {
   const d = window._bioCurData;
   if (!d || !d.levels) return;
-  const notes = JSON.parse(localStorage.getItem(_bioNotesKey()) || '{}');
-  const wb = XLSX.utils.book_new();
 
-  // Hoja resumen
-  const summaryRows = [['Blinds', 'Manos', 'Win%', 'Net']];
-  d.levels.forEach(lv => summaryRows.push([lv.level, lv.manos, lv.won_pct + '%', lv.net]));
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summaryRows), 'Resumen');
+  const header = ['Blinds', '#', 'Pos.', 'Cartas', 'Board', 'Resultado', 'Net'];
+  if (d.has_hr) header.push('BPM');
+  header.push('Notas');
 
-  // Una hoja por nivel de blinds
-  d.levels.forEach((lv, idx) => {
-    const header = ['#', 'Pos.', 'Cartas', 'Board', 'Resultado', 'Net'];
-    if (d.has_hr) header.push('BPM');
-    header.push('Notas');
-    const rows = [header];
+  const rows = [header];
+  d.levels.forEach(lv => {
+    // Fila de encabezado de grupo
+    rows.push([`── ${lv.level}  (${lv.manos} manos · Win ${lv.won_pct}% · Net ${lv.net_str || lv.net})`]);
     lv.hands.forEach(h => {
-      const row = [h.n, h.position, h.hole_cards, h.board, h.result, h.net];
+      const row = [lv.level, h.n, h.position, h.hole_cards, h.board, h.result, h.net];
       if (d.has_hr) row.push(h.hr_avg || '');
-      row.push(notes[`${idx}_${h.n}`] || '');
+      row.push('');  // columna Notas vacía para que el usuario escriba
       rows.push(row);
     });
-    const sheetName = lv.level.replace(/\//g, '-').substring(0, 31);
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), sheetName);
+    rows.push([]);  // fila vacía entre niveles
   });
+
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  // Ancho de columnas
+  ws['!cols'] = [10,5,6,10,24,10,10,8,40].map(w => ({ wch: w }));
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Manos por nivel');
 
   const fname = `MinDevBio_${(window._bioCurFilename || 'export').replace(/[^a-zA-Z0-9_-]/g, '_')}.xlsx`;
   XLSX.writeFile(wb, fname);
