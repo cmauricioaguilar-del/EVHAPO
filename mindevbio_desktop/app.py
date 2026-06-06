@@ -210,12 +210,12 @@ def run_ui_ctk():
     btn_start.pack(fill="x", padx=24, pady=(4, 6))
 
     ctk.CTkButton(
-        root, text="Abrir dashboard",
+        root, text="🌐 Ver correlación BPM en mindev.com",
         font=ctk.CTkFont(size=12),
         fg_color=C_CARD, hover_color=C_BORDER, text_color=C_TEXT,
         border_width=1, border_color=C_BORDER,
         corner_radius=10, height=38,
-        command=lambda: webbrowser.open("https://mindev-ia.com")
+        command=lambda: webbrowser.open("https://www.mindev.com/#mindevbio")
     ).pack(fill="x", padx=24, pady=(0, 6))
 
     ctk.CTkButton(
@@ -367,10 +367,10 @@ def run_ui_tk():
                           padx=16, pady=10, command=toggle_server)
     btn_start.pack(fill="x", padx=24, pady=(0, 6))
 
-    tk.Button(root, text="⬛ Abrir dashboard",
+    tk.Button(root, text="🌐 Ver correlación BPM en mindev.com",
               font=normal, bg=C_CARD, fg=C_TEXT,
               relief="flat", cursor="hand2", padx=16, pady=8,
-              command=lambda: webbrowser.open("https://mindev-ia.com")
+              command=lambda: webbrowser.open("https://www.mindev.com/#mindevbio")
               ).pack(fill="x", padx=24, pady=(0, 6))
 
     tk.Button(root, text="♥ Activar Bio",
