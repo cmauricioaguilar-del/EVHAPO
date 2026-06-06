@@ -52,7 +52,7 @@ function renderSessionForm(prefill = {}) {
           <label style="font-size:0.78rem;color:var(--text3);display:block;margin-bottom:4px">${isEN ? 'FORMAT *' : isPT ? 'FORMATO *' : 'FORMATO *'}</label>
           <select id="sf-format"
             style="width:100%;box-sizing:border-box;background:var(--input);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text1);font-size:0.9rem">
-            ${SESSION_FORMATS.map(f => `<option value="${f}" ${prefill.format === f ? 'selected' : ''}>${f}</option>`).join('')}
+            ${SESSION_FORMATS.map(f => `<option value="${f}" ${prefill.format === f ? 'selected' : ''} style="background:#1c2333;color:#e2e8f0">${f}</option>`).join('')}
           </select>
         </div>
 
