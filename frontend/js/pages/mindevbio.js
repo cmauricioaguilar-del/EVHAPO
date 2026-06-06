@@ -590,26 +590,53 @@ function _bioDoExport() {
   const d = window._bioCurData;
   if (!d || !d.levels) return;
 
+  const netCol = d.has_hr ? 6 : 6;  // índice columna Net (0-based)
+  const notesCol = d.has_hr ? 8 : 7;
+
   const header = ['Blinds', '#', 'Pos.', 'Cartas', 'Board', 'Resultado', 'Net'];
   if (d.has_hr) header.push('BPM');
   header.push('Notas');
 
   const rows = [header];
+  const groupHeaderRows = new Set();  // números de fila (0-based) que son encabezados de nivel
+
   d.levels.forEach(lv => {
-    // Fila de encabezado de grupo
+    groupHeaderRows.add(rows.length);
     rows.push([`── ${lv.level}  (${lv.manos} manos · Win ${lv.won_pct}% · Net ${lv.net_str || lv.net})`]);
     lv.hands.forEach(h => {
       const row = [lv.level, h.n, h.position, h.hole_cards, h.board, h.result, h.net];
       if (d.has_hr) row.push(h.hr_avg || '');
-      row.push('');  // columna Notas vacía para que el usuario escriba
+      row.push('');
       rows.push(row);
     });
-    rows.push([]);  // fila vacía entre niveles
+    rows.push([]);
   });
 
   const ws = XLSX.utils.aoa_to_sheet(rows);
-  // Ancho de columnas
-  ws['!cols'] = [10,5,6,10,24,10,10,8,40].map(w => ({ wch: w }));
+
+  // Anchos de columna — Notas a 120 caracteres
+  const colWidths = [10, 5, 6, 10, 24, 10, 10];
+  if (d.has_hr) colWidths.push(8);
+  colWidths.push(120);
+  ws['!cols'] = colWidths.map(w => ({ wch: w }));
+
+  // Estilos: negrillas en encabezados de nivel, colores en Net
+  rows.forEach((row, r) => {
+    if (groupHeaderRows.has(r)) {
+      // Fila de nivel en negrillas
+      const cellRef = XLSX.utils.encode_cell({ r, c: 0 });
+      if (ws[cellRef]) ws[cellRef].s = { font: { bold: true, sz: 11 } };
+      return;
+    }
+    // Colorear celda Net
+    const netVal = row[netCol];
+    if (typeof netVal === 'number' && netVal !== 0) {
+      const cellRef = XLSX.utils.encode_cell({ r, c: netCol });
+      if (ws[cellRef]) ws[cellRef].s = {
+        font: { bold: true, color: { rgb: netVal < 0 ? 'C0392B' : '2471A3' } }
+      };
+    }
+  });
 
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Manos por nivel');
