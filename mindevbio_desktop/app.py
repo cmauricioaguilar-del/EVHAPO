@@ -45,6 +45,7 @@ _last_bpm        = 0
 _sample_count    = 0
 _server_thread   = None
 _flask_app       = None
+_werkzeug_server = None   # referencia para poder detenerlo
 _bpm_history     = []
 _on_bpm_callback = None   # callback(bpm) que actualiza la UI
 
@@ -109,10 +110,21 @@ def _build_flask_app():
 
 
 def _start_flask(port=5150):
-    global _flask_app, _server_active
+    global _flask_app, _server_active, _werkzeug_server
+    from werkzeug.serving import make_server
     _flask_app = _build_flask_app()
+    _werkzeug_server = make_server("0.0.0.0", port, _flask_app)
     _server_active = True
-    _flask_app.run(host="0.0.0.0", port=port, debug=False, use_reloader=False)
+    _werkzeug_server.serve_forever()
+    # Al salir de serve_forever el servidor fue detenido
+    _server_active = False
+
+def _stop_flask():
+    global _werkzeug_server, _server_active
+    if _werkzeug_server:
+        _werkzeug_server.shutdown()
+        _werkzeug_server = None
+    _server_active = False
 
 
 def get_local_ip():
@@ -233,7 +245,10 @@ def run_ui_ctk():
     def toggle_server(btn, status_var, bpm_var, samples_var):
         global _server_thread, _server_active
         if _server_active:
-            return  # Flask no se puede detener limpiamente sin kill; dejamos correr
+            threading.Thread(target=_stop_flask, daemon=True).start()
+            btn.configure(text="► Iniciar servidor HR", fg_color=C_PINK, hover_color="#c0397b", text_color="#fff")
+            status_var.set("● Servidor detenido")
+            return
         btn.configure(state="disabled", text="Iniciando…")
         def _start():
             global _server_thread
@@ -321,6 +336,9 @@ def run_ui_tk():
     def toggle_server():
         global _server_thread, _server_active
         if _server_active:
+            threading.Thread(target=_stop_flask, daemon=True).start()
+            btn_start.configure(text="► Iniciar servidor HR", bg=C_PINK, fg="#fff")
+            status_var.set("● Servidor detenido")
             return
         btn_start.configure(state="disabled", text="Iniciando…")
         def _start():
