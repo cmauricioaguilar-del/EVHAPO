@@ -263,6 +263,13 @@ def init_db():
             notes TEXT DEFAULT '',
             created_at TEXT DEFAULT CURRENT_TIMESTAMP
         );
+
+        CREATE TABLE IF NOT EXISTS user_last_hand (
+            user_id INTEGER PRIMARY KEY REFERENCES users(id),
+            filename TEXT NOT NULL,
+            content TEXT NOT NULL,
+            updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
     """)
     db.commit()
     # Migración: agregar columnas nuevas si no existen (para DBs ya creadas)
@@ -4160,16 +4167,16 @@ def analyze_tournament():
     except Exception as e:
         return jsonify({'error': f'Error leyendo el archivo: {str(e)}'}), 400
 
-    # ── Guardar último archivo del usuario para MinDev Bio ────────────────────
+    # ── Guardar último archivo del usuario para MinDev Bio (en DB, no en disco) ─
     try:
-        uploads_dir = os.path.join(os.path.dirname(__file__), 'uploads')
-        os.makedirs(uploads_dir, exist_ok=True)
-        last_path = os.path.join(uploads_dir, f'last_hand_{g.user_id}.txt')
-        with open(last_path, 'w', encoding='utf-8') as lf:
-            lf.write(content)
-        last_name_path = os.path.join(uploads_dir, f'last_hand_{g.user_id}.name')
-        with open(last_name_path, 'w', encoding='utf-8') as nf:
-            nf.write(file.filename)
+        _db = sqlite3.connect(DB_PATH)
+        _db.execute(
+            "INSERT INTO user_last_hand (user_id, filename, content, updated_at) VALUES (?,?,?,datetime('now')) "
+            "ON CONFLICT(user_id) DO UPDATE SET filename=excluded.filename, content=excluded.content, updated_at=excluded.updated_at",
+            (g.user_id, file.filename, content)
+        )
+        _db.commit()
+        _db.close()
     except Exception:
         pass
 
@@ -5124,16 +5131,22 @@ def bio_analyze():
         return jsonify({'error': f'Módulo biometría no disponible: {e}'}), 500
 
     f = request.files.get('file')
-    uploads_dir = os.path.join(os.path.dirname(__file__), 'uploads')
 
     if not f:
-        # Usar último archivo del usuario
-        last_path = os.path.join(uploads_dir, f'last_hand_{g.user_id}.txt')
-        last_name_path = os.path.join(uploads_dir, f'last_hand_{g.user_id}.name')
-        if not os.path.exists(last_path):
+        # Usar último archivo del usuario guardado en DB
+        _db2 = sqlite3.connect(DB_PATH)
+        row = _db2.execute(
+            "SELECT filename, content FROM user_last_hand WHERE user_id=?", (g.user_id,)
+        ).fetchone()
+        _db2.close()
+        if not row:
             return jsonify({'error': 'no_file', 'message': 'No hay historial cargado. Ve a Análisis de Manos primero.'}), 400
-        filepath_to_parse = last_path
-        saved_filename = open(last_name_path).read().strip() if os.path.exists(last_name_path) else 'ultimo_torneo.txt'
+        saved_filename = row[0]
+        import tempfile as _tf
+        _tmp = _tf.NamedTemporaryFile(delete=False, suffix='.txt', mode='w', encoding='utf-8')
+        _tmp.write(row[1])
+        _tmp.close()
+        filepath_to_parse = _tmp.name
         use_saved = True
     else:
         use_saved = False
