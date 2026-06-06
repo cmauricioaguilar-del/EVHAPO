@@ -506,10 +506,10 @@ function bioRenderSetupWizard(connected, bpm) {
           </a>`)}
 
         ${bioWizardStep(2, t.s2t, t.s2d, `
-          <a href="https://galaxy.store/mindevhr" target="_blank" rel="noopener"
+          <a href="https://github.com/cmauricioaguilar-del/EVHAPO/releases/download/v1.0-mindevhr/MinDevHR.apk"
             style="display:inline-block;background:#1428A0;color:#fff;font-weight:700;font-size:0.82rem;
                    padding:8px 16px;border-radius:8px;text-decoration:none;margin-top:10px">
-            🏪 Galaxy Store
+            ⌚ Descargar MinDev HR (.apk)
           </a>`)}
 
         ${bioWizardStep(3, t.s3t, t.s3d, '', true)}
