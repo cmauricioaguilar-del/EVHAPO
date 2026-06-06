@@ -548,14 +548,7 @@ function bioWizardStep(n, title, desc, action = '', last = false) {
 
 function bioDownloadExe(e) {
   e.preventDefault();
-  const isPT = I18N.isPT();
-  const isEN = I18N.isEN();
-  // Placeholder hasta que el .exe esté disponible
-  alert(isEN
-    ? 'MinDev Bio for Windows is coming soon. We\'ll notify you by email when it\'s ready.'
-    : isPT
-    ? 'MinDev Bio para Windows estará disponível em breve. Você será notificado por e-mail.'
-    : 'MinDev Bio para Windows estará disponible muy pronto. Te notificaremos por email cuando esté listo.');
+  window.open('https://github.com/cmauricioaguilar-del/EVHAPO/releases/download/v1.0-mindevbio/MinDevBio.exe', '_blank');
 }
 
 function bioShowHelp(e) {
