@@ -574,11 +574,11 @@ function bioClear() {
   if (_bioPollTimer) { clearInterval(_bioPollTimer); _bioPollTimer = null; }
 }
 
-// ── Exportar a Excel (SheetJS CDN) — una sola hoja agrupada por nivel ─────────
+// ── Exportar a Excel (ExcelJS) — una sola hoja agrupada por nivel ────────────
 function bioExportExcel() {
-  if (typeof XLSX === 'undefined') {
+  if (typeof ExcelJS === 'undefined') {
     const s = document.createElement('script');
-    s.src = 'https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js';
+    s.src = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
     s.onload = _bioDoExport;
     document.head.appendChild(s);
   } else {
@@ -586,61 +586,67 @@ function bioExportExcel() {
   }
 }
 
-function _bioDoExport() {
+async function _bioDoExport() {
   const d = window._bioCurData;
   if (!d || !d.levels) return;
 
-  const netCol = d.has_hr ? 6 : 6;  // índice columna Net (0-based)
-  const notesCol = d.has_hr ? 8 : 7;
+  const hasHR  = d.has_hr;
+  const netIdx = 7;   // columna G (1-based)
+  const notesIdx = hasHR ? 9 : 8;
 
-  const header = ['Blinds', '#', 'Pos.', 'Cartas', 'Board', 'Resultado', 'Net'];
-  if (d.has_hr) header.push('BPM');
-  header.push('Notas');
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('Manos por nivel');
 
-  const rows = [header];
-  const groupHeaderRows = new Set();  // números de fila (0-based) que son encabezados de nivel
+  // Anchos
+  ws.columns = [
+    { width: 10 }, // Blinds
+    { width: 5  }, // #
+    { width: 7  }, // Pos.
+    { width: 12 }, // Cartas
+    { width: 26 }, // Board
+    { width: 10 }, // Resultado
+    { width: 10 }, // Net
+    ...(hasHR ? [{ width: 8 }] : []),
+    { width: 120 }, // Notas
+  ];
+
+  // Fila de encabezados
+  const headerVals = ['Blinds', '#', 'Pos.', 'Cartas', 'Board', 'Resultado', 'Net'];
+  if (hasHR) headerVals.push('BPM');
+  headerVals.push('Notas');
+  const hRow = ws.addRow(headerVals);
+  hRow.font = { bold: true };
+  hRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1C2333' } };
+  hRow.eachCell(c => { c.font = { bold: true, color: { argb: 'FFE2E8F0' } }; });
 
   d.levels.forEach(lv => {
-    groupHeaderRows.add(rows.length);
-    rows.push([`── ${lv.level}  (${lv.manos} manos · Win ${lv.won_pct}% · Net ${lv.net_str || lv.net})`]);
+    // Fila de nivel en negrillas
+    const grpRow = ws.addRow([`── ${lv.level}  (${lv.manos} manos · Win ${lv.won_pct}% · Net ${lv.net_str || lv.net})`]);
+    grpRow.font = { bold: true, size: 11 };
+
     lv.hands.forEach(h => {
-      const row = [lv.level, h.n, h.position, h.hole_cards, h.board, h.result, h.net];
-      if (d.has_hr) row.push(h.hr_avg || '');
-      row.push('');
-      rows.push(row);
+      const vals = [lv.level, h.n, h.position, h.hole_cards, h.board, h.result, h.net];
+      if (hasHR) vals.push(h.hr_avg || '');
+      vals.push('');
+      const row = ws.addRow(vals);
+
+      // Color en celda Net
+      const netCell = row.getCell(netIdx);
+      if (typeof h.net === 'number' && h.net !== 0) {
+        netCell.font = { bold: true, color: { argb: h.net < 0 ? 'FFC0392B' : 'FF2471A3' } };
+      }
     });
-    rows.push([]);
+
+    ws.addRow([]); // separador entre niveles
   });
 
-  const ws = XLSX.utils.aoa_to_sheet(rows);
-
-  // Anchos de columna — Notas a 120 caracteres
-  const colWidths = [10, 5, 6, 10, 24, 10, 10];
-  if (d.has_hr) colWidths.push(8);
-  colWidths.push(120);
-  ws['!cols'] = colWidths.map(w => ({ wch: w }));
-
-  // Estilos: negrillas en encabezados de nivel, colores en Net
-  rows.forEach((row, r) => {
-    if (groupHeaderRows.has(r)) {
-      // Fila de nivel en negrillas
-      const cellRef = XLSX.utils.encode_cell({ r, c: 0 });
-      if (ws[cellRef]) ws[cellRef].s = { font: { bold: true, sz: 11 } };
-      return;
-    }
-    // Colorear celda Net
-    const netVal = row[netCol];
-    if (typeof netVal === 'number' && netVal !== 0) {
-      const cellRef = XLSX.utils.encode_cell({ r, c: netCol });
-      if (ws[cellRef]) ws[cellRef].s = {
-        font: { bold: true, color: { rgb: netVal < 0 ? 'C0392B' : '2471A3' } }
-      };
-    }
-  });
-
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Manos por nivel');
-
-  const fname = `MinDevBio_${(window._bioCurFilename || 'export').replace(/[^a-zA-Z0-9_-]/g, '_')}.xlsx`;
-  XLSX.writeFile(wb, fname);
+  // Descargar
+  const buf = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `MinDevBio_${(window._bioCurFilename || 'export').replace(/[^a-zA-Z0-9_-]/g, '_')}.xlsx`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
