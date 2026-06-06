@@ -54,14 +54,8 @@ function renderBankroll() {
       <h2 style="margin:0;color:var(--accent)">💰 ${L.title}</h2>
     </div>
 
-    <!-- Tabs -->
-    <div style="display:flex;gap:4px;margin-bottom:-1px;position:relative;z-index:1">
-      <button id="brm-tab-cash" onclick="brmTab('cash')" style="${tabStyle(true)}">${L.tabCash}</button>
-      <button id="brm-tab-mtt"  onclick="brmTab('mtt')"  style="${tabStyle(false)}">${L.tabMTT}</button>
-    </div>
-
-    <!-- Panel Cash -->
-    <div id="brm-panel-cash" style="background:var(--card);border:1px solid var(--border);border-radius:0 12px 12px 12px;padding:24px;margin-bottom:24px">
+    <!-- Panel Cash (oculto) -->
+    <div id="brm-panel-cash" style="display:none">
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px">
         <div>
           <label style="font-size:0.78rem;color:var(--text3);display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em">${L.format}</label>
@@ -85,7 +79,7 @@ function renderBankroll() {
     </div>
 
     <!-- Panel MTT -->
-    <div id="brm-panel-mtt" style="display:none;background:var(--card);border:1px solid var(--border);border-radius:0 12px 12px 12px;padding:24px;margin-bottom:24px">
+    <div id="brm-panel-mtt" style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:24px">
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px">
         <div>
           <label style="font-size:0.78rem;color:var(--text3);display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em">${L.format}</label>
@@ -196,22 +190,8 @@ function brmMttReentriesChange() {
   calcBankroll();
 }
 
-// ─── Cambio de tab ────────────────────────────────────────────────────────────
+// ─── Cambio de tab (solo MTT activo) ──────────────────────────────────────────
 function brmTab(tab) {
-  const isEN = I18N.isEN();
-  const cashActive = tab === 'cash';
-  const tabBase = 'cursor:pointer;padding:10px 22px;border-radius:8px 8px 0 0;font-weight:700;font-size:0.88rem;border:none;transition:all .2s;';
-
-  document.getElementById('brm-tab-cash').style.cssText = tabBase + (cashActive
-    ? 'background:var(--accent);color:#0a0e1a;'
-    : 'background:var(--card);color:var(--text3);border:1px solid var(--border);');
-  document.getElementById('brm-tab-mtt').style.cssText = tabBase + (!cashActive
-    ? 'background:var(--accent);color:#0a0e1a;'
-    : 'background:var(--card);color:var(--text3);border:1px solid var(--border);');
-
-  document.getElementById('brm-panel-cash').style.display = cashActive ? 'block' : 'none';
-  document.getElementById('brm-panel-mtt').style.display  = cashActive ? 'none'  : 'block';
-
   document.getElementById('brm-result').innerHTML = '';
   calcBankroll();
 }
