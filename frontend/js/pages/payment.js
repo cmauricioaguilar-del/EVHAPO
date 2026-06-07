@@ -43,6 +43,33 @@ async function renderPayment() {
           <p class="auth-sub">${isEN ? `Hi ${user.nombre}. One last step.` : isPT ? `Olá ${user.nombre}. Um último passo.` : `Hola ${user.nombre}. Un último paso.`}</p>
         </div>
 
+        <!-- ── Banner Promoción de Lanzamiento ───────────────────────── -->
+        <div style="
+          background:linear-gradient(135deg,rgba(212,175,55,0.15),rgba(77,182,172,0.10));
+          border:1px solid rgba(212,175,55,0.5);
+          border-radius:12px;padding:12px 18px;margin-bottom:20px;
+          display:flex;align-items:center;gap:12px;position:relative;overflow:hidden">
+          <div style="position:absolute;top:0;left:0;right:0;bottom:0;
+            background:repeating-linear-gradient(45deg,transparent,transparent 8px,rgba(212,175,55,0.03) 8px,rgba(212,175,55,0.03) 16px);
+            pointer-events:none"></div>
+          <div style="font-size:1.6rem;flex-shrink:0">🚀</div>
+          <div>
+            <div style="font-size:0.78rem;font-weight:800;color:#d4af37;text-transform:uppercase;letter-spacing:0.08em">
+              ${isEN ? '🎉 Launch Promotion' : isPT ? '🎉 Promoção de Lançamento' : '🎉 Promoción de Lanzamiento'}
+            </div>
+            <div style="font-size:0.78rem;color:var(--text2);margin-top:2px">
+              ${isEN ? 'Special introductory price — limited time only.'
+                : isPT ? 'Preço especial de lançamento — por tempo limitado.'
+                : 'Precio especial de introducción — por tiempo limitado.'}
+            </div>
+          </div>
+          <div style="margin-left:auto;flex-shrink:0;text-align:center">
+            <div style="font-size:0.6rem;color:#d4af37;text-transform:uppercase;letter-spacing:0.05em;font-weight:700">desde</div>
+            <div style="font-size:1.3rem;font-weight:800;color:#d4af37;line-height:1">$4.90</div>
+            <div style="font-size:0.6rem;color:var(--text3)">USD / mes</div>
+          </div>
+        </div>
+
         <!-- ── Selector de plan ────────────────────────────────────────── -->
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:24px">
 
