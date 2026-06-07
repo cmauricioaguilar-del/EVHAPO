@@ -135,6 +135,25 @@ function renderLanding() {
 
       <div class="price-banner">
         <!-- ── Dos planes ── -->
+        <!-- Banner Promoción de Lanzamiento -->
+        <div style="background:linear-gradient(135deg,rgba(212,175,55,0.15),rgba(77,182,172,0.10));border:1px solid rgba(212,175,55,0.5);border-radius:12px;padding:10px 16px;margin-bottom:14px;display:flex;align-items:center;gap:10px;position:relative;overflow:hidden">
+          <div style="position:absolute;inset:0;background:repeating-linear-gradient(45deg,transparent,transparent 8px,rgba(212,175,55,0.03) 8px,rgba(212,175,55,0.03) 16px);pointer-events:none"></div>
+          <div style="font-size:1.4rem;flex-shrink:0">🚀</div>
+          <div style="flex:1">
+            <div style="font-size:0.72rem;font-weight:800;color:#d4af37;text-transform:uppercase;letter-spacing:0.08em">
+              ${isEN ? '🎉 Launch Promotion' : isPT ? '🎉 Promoção de Lançamento' : '🎉 Promoción de Lanzamiento'}
+            </div>
+            <div style="font-size:0.72rem;color:var(--text2);margin-top:1px">
+              ${isEN ? 'Special introductory price — limited time.' : isPT ? 'Preço especial de lançamento — por tempo limitado.' : 'Precio especial de introducción — por tiempo limitado.'}
+            </div>
+          </div>
+          <div style="flex-shrink:0;text-align:center">
+            <div style="font-size:0.55rem;color:#d4af37;text-transform:uppercase;font-weight:700">desde</div>
+            <div style="font-size:1.2rem;font-weight:800;color:#d4af37;line-height:1">$4.90</div>
+            <div style="font-size:0.55rem;color:var(--text3)">USD/mes</div>
+          </div>
+        </div>
+
         <div style="margin-bottom:6px;font-size:0.75rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;text-align:center">
           ${isEN ? 'Choose your plan' : isPT ? 'Escolha seu plano' : 'Elige tu plan'}
         </div>
