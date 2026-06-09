@@ -71,7 +71,7 @@ function renderLanding() {
 
       <div class="hero-cta">
         <button class="btn btn-primary btn-lg" onclick="App.go('register')">
-          ♠ ${isEN ? 'Start my diagnosis' : isPT ? 'Começar meu diagnóstico' : 'Comenzar mi diagnóstico'}
+          ♠ ${isEN ? 'Buy my subscription' : isPT ? 'Comprar minha assinatura' : 'Comprar mi suscripción'}
         </button>
         <button class="btn btn-secondary btn-lg" onclick="App.go('login')">
           ${isEN ? 'I already have an account' : isPT ? 'Já tenho conta' : 'Ya tengo cuenta'}
@@ -385,7 +385,7 @@ function renderLanding() {
         <!-- CTA final -->
         <div style="text-align:center;margin-top:32px">
           <button class="btn btn-primary btn-lg" onclick="App.go('register')">
-            ♠ ${isEN ? 'I want my diagnosis' : isPT ? 'Quero meu diagnóstico' : 'Quiero mi diagnóstico'}
+            ♠ ${isEN ? 'Buy my subscription' : isPT ? 'Comprar minha assinatura' : 'Comprar mi suscripción'}
           </button>
           <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:10px">
             <span style="font-size:0.8rem;color:var(--accent);font-weight:700">📆 ${isEN ? 'Annual $9.90 USD' : isPT ? 'Anual $9.90 USD' : 'Anual $9.90 USD'}</span>

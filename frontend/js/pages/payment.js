@@ -112,7 +112,7 @@ async function renderPayment() {
         <!-- Cupón -->
         <div style="margin-bottom:16px;text-align:center">
           <button onclick="toggleCouponSection()"
-            style="background:none;border:none;color:var(--accent);cursor:pointer;font-size:0.9rem;padding:4px 0;text-decoration:underline;text-underline-offset:3px">
+            style="background:none;border:none;color:var(--accent);cursor:pointer;font-size:1.15rem;font-weight:700;padding:4px 0;text-decoration:underline;text-underline-offset:3px">
             🎟️ ${isEN ? 'I have a Coupon' : isPT ? 'Tenho Cupom' : 'Tengo Cupón'}
           </button>
         </div>
