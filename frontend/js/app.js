@@ -104,7 +104,7 @@ function renderNavbar() {
         <div style="display:flex;flex-direction:column;justify-content:center;gap:3px">
           <div style="font-weight:800;font-size:1.4rem;letter-spacing:2px;background:linear-gradient(135deg,#d4af37,#f0c040);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">MindEV</div>
           <div style="font-size:0.78rem;color:#4DB6AC;font-weight:600">${isEN ? 'Your EV+ starts in your mind.' : isPT ? 'Seu EV+ começa na sua mente.' : 'Tu EV+ empieza en tu mente.'}</div>
-          <div style="font-size:0.65rem;color:#d4af37;letter-spacing:0.08em;text-transform:uppercase">${isEN ? 'MENTAL · TECHNICAL · AI' : isPT ? 'MENTAL · TÉCNICO · IA' : 'DIAGNÓSTICO MENTAL · TÉCNICO · IA'}</div>
+          <div style="font-size:0.65rem;color:#d4af37;letter-spacing:0.08em;text-transform:uppercase">${isEN ? 'TOOLS TO LEARN FAST AND EASY' : isPT ? 'FERRAMENTAS PARA APRENDER RÁPIDO E FÁCIL' : 'HERRAMIENTAS PARA APRENDER RÁPIDO Y FÁCIL'}</div>
         </div>
       </div>
       ${rightSide}
