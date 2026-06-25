@@ -708,6 +708,79 @@ def trial_activate():
     return jsonify({'ok': True, 'message': 'Trial activado', 'days': 14})
 
 
+@app.route('/api/payment/create-trial', methods=['POST'])
+@require_auth
+def create_trial():
+    """Crea un checkout de Stripe por $0.99 para el tier prueba."""
+    db = get_db()
+    user = db.execute("SELECT trial_activated_at FROM users WHERE id=?", (g.user_id,)).fetchone()
+    if user and user['trial_activated_at']:
+        return jsonify({'error': 'trial_used', 'message': 'Ya usaste tu prueba. Solo se permite una por cuenta.'}), 409
+
+    try:
+        import stripe
+        stripe.api_key = os.environ.get('STRIPE_SECRET_KEY') or STRIPE_SECRET_KEY
+        if not stripe.api_key:
+            return jsonify({'error': 'Stripe no configurado'}), 503
+
+        session = stripe.checkout.Session.create(
+            payment_method_types=['card'],
+            line_items=[{
+                'price_data': {
+                    'currency': 'usd',
+                    'unit_amount': 99,  # $0.99 en centavos
+                    'product_data': {
+                        'name': 'MindEV — Prueba 2 semanas',
+                        'description': '1 test mental + 1 test técnico + 1 perfil IA + 3 torneos analizados',
+                    },
+                },
+                'quantity': 1,
+            }],
+            mode='payment',
+            success_url=f"{BASE_URL}/?stripe_result=trial_success&session_id={{CHECKOUT_SESSION_ID}}",
+            cancel_url=f"{BASE_URL}/?stripe_result=cancel",
+            metadata={'user_id': str(g.user_id), 'plan': 'trial'},
+        )
+        return jsonify({'mode': 'stripe', 'checkout_url': session.url})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/payment/stripe-trial-verify', methods=['POST'])
+@require_auth
+def stripe_trial_verify():
+    """Verifica sesión de Stripe para el trial y activa los 14 días."""
+    data       = request.json or {}
+    session_id = data.get('session_id', '')
+    if not session_id:
+        return jsonify({'ok': False, 'error': 'Missing session_id'}), 400
+
+    db = get_db()
+    user = db.execute("SELECT trial_activated_at FROM users WHERE id=?", (g.user_id,)).fetchone()
+    if user and user['trial_activated_at']:
+        return jsonify({'ok': True, 'already_active': True, 'days': 14})
+
+    try:
+        import stripe
+        stripe.api_key = os.environ.get('STRIPE_SECRET_KEY') or STRIPE_SECRET_KEY
+        cs = stripe.checkout.Session.retrieve(session_id)
+        if cs.payment_status != 'paid':
+            return jsonify({'ok': False, 'status': cs.payment_status})
+
+        db.execute(
+            "INSERT INTO payments (user_id, amount, currency, method, status, external_id) VALUES (?,?,?,?,?,?)",
+            (g.user_id, TRIAL_PRICE_USD, 'USD', 'stripe', 'approved', session_id)
+        )
+        db.execute(
+            "UPDATE users SET trial_activated_at=? WHERE id=?",
+            (datetime.datetime.utcnow().isoformat(), g.user_id)
+        )
+        db.commit()
+        return jsonify({'ok': True, 'days': 14})
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
+
 # ─── Payment routes ───────────────────────────────────────────────────────────
 
 @app.route('/api/payment/mp-config', methods=['GET'])

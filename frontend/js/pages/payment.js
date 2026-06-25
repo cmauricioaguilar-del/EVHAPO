@@ -1,5 +1,5 @@
 let _selectedMethod = 'mercadopago';
-let _selectedPlan   = 'unique';   // 'unique' | 'subscription'
+let _selectedPlan   = 'trial';   // 'trial' | 'subscription' | 'semi' | 'annual'
 let _pixPollingActive = false;    // flag para detener polling si el usuario navega
 
 // ─── Renderizado ──────────────────────────────────────────────────────────────
@@ -43,70 +43,77 @@ async function renderPayment() {
           <p class="auth-sub">${isEN ? `Hi ${user.nombre}. One last step.` : isPT ? `Olá ${user.nombre}. Um último passo.` : `Hola ${user.nombre}. Un último paso.`}</p>
         </div>
 
-        <!-- ── Banner Promoción de Lanzamiento ───────────────────────── -->
-        <div style="
-          background:linear-gradient(135deg,rgba(212,175,55,0.15),rgba(77,182,172,0.10));
-          border:1px solid rgba(212,175,55,0.5);
-          border-radius:12px;padding:12px 18px;margin-bottom:20px;
-          display:flex;align-items:center;gap:12px;position:relative;overflow:hidden">
-          <div style="position:absolute;top:0;left:0;right:0;bottom:0;
-            background:repeating-linear-gradient(45deg,transparent,transparent 8px,rgba(212,175,55,0.03) 8px,rgba(212,175,55,0.03) 16px);
-            pointer-events:none"></div>
-          <div style="font-size:1.6rem;flex-shrink:0">🚀</div>
-          <div>
-            <div style="font-size:0.78rem;font-weight:800;color:#d4af37;text-transform:uppercase;letter-spacing:0.08em">
-              ${isEN ? '🎉 Launch Promotion' : isPT ? '🎉 Promoção de Lançamento' : '🎉 Promoción de Lanzamiento'}
-            </div>
-            <div style="font-size:0.78rem;color:var(--text2);margin-top:2px">
-              ${isEN ? 'Special introductory price — limited time only.'
-                : isPT ? 'Preço especial de lançamento — por tempo limitado.'
-                : 'Precio especial de introducción — por tiempo limitado.'}
-            </div>
-          </div>
-          <div style="margin-left:auto;flex-shrink:0;text-align:center">
-            <div style="font-size:0.6rem;color:#d4af37;text-transform:uppercase;letter-spacing:0.05em;font-weight:700">desde</div>
-            <div style="font-size:1.3rem;font-weight:800;color:#d4af37;line-height:1">$4.90</div>
-            <div style="font-size:0.6rem;color:var(--text3)">USD / mes</div>
-          </div>
-        </div>
+        <!-- ── Selector de 4 planes ───────────────────────────────────── -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
 
-        <!-- ── Selector de plan ────────────────────────────────────────── -->
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:24px">
-
-          <!-- Plan Único -->
-          <div id="plan-unique" onclick="selectPlan('unique')" style="
-            border:2px solid var(--accent);border-radius:12px;padding:16px 14px;cursor:pointer;
-            background:rgba(212,175,55,0.08);transition:all 0.15s;position:relative">
-            <div style="font-size:0.72rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px">
-              ${isEN ? 'Annual Plan' : isPT ? 'Plano Anual' : 'Plan Anual'}
+          <!-- Trial $0.99 -->
+          <div id="plan-trial" onclick="selectPlan('trial')" style="
+            border:2px solid #22c55e;border-radius:12px;padding:14px 12px;cursor:pointer;
+            background:rgba(34,197,94,0.08);transition:all 0.15s;position:relative">
+            <div style="position:absolute;top:-10px;left:50%;transform:translateX(-50%);
+              background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff;font-size:0.6rem;
+              font-weight:800;padding:2px 10px;border-radius:20px;white-space:nowrap;text-transform:uppercase">
+              🔓 ${isEN ? 'Try first' : isPT ? 'Experimente' : 'Prueba primero'}
             </div>
-            <div style="font-size:1.5rem;font-weight:900;color:var(--accent);line-height:1">${prices.unique}</div>
-            <div style="font-size:0.75rem;color:var(--text3);margin-top:4px">${isEN ? '12 months access' : isPT ? '12 meses de acesso' : '12 meses de acceso'}</div>
-            <div id="plan-unique-check" style="position:absolute;top:10px;right:10px;width:18px;height:18px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:0.65rem;color:#000;font-weight:800">✓</div>
+            <div style="font-size:0.68rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;margin-top:4px">
+              ${isEN ? 'Trial · 2 weeks' : isPT ? 'Teste · 2 semanas' : 'Prueba · 2 semanas'}
+            </div>
+            <div style="font-size:1.5rem;font-weight:900;color:#22c55e;line-height:1">$0.99</div>
+            <div style="font-size:0.68rem;color:var(--text3);margin-top:2px">USD · ${isEN ? 'one time' : isPT ? 'uma vez' : 'única vez'}</div>
+            <div id="plan-trial-check" style="position:absolute;top:10px;right:10px;width:18px;height:18px;border-radius:50%;background:#22c55e;display:flex;align-items:center;justify-content:center;font-size:0.65rem;color:#fff;font-weight:800">✓</div>
           </div>
 
-          <!-- Plan Mensual -->
+          <!-- Mensual $4.90 -->
           <div id="plan-subscription" onclick="selectPlan('subscription')" style="
-            border:2px solid var(--border);border-radius:12px;padding:16px 14px;cursor:pointer;
+            border:2px solid var(--border);border-radius:12px;padding:14px 12px;cursor:pointer;
+            background:var(--card);transition:all 0.15s;position:relative">
+            <div style="font-size:0.68rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px">
+              ${isEN ? 'Monthly' : isPT ? 'Mensal' : 'Mensual'}
+            </div>
+            <div style="font-size:1.5rem;font-weight:900;color:#818cf8;line-height:1">$4.90</div>
+            <div style="font-size:0.68rem;color:var(--text3);margin-top:2px">USD/${isEN ? 'mo' : isPT ? 'mês' : 'mes'}</div>
+            <div id="plan-subscription-check" style="position:absolute;top:10px;right:10px;width:18px;height:18px;border-radius:50%;background:var(--border);display:flex;align-items:center;justify-content:center;font-size:0.65rem;color:var(--text3);font-weight:800;opacity:0.3">✓</div>
+          </div>
+
+          <!-- Semestral $19.90 -->
+          <div id="plan-semi" onclick="selectPlan('semi')" style="
+            border:2px solid var(--border);border-radius:12px;padding:14px 12px;cursor:pointer;
             background:var(--card);transition:all 0.15s;position:relative">
             <div style="position:absolute;top:-10px;left:50%;transform:translateX(-50%);
-              background:linear-gradient(135deg,#818cf8,#6366f1);color:#fff;font-size:0.65rem;
-              font-weight:800;padding:2px 10px;border-radius:20px;white-space:nowrap;text-transform:uppercase;letter-spacing:0.05em">
-              ${isEN ? '🔥 Most popular' : isPT ? '🔥 Mais popular' : '🔥 Más popular'}
+              background:linear-gradient(135deg,#4DB6AC,#00897B);color:#fff;font-size:0.6rem;
+              font-weight:800;padding:2px 10px;border-radius:20px;white-space:nowrap;text-transform:uppercase">
+              💰 ${isEN ? 'Save 32%' : isPT ? '-32%' : '-32%'}
             </div>
-            <div style="font-size:0.72rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px">
-              ${isEN ? 'Monthly Subscription' : isPT ? 'Assinatura Mensal' : 'Suscripción Mensual'}
+            <div style="font-size:0.68rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;margin-top:4px">
+              ${isEN ? '6 months' : isPT ? '6 meses' : '6 meses'}
             </div>
-            <div style="font-size:1.5rem;font-weight:900;color:#818cf8;line-height:1">${prices.sub}</div>
-            <div style="font-size:0.75rem;color:var(--text3);margin-top:4px">${isEN ? 'per month · cancel anytime' : isPT ? 'por mês · cancela quando quiser' : 'al mes · cancela cuando quieras'}</div>
-            <div id="plan-subscription-check" style="position:absolute;top:10px;right:10px;width:18px;height:18px;border-radius:50%;background:var(--border);display:flex;align-items:center;justify-content:center;font-size:0.65rem;color:var(--text3);font-weight:800;opacity:0.4">✓</div>
+            <div style="font-size:1.5rem;font-weight:900;color:#4DB6AC;line-height:1">$19.90</div>
+            <div style="font-size:0.68rem;color:var(--text3);margin-top:2px">USD · ~$3.32/${isEN ? 'mo' : isPT ? 'mês' : 'mes'}</div>
+            <div id="plan-semi-check" style="position:absolute;top:10px;right:10px;width:18px;height:18px;border-radius:50%;background:var(--border);display:flex;align-items:center;justify-content:center;font-size:0.65rem;color:var(--text3);font-weight:800;opacity:0.3">✓</div>
+          </div>
+
+          <!-- Anual $29.90 -->
+          <div id="plan-annual" onclick="selectPlan('annual')" style="
+            border:2px solid var(--border);border-radius:12px;padding:14px 12px;cursor:pointer;
+            background:var(--card);transition:all 0.15s;position:relative">
+            <div style="position:absolute;top:-10px;left:50%;transform:translateX(-50%);
+              background:linear-gradient(135deg,#d4af37,#b8860b);color:#000;font-size:0.6rem;
+              font-weight:800;padding:2px 10px;border-radius:20px;white-space:nowrap;text-transform:uppercase">
+              🏆 ${isEN ? 'Best value' : isPT ? 'Melhor custo' : 'Mejor valor'}
+            </div>
+            <div style="font-size:0.68rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;margin-top:4px">
+              ${isEN ? 'Annual' : isPT ? 'Anual' : 'Anual'}
+            </div>
+            <div style="font-size:1.5rem;font-weight:900;color:var(--accent);line-height:1">$29.90</div>
+            <div style="font-size:0.68rem;color:var(--text3);margin-top:2px">USD · ~$2.49/${isEN ? 'mo' : isPT ? 'mês' : 'mes'}</div>
+            <div id="plan-annual-check" style="position:absolute;top:10px;right:10px;width:18px;height:18px;border-radius:50%;background:var(--border);display:flex;align-items:center;justify-content:center;font-size:0.65rem;color:var(--text3);font-weight:800;opacity:0.3">✓</div>
           </div>
 
         </div>
 
-        <!-- Comparación de planes -->
+        <!-- Detalle del plan seleccionado -->
         <div id="plan-features" style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-bottom:20px;font-size:0.82rem;color:var(--text2)">
-          ${_renderPlanFeatures('unique', isPT, isEN)}
+          ${_renderPlanFeatures('trial', isPT, isEN)}
         </div>
 
         <!-- Cupón -->
@@ -136,7 +143,8 @@ async function renderPayment() {
 
         <div id="pay-error"></div>
 
-        <!-- Métodos de pago -->
+        <!-- Métodos de pago (oculto en plan trial — usa solo Stripe) -->
+        <div id="payment-methods-section">
         <h3 style="font-size:0.9rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px">
           ${isEN ? 'Payment method' : isPT ? 'Método de pagamento' : 'Método de pago'}
         </h3>
@@ -221,8 +229,19 @@ async function renderPayment() {
             : '💳 Serás redirigido al checkout seguro internacional. Acepta tarjetas de cualquier país.'}
         </div>
 
+        </div><!-- /payment-methods-section -->
+
+        <!-- Nota para plan trial -->
+        <div id="trial-note" style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.3);border-radius:10px;padding:12px 16px;margin-bottom:16px;font-size:0.82rem;color:var(--text2)">
+          🔒 ${isEN
+            ? 'Trial payment processed securely via Stripe. One-time use per account.'
+            : isPT
+            ? 'Pagamento do teste processado com segurança via Stripe. Uso único por conta.'
+            : 'Pago de prueba procesado de forma segura via Stripe. Uso único por cuenta.'}
+        </div>
+
         <button class="btn btn-primary btn-block btn-lg" id="pay-btn" onclick="doPayment()">
-          ♠ ${isEN ? 'Pay and start' : isPT ? 'Pagar e começar' : 'Pagar y comenzar'}
+          ♠ ${isEN ? 'Try for $0.99 →' : isPT ? 'Testar por $0.99 →' : 'Probar por $0.99 →'}
         </button>
 
         <p style="text-align:center;margin-top:16px;font-size:0.8rem;color:var(--text3)">
@@ -230,55 +249,103 @@ async function renderPayment() {
         </p>
       </div>
     </div>`;
+
+  // Inicializar estado visual: trial seleccionado por defecto
+  document.getElementById('payment-methods-section').style.display = 'none';
+  document.getElementById('trial-note').style.display = 'block';
+
+  if (typeof _pwaUpdateInstallBtn === 'function') _pwaUpdateInstallBtn();
 }
 
 function _renderPlanFeatures(plan, isPT, isEN) {
-  if (plan === 'unique') {
+  if (plan === 'trial') {
     return isEN
-      ? `<strong style="color:var(--text1)">Annual plan — 12 months access</strong><br>
-         ✓ Unlimited Mental + Technical tests &nbsp;·&nbsp; ✓ AI Profile &nbsp;·&nbsp; ✓ Study Plan &nbsp;·&nbsp; ✓ Hand Analysis &nbsp;·&nbsp; ✓ Tracker + Bankroll`
+      ? `<strong style="color:#22c55e">Trial · 2 weeks · one-time use</strong><br>
+         ✓ 1 mental test &nbsp;·&nbsp; ✓ 1 technical test &nbsp;·&nbsp; ✓ 1 AI profile &nbsp;·&nbsp; ✓ 3 tournaments analyzed<br>
+         <span style="color:var(--text3)">✗ Study plan (available in paid plans)</span>`
       : isPT
-      ? `<strong style="color:var(--text1)">Plano anual — 12 meses de acesso</strong><br>
-         ✓ Testes Mental + Técnico ilimitados &nbsp;·&nbsp; ✓ Perfil IA &nbsp;·&nbsp; ✓ Plano de Estudo &nbsp;·&nbsp; ✓ Análise de Mãos &nbsp;·&nbsp; ✓ Tracker + Bankroll`
-      : `<strong style="color:var(--text1)">Plan anual — 12 meses de acceso</strong><br>
-         ✓ Tests Mental + Técnico ilimitados &nbsp;·&nbsp; ✓ Perfil IA &nbsp;·&nbsp; ✓ Plan de Estudio &nbsp;·&nbsp; ✓ Análisis de Manos &nbsp;·&nbsp; ✓ Tracker + Bankroll`;
+      ? `<strong style="color:#22c55e">Teste · 2 semanas · uso único</strong><br>
+         ✓ 1 teste mental &nbsp;·&nbsp; ✓ 1 teste técnico &nbsp;·&nbsp; ✓ 1 perfil IA &nbsp;·&nbsp; ✓ 3 torneios analisados<br>
+         <span style="color:var(--text3)">✗ Plano de estudo (disponível nos planos pagos)</span>`
+      : `<strong style="color:#22c55e">Prueba · 2 semanas · uso único por cuenta</strong><br>
+         ✓ 1 test mental &nbsp;·&nbsp; ✓ 1 test técnico &nbsp;·&nbsp; ✓ 1 perfil IA &nbsp;·&nbsp; ✓ 3 torneos analizados<br>
+         <span style="color:var(--text3)">✗ Plan de estudio (disponible en planes pagos)</span>`;
   }
+  if (plan === 'subscription') {
+    return isEN
+      ? `<strong style="color:#818cf8">Monthly — everything included, cancel anytime</strong><br>
+         ✓ Unlimited tests &nbsp;·&nbsp; ✓ AI profile &nbsp;·&nbsp; ✓ Study plan &nbsp;·&nbsp; ✓ Unlimited tournaments &nbsp;·&nbsp; ✓ Tracker + Bankroll`
+      : isPT
+      ? `<strong style="color:#818cf8">Mensal — tudo incluído, cancele quando quiser</strong><br>
+         ✓ Testes ilimitados &nbsp;·&nbsp; ✓ Perfil IA &nbsp;·&nbsp; ✓ Plano de estudo &nbsp;·&nbsp; ✓ Torneios ilimitados &nbsp;·&nbsp; ✓ Tracker + Bankroll`
+      : `<strong style="color:#818cf8">Mensual — todo incluido, cancela cuando quieras</strong><br>
+         ✓ Tests ilimitados &nbsp;·&nbsp; ✓ Perfil IA &nbsp;·&nbsp; ✓ Plan de estudio &nbsp;·&nbsp; ✓ Torneos ilimitados &nbsp;·&nbsp; ✓ Tracker + Bankroll`;
+  }
+  if (plan === 'semi') {
+    return isEN
+      ? `<strong style="color:#4DB6AC">6 months — save 32% vs monthly</strong><br>
+         ✓ Everything in Monthly &nbsp;·&nbsp; ✓ 6 months access &nbsp;·&nbsp; ✓ PDF report &nbsp;·&nbsp; ✓ Priority support`
+      : isPT
+      ? `<strong style="color:#4DB6AC">6 meses — economize 32% vs mensal</strong><br>
+         ✓ Tudo do Mensal &nbsp;·&nbsp; ✓ 6 meses de acesso &nbsp;·&nbsp; ✓ Relatório PDF &nbsp;·&nbsp; ✓ Suporte prioritário`
+      : `<strong style="color:#4DB6AC">6 meses — ahorra 32% vs mensual</strong><br>
+         ✓ Todo lo del Mensual &nbsp;·&nbsp; ✓ 6 meses de acceso &nbsp;·&nbsp; ✓ Informe PDF &nbsp;·&nbsp; ✓ Soporte prioritario`;
+  }
+  // annual
   return isEN
-    ? `<strong style="color:#818cf8">Subscription — everything included, cancel anytime</strong><br>
-       ✓ Everything in the one-time plan &nbsp;·&nbsp; ✓ Access while active &nbsp;·&nbsp; ✓ Automatic monthly billing &nbsp;·&nbsp; <span style="color:#fbbf24">★ Half the price</span>`
+    ? `<strong style="color:var(--accent)">Annual — best value, save 49%</strong><br>
+       ✓ Everything in Monthly &nbsp;·&nbsp; ✓ 12 months access &nbsp;·&nbsp; ✓ PDF report &nbsp;·&nbsp; ✓ Priority support &nbsp;·&nbsp; ✓ Locked price forever`
     : isPT
-    ? `<strong style="color:#818cf8">Assinatura — tudo incluído, cancele quando quiser</strong><br>
-       ✓ Tudo do plano único &nbsp;·&nbsp; ✓ Acesso enquanto ativo &nbsp;·&nbsp; ✓ Cobrança automática mensal &nbsp;·&nbsp; <span style="color:#fbbf24">★ Metade do preço</span>`
-    : `<strong style="color:#818cf8">Suscripción — todo incluido, cancela cuando quieras</strong><br>
-       ✓ Todo lo del plan único &nbsp;·&nbsp; ✓ Acceso mientras activo &nbsp;·&nbsp; ✓ Cobro automático mensual &nbsp;·&nbsp; <span style="color:#fbbf24">★ La mitad del precio</span>`;
+    ? `<strong style="color:var(--accent)">Anual — melhor custo, economize 49%</strong><br>
+       ✓ Tudo do Mensal &nbsp;·&nbsp; ✓ 12 meses de acesso &nbsp;·&nbsp; ✓ Relatório PDF &nbsp;·&nbsp; ✓ Suporte prioritário &nbsp;·&nbsp; ✓ Preço fixo para sempre`
+    : `<strong style="color:var(--accent)">Anual — mejor valor, ahorra 49%</strong><br>
+       ✓ Todo lo del Mensual &nbsp;·&nbsp; ✓ 12 meses de acceso &nbsp;·&nbsp; ✓ Informe PDF &nbsp;·&nbsp; ✓ Soporte prioritario &nbsp;·&nbsp; ✓ Precio fijo para siempre`;
 }
 
 function selectPlan(plan) {
   _selectedPlan = plan;
-  const isUnique = plan === 'unique';
 
-  const cardU  = document.getElementById('plan-unique');
-  const checkU = document.getElementById('plan-unique-check');
-  if (cardU) {
-    cardU.style.borderColor = isUnique ? 'var(--accent)' : 'var(--border)';
-    cardU.style.background  = isUnique ? 'rgba(212,175,55,0.08)' : 'var(--card)';
-  }
-  if (checkU) checkU.style.opacity = isUnique ? '1' : '0.3';
+  const configs = {
+    trial:        { color: '#22c55e', bg: 'rgba(34,197,94,0.08)',     checkColor: '#22c55e',    checkText: '#fff' },
+    subscription: { color: '#818cf8', bg: 'rgba(129,140,248,0.08)',   checkColor: '#818cf8',    checkText: '#fff' },
+    semi:         { color: '#4DB6AC', bg: 'rgba(77,182,172,0.08)',    checkColor: '#4DB6AC',    checkText: '#fff' },
+    annual:       { color: 'var(--accent)', bg: 'rgba(212,175,55,0.08)', checkColor: 'var(--accent)', checkText: '#000' },
+  };
 
-  const cardS  = document.getElementById('plan-subscription');
-  const checkS = document.getElementById('plan-subscription-check');
-  if (cardS) {
-    cardS.style.borderColor = !isUnique ? '#818cf8' : 'var(--border)';
-    cardS.style.background  = !isUnique ? 'rgba(129,140,248,0.08)' : 'var(--card)';
-  }
-  if (checkS) {
-    checkS.style.background = !isUnique ? '#818cf8' : 'var(--border)';
-    checkS.style.opacity    = !isUnique ? '1' : '0.4';
-    checkS.style.color      = !isUnique ? '#000' : 'var(--text3)';
-  }
+  ['trial', 'subscription', 'semi', 'annual'].forEach(p => {
+    const card  = document.getElementById(`plan-${p}`);
+    const check = document.getElementById(`plan-${p}-check`);
+    const cfg   = configs[p];
+    const active = p === plan;
+    if (card) {
+      card.style.borderColor = active ? cfg.color : 'var(--border)';
+      card.style.background  = active ? cfg.bg    : 'var(--card)';
+    }
+    if (check) {
+      check.style.background = active ? cfg.checkColor : 'var(--border)';
+      check.style.color      = active ? cfg.checkText  : 'var(--text3)';
+      check.style.opacity    = active ? '1' : '0.3';
+    }
+  });
 
   const featEl = document.getElementById('plan-features');
   if (featEl) featEl.innerHTML = _renderPlanFeatures(plan, I18N.isPT(), I18N.isEN());
+
+  // El trial usa solo Stripe — ocultar selector de métodos
+  const methodsEl = document.getElementById('payment-methods-section');
+  const trialNote = document.getElementById('trial-note');
+  if (methodsEl) methodsEl.style.display = plan === 'trial' ? 'none' : 'block';
+  if (trialNote) trialNote.style.display  = plan === 'trial' ? 'block' : 'none';
+
+  const btnEl = document.getElementById('pay-btn');
+  const isPT = I18N.isPT(), isEN = I18N.isEN();
+  if (btnEl) {
+    if (plan === 'trial') {
+      btnEl.textContent = isEN ? '♠ Try for $0.99 →' : isPT ? '♠ Testar por $0.99 →' : '♠ Probar por $0.99 →';
+    } else {
+      btnEl.textContent = isEN ? '♠ Pay and start' : isPT ? '♠ Pagar e começar' : '♠ Pagar y comenzar';
+    }
+  }
 }
 
 function selectMethod(method) {
@@ -342,16 +409,40 @@ async function doPayment() {
   btn.textContent = isEN ? 'Processing...' : isPT ? 'Processando...' : 'Procesando...';
 
   try {
-    const endpoint = _selectedPlan === 'subscription'
+    // ── Plan trial $0.99 — siempre Stripe ──────────────────────────────────
+    if (_selectedPlan === 'trial') {
+      const result = await Api.post('/api/payment/create-trial', {});
+      if (result.error === 'trial_used') {
+        errEl.innerHTML = `<div class="form-error">${
+          isEN ? 'You have already used your trial. Choose a paid plan.' :
+          isPT ? 'Você já usou seu teste. Escolha um plano pago.' :
+                 'Ya usaste tu prueba. Elige un plan pago.'
+        }</div>`;
+        btn.disabled    = false;
+        btn.textContent = `♠ ${isEN ? 'Try for $0.99 →' : isPT ? 'Testar por $0.99 →' : 'Probar por $0.99 →'}`;
+        return;
+      }
+      if (result.checkout_url) {
+        window.location.href = result.checkout_url;
+        return;
+      }
+      throw new Error(result.error || 'Error al crear checkout');
+    }
+
+    // ── Planes de suscripción ───────────────────────────────────────────────
+    const endpoint = (_selectedPlan === 'subscription' || _selectedPlan === 'semi' || _selectedPlan === 'annual')
       ? '/api/payment/create-subscription'
       : '/api/payment/create';
 
-    const result = await Api.post(endpoint, { method: _selectedMethod, pais });
+    const result = await Api.post(endpoint, {
+      method: _selectedMethod,
+      pais,
+      plan: _selectedPlan,  // backend puede usar esto para el monto correcto
+    });
 
     if (result.mode === 'demo') { App.go('dashboard'); return; }
 
     if (result.checkout_url || result.init_point) {
-      // Para PIX: guardar payment_id antes de salir, para polling al volver
       if (_selectedMethod === 'mercadopago_pix' && result.payment_id) {
         localStorage.setItem('evhapo_pending_pix', JSON.stringify({
           payment_id: result.payment_id,
@@ -366,7 +457,9 @@ async function doPayment() {
   } catch (e) {
     errEl.innerHTML = `<div class="form-error">${e.message}</div>`;
     btn.disabled    = false;
-    btn.textContent = `♠ ${isEN ? 'Pay and start' : isPT ? 'Pagar e começar' : 'Pagar y comenzar'}`;
+    btn.textContent = _selectedPlan === 'trial'
+      ? `♠ ${isEN ? 'Try for $0.99 →' : isPT ? 'Testar por $0.99 →' : 'Probar por $0.99 →'}`
+      : `♠ ${isEN ? 'Pay and start' : isPT ? 'Pagar e começar' : 'Pagar y comenzar'}`;
   }
 }
 

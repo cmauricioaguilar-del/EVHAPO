@@ -301,7 +301,13 @@ window.addEventListener('load', async () => {
     history.replaceState(null, '', '/');
     if (!Api.isLoggedIn()) { App.go('landing'); return; }
 
-    if (stripeResult === 'sub_success') {
+    if (stripeResult === 'trial_success') {
+      // Tier prueba $0.99
+      try {
+        const res = await Api.post('/api/payment/stripe-trial-verify', { session_id: stripeSession });
+        App.go(res.ok ? 'dashboard' : 'payment');
+      } catch { App.go('payment'); }
+    } else if (stripeResult === 'sub_success') {
       // Suscripción mensual Stripe
       try {
         const res = await Api.post('/api/payment/stripe-subscription-verify', { session_id: stripeSession });
