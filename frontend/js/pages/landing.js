@@ -140,68 +140,104 @@ function renderLanding() {
       </div>
 
       <div class="price-banner">
-        <!-- ── Dos planes ── -->
-        <!-- Banner Promoción de Lanzamiento -->
-        <div style="background:linear-gradient(135deg,rgba(212,175,55,0.18),rgba(77,182,172,0.12));border:1px solid rgba(212,175,55,0.6);border-radius:12px;padding:14px 18px;margin-bottom:14px;display:flex;align-items:center;gap:12px;position:relative;overflow:hidden">
-          <div style="position:absolute;inset:0;background:repeating-linear-gradient(45deg,transparent,transparent 8px,rgba(212,175,55,0.04) 8px,rgba(212,175,55,0.04) 16px);pointer-events:none"></div>
-          <div style="font-size:1.8rem;flex-shrink:0">🚀</div>
-          <div style="flex:1">
-            <div style="font-size:0.88rem;font-weight:800;color:#d4af37;text-transform:uppercase;letter-spacing:0.08em">
-              ${isEN ? '🎉 Launch Promotion' : isPT ? '🎉 Promoção de Lançamento' : '🎉 Promoción de Lanzamiento'}
-            </div>
-            <div style="font-size:0.82rem;color:var(--text1);margin-top:3px;font-weight:500">
-              ${isEN ? 'Special introductory price — limited time only.' : isPT ? 'Preço especial de lançamento — por tempo limitado.' : 'Precio especial de introducción — por tiempo limitado.'}
-            </div>
-            <div style="font-size:0.78rem;color:#4DB6AC;margin-top:4px;font-weight:600">
-              ${isEN ? '⚡ Lock in this price before it increases — subscribe now.' : isPT ? '⚡ Garanta este preço antes que suba — assine agora.' : '⚡ Asegura este precio antes de que suba — suscríbete ahora.'}
-            </div>
-          </div>
-          <div style="flex-shrink:0;text-align:center;padding-left:8px;border-left:1px solid rgba(212,175,55,0.3)">
-            <div style="font-size:0.62rem;color:#d4af37;text-transform:uppercase;font-weight:700">desde</div>
-            <div style="font-size:1.5rem;font-weight:900;color:#d4af37;line-height:1">$4.90</div>
-            <div style="font-size:0.62rem;color:var(--text3)">USD/mes</div>
-          </div>
+
+        <!-- Título sección precios -->
+        <div style="text-align:center;margin-bottom:24px">
+          <h2 style="font-size:1.3rem;font-weight:800;margin:0 0 6px">
+            ${isEN ? 'Choose your plan' : isPT ? 'Escolha seu plano' : 'Elige tu plan'}
+          </h2>
+          <p style="color:var(--text3);font-size:0.85rem;margin:0">
+            ${isEN ? 'Start for $0.99 — no commitment' : isPT ? 'Comece por $0.99 — sem compromisso' : 'Empieza por $0.99 — sin compromiso'}
+          </p>
         </div>
 
-        <div style="margin-bottom:6px;font-size:0.75rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;text-align:center">
-          ${isEN ? 'Choose your plan' : isPT ? 'Escolha seu plano' : 'Elige tu plan'}
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-bottom:20px">
 
-          <!-- Plan Anual -->
-          <div style="border:2px solid var(--accent);border-radius:14px;padding:18px 14px;background:rgba(212,175,55,0.07);text-align:center;cursor:pointer" onclick="App.go('register')">
-            <div style="font-size:0.7rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px">
-              ${isEN ? 'Annual Plan' : isPT ? 'Plano Anual' : 'Plan Anual'}
+          <!-- Tier 1: Prueba $0.99 -->
+          <div style="border:2px solid #22c55e;border-radius:16px;padding:20px 16px;background:rgba(34,197,94,0.06);text-align:center;position:relative;cursor:pointer" onclick="App.go('register')">
+            <div style="position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff;font-size:0.65rem;font-weight:800;padding:3px 14px;border-radius:20px;white-space:nowrap;text-transform:uppercase;letter-spacing:0.05em">
+              🔓 ${isEN ? 'Try first' : isPT ? 'Experimente' : 'Prueba primero'}
             </div>
-            <div style="font-size:1.9rem;font-weight:900;color:var(--accent);line-height:1">$9.90</div>
-            <div style="font-size:0.7rem;color:var(--text3);margin-top:2px">USD</div>
-            <div style="margin-top:10px;font-size:0.78rem;color:var(--text2);line-height:1.5">
-              ✓ ${isEN ? '12 months access' : isPT ? '12 meses de acesso' : '12 meses de acceso'}<br>
-              ✓ ${isEN ? 'All features included' : isPT ? 'Todos os recursos' : 'Todas las funciones'}<br>
-              ✓ ${isEN ? 'PDF report' : isPT ? 'Relatório PDF' : 'Informe PDF'}
+            <div style="font-size:0.72rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;margin-top:4px">
+              ${isEN ? 'Trial · 2 weeks' : isPT ? 'Teste · 2 semanas' : 'Prueba · 2 semanas'}
             </div>
-            <button class="btn btn-primary" style="margin-top:14px;width:100%;padding:8px" onclick="App.go('register')">
-              ${isEN ? 'Get started →' : isPT ? 'Começar →' : 'Comenzar →'}
+            <div style="font-size:2.4rem;font-weight:900;color:#22c55e;line-height:1">$0.99</div>
+            <div style="font-size:0.72rem;color:var(--text3);margin-top:4px">USD · ${isEN ? 'one time' : isPT ? 'uma vez' : 'única vez'}</div>
+            <div style="margin-top:14px;font-size:0.8rem;color:var(--text2);line-height:1.7;text-align:left">
+              ✓ ${isEN ? '1 mental test' : isPT ? '1 teste mental' : '1 test mental'}<br>
+              ✓ ${isEN ? '1 technical test' : isPT ? '1 teste técnico' : '1 test técnico'}<br>
+              ✓ ${isEN ? '1 AI profile' : isPT ? '1 perfil IA' : '1 perfil IA'}<br>
+              ✓ ${isEN ? '3 tournaments analyzed' : isPT ? '3 torneios analisados' : '3 torneos analizados'}<br>
+              <span style="color:var(--text3)">✗ ${isEN ? 'Study plan (paid)' : isPT ? 'Plano de estudo (pago)' : 'Plan de estudio (pago)'}</span>
+            </div>
+            <button class="btn" style="margin-top:16px;width:100%;padding:10px;background:linear-gradient(135deg,#22c55e,#16a34a);border:none;color:#fff;border-radius:10px;font-weight:800;cursor:pointer;font-size:0.9rem" onclick="App.go('register')">
+              ${isEN ? 'Try for $0.99 →' : isPT ? 'Testar por $0.99 →' : 'Probar por $0.99 →'}
+            </button>
+            <div style="font-size:0.7rem;color:var(--text3);margin-top:8px">
+              ${isEN ? 'One-time use per user' : isPT ? 'Uso único por usuário' : 'Uso único por usuario'}
+            </div>
+          </div>
+
+          <!-- Tier 2: Mensual $4.90 -->
+          <div style="border:2px solid #818cf8;border-radius:16px;padding:20px 16px;background:rgba(129,140,248,0.06);text-align:center;position:relative;cursor:pointer" onclick="App.go('register')">
+            <div style="font-size:0.72rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px">
+              ${isEN ? 'Monthly · 30 days' : isPT ? 'Mensal · 30 dias' : 'Mensual · 30 días'}
+            </div>
+            <div style="font-size:2.4rem;font-weight:900;color:#818cf8;line-height:1">$4.90</div>
+            <div style="font-size:0.72rem;color:var(--text3);margin-top:4px">USD / ${isEN ? 'month' : isPT ? 'mês' : 'mes'}</div>
+            <div style="margin-top:14px;font-size:0.8rem;color:var(--text2);line-height:1.7;text-align:left">
+              ✓ ${isEN ? 'Unlimited tests' : isPT ? 'Testes ilimitados' : 'Tests ilimitados'}<br>
+              ✓ ${isEN ? 'AI profile' : isPT ? 'Perfil IA' : 'Perfil IA'}<br>
+              ✓ ${isEN ? 'Full study plan' : isPT ? 'Plano de estudo completo' : 'Plan de estudio completo'}<br>
+              ✓ ${isEN ? 'Unlimited tournaments' : isPT ? 'Torneios ilimitados' : 'Torneos ilimitados'}<br>
+              ✓ ${isEN ? 'Cancel anytime' : isPT ? 'Cancela quando quiser' : 'Cancela cuando quieras'}
+            </div>
+            <button style="margin-top:16px;width:100%;padding:10px;background:rgba(129,140,248,0.15);border:2px solid #818cf8;color:#818cf8;border-radius:10px;font-weight:800;cursor:pointer;font-size:0.9rem" onclick="App.go('register')">
+              ${isEN ? 'Subscribe →' : isPT ? 'Assinar →' : 'Suscribirme →'}
             </button>
           </div>
 
-          <!-- Plan 30 días -->
-          <div style="border:2px solid #818cf8;border-radius:14px;padding:18px 14px;background:rgba(129,140,248,0.07);text-align:center;position:relative;cursor:pointer" onclick="App.go('register')">
-            <div style="position:absolute;top:-11px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#818cf8,#6366f1);color:#fff;font-size:0.65rem;font-weight:800;padding:2px 12px;border-radius:20px;white-space:nowrap;text-transform:uppercase;letter-spacing:0.05em">
-              🔥 ${isEN ? 'Most popular' : isPT ? 'Mais popular' : 'Más popular'}
+          <!-- Tier 3: Semestral $19.90 -->
+          <div style="border:2px solid #4DB6AC;border-radius:16px;padding:20px 16px;background:rgba(77,182,172,0.06);text-align:center;position:relative;cursor:pointer" onclick="App.go('register')">
+            <div style="position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#4DB6AC,#00897B);color:#fff;font-size:0.65rem;font-weight:800;padding:3px 14px;border-radius:20px;white-space:nowrap;text-transform:uppercase;letter-spacing:0.05em">
+              💰 ${isEN ? 'Save 32%' : isPT ? 'Economize 32%' : 'Ahorra 32%'}
             </div>
-            <div style="font-size:0.7rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px">
-              ${isEN ? 'Monthly · 30 days' : isPT ? 'Mensal · 30 dias' : 'Mensual · 30 días'}
+            <div style="font-size:0.72rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;margin-top:4px">
+              ${isEN ? '6 months' : isPT ? '6 meses' : '6 meses'}
             </div>
-            <div style="font-size:1.9rem;font-weight:900;color:#818cf8;line-height:1">$4.90</div>
-            <div style="font-size:0.7rem;color:var(--text3);margin-top:2px">USD / ${isEN ? 'month' : isPT ? 'mês' : 'mes'}</div>
-            <div style="margin-top:10px;font-size:0.78rem;color:var(--text2);line-height:1.5">
-              ✓ ${isEN ? 'Full 30-day access' : isPT ? 'Acesso por 30 dias' : 'Acceso por 30 días'}<br>
-              ✓ ${isEN ? 'All features included' : isPT ? 'Todos os recursos' : 'Todas las funciones'}<br>
-              ✓ ${isEN ? 'Cancel anytime' : isPT ? 'Cancela quando quiser' : 'Cancela cuando quieras'}
+            <div style="font-size:2.4rem;font-weight:900;color:#4DB6AC;line-height:1">$19.90</div>
+            <div style="font-size:0.72rem;color:var(--text3);margin-top:4px">USD · ~$3.32/${isEN ? 'mo' : isPT ? 'mês' : 'mes'}</div>
+            <div style="margin-top:14px;font-size:0.8rem;color:var(--text2);line-height:1.7;text-align:left">
+              ✓ ${isEN ? 'Everything in Monthly' : isPT ? 'Tudo do Mensal' : 'Todo lo del Mensual'}<br>
+              ✓ ${isEN ? '6 months access' : isPT ? '6 meses de acesso' : '6 meses de acceso'}<br>
+              ✓ ${isEN ? 'PDF report' : isPT ? 'Relatório PDF' : 'Informe PDF'}<br>
+              ✓ ${isEN ? 'Priority support' : isPT ? 'Suporte prioritário' : 'Soporte prioritario'}<br>
+              &nbsp;
             </div>
-            <button style="margin-top:14px;width:100%;padding:8px;background:rgba(129,140,248,0.15);border:2px solid #818cf8;color:#818cf8;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.85rem" onclick="App.go('register')">
-              ${isEN ? 'Get started →' : isPT ? 'Começar →' : 'Comenzar →'}
+            <button style="margin-top:16px;width:100%;padding:10px;background:rgba(77,182,172,0.15);border:2px solid #4DB6AC;color:#4DB6AC;border-radius:10px;font-weight:800;cursor:pointer;font-size:0.9rem" onclick="App.go('register')">
+              ${isEN ? 'Subscribe →' : isPT ? 'Assinar →' : 'Suscribirme →'}
+            </button>
+          </div>
+
+          <!-- Tier 4: Anual $29.90 -->
+          <div style="border:2px solid var(--accent);border-radius:16px;padding:20px 16px;background:rgba(212,175,55,0.07);text-align:center;position:relative;cursor:pointer" onclick="App.go('register')">
+            <div style="position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#d4af37,#b8860b);color:#000;font-size:0.65rem;font-weight:800;padding:3px 14px;border-radius:20px;white-space:nowrap;text-transform:uppercase;letter-spacing:0.05em">
+              🏆 ${isEN ? 'Best value · Save 49%' : isPT ? 'Melhor custo · Economize 49%' : 'Mejor valor · Ahorra 49%'}
+            </div>
+            <div style="font-size:0.72rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;margin-top:4px">
+              ${isEN ? 'Annual · 12 months' : isPT ? 'Anual · 12 meses' : 'Anual · 12 meses'}
+            </div>
+            <div style="font-size:2.4rem;font-weight:900;color:var(--accent);line-height:1">$29.90</div>
+            <div style="font-size:0.72rem;color:var(--text3);margin-top:4px">USD · ~$2.49/${isEN ? 'mo' : isPT ? 'mês' : 'mes'}</div>
+            <div style="margin-top:14px;font-size:0.8rem;color:var(--text2);line-height:1.7;text-align:left">
+              ✓ ${isEN ? 'Everything in Monthly' : isPT ? 'Tudo do Mensal' : 'Todo lo del Mensual'}<br>
+              ✓ ${isEN ? '12 months access' : isPT ? '12 meses de acesso' : '12 meses de acceso'}<br>
+              ✓ ${isEN ? 'PDF report' : isPT ? 'Relatório PDF' : 'Informe PDF'}<br>
+              ✓ ${isEN ? 'Priority support' : isPT ? 'Suporte prioritário' : 'Soporte prioritario'}<br>
+              ✓ ${isEN ? 'Locked price forever' : isPT ? 'Preço fixo para sempre' : 'Precio fijo para siempre'}
+            </div>
+            <button class="btn btn-primary" style="margin-top:16px;width:100%;padding:10px;border-radius:10px;font-weight:800;font-size:0.9rem" onclick="App.go('register')">
+              ${isEN ? 'Subscribe →' : isPT ? 'Assinar →' : 'Suscribirme →'}
             </button>
           </div>
 
