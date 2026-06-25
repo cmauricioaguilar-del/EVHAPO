@@ -16,26 +16,26 @@ function renderLanding() {
   const isEN = I18N.isEN();
 
   const features = isEN ? [
-    { icon: '🎯', title: 'Deep Diagnosis', desc: '94 questions across 10 key dimensions of elite poker player mentality' },
-    { icon: '📡', title: 'Radar Chart', desc: 'Visualize your strengths and weaknesses on an intuitive visual map' },
-    { icon: '📋', title: 'Personalized Report', desc: 'Detailed gap analysis with specific recommendations tailored for you' },
-    { icon: '🗓️', title: 'Work Plan', desc: 'Week-by-week improvement program, starting from your most critical areas' },
-    { icon: '📊', title: 'Global Benchmark', desc: 'Compare your results with the MindEV community average' },
-    { icon: '🔐', title: 'Personal Dashboard', desc: 'Access your results and progress tracking at any time' },
+    { icon: '⚡', title: 'Your 7 Key Errors in Seconds', desc: 'Upload your tournament hand history and AI instantly identifies your top 7 leaks — no hours in GTO software required' },
+    { icon: '🧠', title: 'Mental + Technical Diagnosis', desc: '94 questions that reveal exactly what to fix in your mindset and your game, in one sitting' },
+    { icon: '📡', title: 'Skills Radar', desc: 'See your strengths and weaknesses in a single visual — know where to study first' },
+    { icon: '📋', title: 'AI-Generated Report', desc: 'Personalized analysis ready in seconds: what you do well, what to correct, and why' },
+    { icon: '🗓️', title: 'Structured Study Plan', desc: 'Week-by-week roadmap built from your real gaps — no guessing what to study' },
+    { icon: '💓', title: 'MinDev Bio — Body at the Table', desc: 'Correlate your heart rate data with your hand history: discover how your body reacts at key tournament moments' },
   ] : isPT ? [
-    { icon: '🎯', title: 'Diagnóstico Profundo', desc: '94 perguntas em 10 dimensões-chave da mentalidade do jogador de elite' },
-    { icon: '📡', title: 'Gráfico Radar', desc: 'Visualize seus pontos fortes e fracos em um mapa visual intuitivo' },
-    { icon: '📋', title: 'Relatório Personalizado', desc: 'Análise detalhada de lacunas com recomendações específicas para você' },
-    { icon: '🗓️', title: 'Plano de Trabalho', desc: 'Programa de melhoria semana a semana, das áreas mais críticas' },
-    { icon: '📊', title: 'Benchmark Global', desc: 'Compare seus resultados com a média da comunidade MindEV' },
-    { icon: '🔐', title: 'Painel Pessoal', desc: 'Acesse seus resultados e acompanhamento a qualquer momento' },
+    { icon: '⚡', title: 'Seus 7 Principais Erros em Segundos', desc: 'Suba o histórico do seu torneio e a IA identifica na hora seus 7 maiores vazamentos — sem horas num software GTO' },
+    { icon: '🧠', title: 'Diagnóstico Mental + Técnico', desc: '94 perguntas que revelam exatamente o que corrigir na sua mentalidade e no seu jogo, em uma sessão' },
+    { icon: '📡', title: 'Radar de Habilidades', desc: 'Veja seus pontos fortes e fracos em um único visual — saiba onde estudar primeiro' },
+    { icon: '📋', title: 'Relatório Gerado por IA', desc: 'Análise personalizada pronta em segundos: o que você faz bem, o que corrigir e por quê' },
+    { icon: '🗓️', title: 'Plano de Estudo Estruturado', desc: 'Roteiro semana a semana construído a partir das suas lacunas reais — sem adivinhar o que estudar' },
+    { icon: '💓', title: 'MinDev Bio — Corpo na Mesa', desc: 'Correlacione seus dados de frequência cardíaca com o histórico de mãos: descubra como seu corpo reage nos momentos-chave do torneio' },
   ] : [
-    { icon: '🎯', title: 'Diagnóstico Profundo', desc: '94 preguntas en 10 dimensiones clave de la mentalidad del jugador de élite' },
-    { icon: '📡', title: 'Gráfico Radar', desc: 'Visualiza tus fortalezas y debilidades en un mapa visual intuitivo' },
-    { icon: '📋', title: 'Informe Personalizado', desc: 'Análisis detallado de brechas con recomendaciones específicas para ti' },
-    { icon: '🗓️', title: 'Plan de Trabajo', desc: 'Programa de mejora semana a semana, desde las áreas más críticas' },
-    { icon: '📊', title: 'Benchmark Global', desc: 'Compara tus resultados con el promedio de la comunidad MindEV' },
-    { icon: '🔐', title: 'Dashboard Personal', desc: 'Accede a tus resultados y seguimiento en cualquier momento' },
+    { icon: '⚡', title: 'Tus 7 Errores Principales en Segundos', desc: 'Sube el historial de tu torneo y la IA identifica al instante tus 7 principales fugas — sin pasar horas en un software GTO' },
+    { icon: '🧠', title: 'Diagnóstico Mental + Técnico', desc: '94 preguntas que revelan exactamente qué corregir en tu mentalidad y en tu juego, en una sola sesión' },
+    { icon: '📡', title: 'Radar de Habilidades', desc: 'Ve tus fortalezas y debilidades en un solo visual — sabe dónde estudiar primero' },
+    { icon: '📋', title: 'Informe Generado por IA', desc: 'Análisis personalizado listo en segundos: qué haces bien, qué corregir y por qué' },
+    { icon: '🗓️', title: 'Plan de Estudio Estructurado', desc: 'Hoja de ruta semana a semana construida desde tus brechas reales — sin adivinar qué estudiar' },
+    { icon: '💓', title: 'MinDev Bio — Tu Cuerpo en la Mesa', desc: 'Correlaciona tus datos de frecuencia cardíaca con tu historial de manos: descubre cómo reacciona tu cuerpo en los momentos clave del torneo' },
   ];
 
   // Función auxiliar para construir filas de categorías
@@ -64,10 +64,10 @@ function renderLanding() {
         ? 'MindEV — <span>Melhore seu jogo de poker,</span><br>rápido e fácil'
         : 'MindEV — <span>Mejora tu juego de poker,</span><br>rápido y fácil'}</h1>
       <p class="subtitle">${isEN
-        ? 'The only system that correlates your mind, your technique and your tension moments with every hand you play. Without being an expert, discover exactly what you are doing right, what to correct and how your body reacts at the key moments of the tournament.'
+        ? 'Upload your tournament, get your 7 key errors in seconds. AI analyzes your mind, your technique and your body — and gives you a clear study plan. No GTO software. No wasted hours.'
         : isPT
-        ? 'O único sistema que correlaciona sua mente, sua técnica e seus momentos de tensão com cada mão que você joga. Sem ser especialista, descubra exatamente o que está fazendo certo, o que corrigir e como seu corpo reage nos momentos-chave do torneio.'
-        : 'El único sistema que correlaciona tu mente, tu técnica y tus momentos de tensión con cada mano que juegas. Sin ser experto, descubre exactamente qué estás haciendo bien, qué debes corregir y cómo reacciona tu cuerpo en los momentos clave del torneo.'}</p>
+        ? 'Suba seu torneio, receba seus 7 principais erros em segundos. A IA analisa sua mente, sua técnica e seu corpo — e entrega um plano de estudo claro. Sem software GTO. Sem horas perdidas.'
+        : 'Sube tu torneo, recibe tus 7 errores principales en segundos. La IA analiza tu mente, tu técnica y tu cuerpo — y te entrega un plan de estudio claro. Sin software GTO. Sin horas perdidas.'}</p>
 
       <div class="hero-cta">
         <button class="btn btn-primary btn-lg" onclick="App.go('register')">
@@ -77,12 +77,18 @@ function renderLanding() {
           ${isEN ? 'I already have an account' : isPT ? 'Já tenho conta' : 'Ya tengo cuenta'}
         </button>
       </div>
-      <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:10px">
-        <span style="background:rgba(212,175,55,0.12);border:1px solid rgba(212,175,55,0.3);color:#d4af37;border-radius:20px;padding:5px 14px;font-size:0.82rem;font-weight:700">
-          📆 ${isEN ? 'Annual · USD $9.90' : isPT ? 'Anual · USD $9.90' : 'Anual · USD $9.90'}
+      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:10px">
+        <span style="background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.4);color:#22c55e;border-radius:20px;padding:5px 14px;font-size:0.82rem;font-weight:700">
+          🔓 ${isEN ? 'Try · USD $0.99' : isPT ? 'Teste · USD $0.99' : 'Prueba · USD $0.99'}
         </span>
         <span style="background:rgba(129,140,248,0.12);border:1px solid rgba(129,140,248,0.3);color:#818cf8;border-radius:20px;padding:5px 14px;font-size:0.82rem;font-weight:700">
-          📅 ${isEN ? '30 days · USD $4.90' : isPT ? '30 dias · USD $4.90' : '30 días · USD $4.90'}
+          📅 ${isEN ? 'Monthly · USD $4.90' : isPT ? 'Mensal · USD $4.90' : 'Mensual · USD $4.90'}
+        </span>
+        <span style="background:rgba(77,182,172,0.12);border:1px solid rgba(77,182,172,0.3);color:#4DB6AC;border-radius:20px;padding:5px 14px;font-size:0.82rem;font-weight:700">
+          📆 ${isEN ? '6 months · USD $19.90' : isPT ? '6 meses · USD $19.90' : '6 meses · USD $19.90'}
+        </span>
+        <span style="background:rgba(212,175,55,0.12);border:1px solid rgba(212,175,55,0.3);color:#d4af37;border-radius:20px;padding:5px 14px;font-size:0.82rem;font-weight:700">
+          🏆 ${isEN ? 'Annual · USD $29.90' : isPT ? 'Anual · USD $29.90' : 'Anual · USD $29.90'}
         </span>
       </div>
 
@@ -388,9 +394,13 @@ function renderLanding() {
             ♠ ${isEN ? 'Buy my subscription' : isPT ? 'Comprar minha assinatura' : 'Comprar mi suscripción'}
           </button>
           <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:10px">
-            <span style="font-size:0.8rem;color:var(--accent);font-weight:700">📆 ${isEN ? 'Annual $9.90 USD' : isPT ? 'Anual $9.90 USD' : 'Anual $9.90 USD'}</span>
+            <span style="font-size:0.8rem;color:#22c55e;font-weight:700">🔓 ${isEN ? 'Try $0.99 USD' : isPT ? 'Teste $0.99 USD' : 'Prueba $0.99 USD'}</span>
             <span style="font-size:0.8rem;color:var(--text3)">·</span>
-            <span style="font-size:0.8rem;color:#818cf8;font-weight:700">📅 ${isEN ? '30 days $4.90 USD/mo' : isPT ? '30 dias $4.90 USD/mês' : '30 días $4.90 USD/mes'}</span>
+            <span style="font-size:0.8rem;color:#818cf8;font-weight:700">📅 ${isEN ? '$4.90/mo' : isPT ? '$4.90/mês' : '$4.90/mes'}</span>
+            <span style="font-size:0.8rem;color:var(--text3)">·</span>
+            <span style="font-size:0.8rem;color:#4DB6AC;font-weight:700">📆 ${isEN ? '6mo $19.90' : isPT ? '6m $19.90' : '6m $19.90'}</span>
+            <span style="font-size:0.8rem;color:var(--text3)">·</span>
+            <span style="font-size:0.8rem;color:var(--accent);font-weight:700">🏆 ${isEN ? 'Annual $29.90' : isPT ? 'Anual $29.90' : 'Anual $29.90'}</span>
           </div>
         </div>
       </div>
