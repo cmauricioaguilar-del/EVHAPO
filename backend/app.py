@@ -83,8 +83,9 @@ SECRET_KEY = os.environ.get('SECRET_KEY', 'evhapo-secret-key-2024-change-in-prod
 _DATA_DIR = os.environ.get('DATA_DIR', os.path.dirname(__file__))
 os.makedirs(_DATA_DIR, exist_ok=True)
 DB_PATH = os.path.join(_DATA_DIR, 'evhapo.db')
-TEST_PRICE_USD = 9.90
-SUB_PRICE_USD  = 4.90   # precio mensual suscripción
+TEST_PRICE_USD   = 9.90
+SUB_PRICE_USD    = 4.90   # precio mensual suscripción
+TRIAL_PRICE_USD  = 0.99   # prueba única 14 días
 
 MERCADOPAGO_ACCESS_TOKEN  = os.environ.get('MERCADOPAGO_ACCESS_TOKEN', '')
 MERCADOPAGO_PUBLIC_KEY    = os.environ.get('MERCADOPAGO_PUBLIC_KEY', '')
@@ -308,6 +309,8 @@ def init_db():
         "ALTER TABLE referral_codes ADD COLUMN owner_email TEXT DEFAULT ''",
         "ALTER TABLE referral_codes ADD COLUMN owner_name TEXT DEFAULT ''",
         "ALTER TABLE referral_codes ADD COLUMN commission_usd REAL DEFAULT 0",
+        # Tier prueba $0.99 — uso único, 14 días
+        "ALTER TABLE users ADD COLUMN trial_activated_at TEXT DEFAULT NULL",
     ]
     for sql in migrations:
         try:
@@ -538,6 +541,26 @@ def _get_coupon_days_remaining(coupon_activated_at):
         return None
 
 
+def _get_trial_days_remaining(trial_activated_at):
+    """Retorna días restantes del trial $0.99 (0 si expiró, None si nunca activó)."""
+    if not trial_activated_at:
+        return None
+    try:
+        activated = datetime.datetime.fromisoformat(trial_activated_at)
+        days_used = (datetime.datetime.utcnow() - activated).days
+        return max(0, 14 - days_used)
+    except Exception:
+        return None
+
+
+def _get_trial_active(user):
+    """Retorna True si el usuario tiene trial activo (activado y dentro de los 14 días)."""
+    if not user:
+        return False
+    trial_at = user['trial_activated_at'] if 'trial_activated_at' in user.keys() else None
+    return (_get_trial_days_remaining(trial_at) or 0) > 0
+
+
 def _get_subscription_active(user):
     """Retorna True si el usuario tiene suscripción mensual activa y vigente."""
     if not user:
@@ -595,7 +618,8 @@ def me():
     db = get_db()
     user = db.execute(
         """SELECT id, nombre, apellido, email, pais, created_at, coupon_code, coupon_activated_at,
-                  subscription_status, subscription_period_end, stripe_subscription_id, paddle_subscription_id
+                  subscription_status, subscription_period_end, stripe_subscription_id, paddle_subscription_id,
+                  trial_activated_at
            FROM users WHERE id=?""",
         (g.user_id,)
     ).fetchone()
@@ -619,8 +643,20 @@ def me():
             'expired': (days_remaining or 0) == 0,
         }
 
-    sub_active = _get_subscription_active(user)
-    has_access = bool(payment) or (coupon_info is not None and coupon_info['active']) or sub_active
+    sub_active   = _get_subscription_active(user)
+    trial_active = _get_trial_active(user)
+    trial_days   = _get_trial_days_remaining(user['trial_activated_at'])
+    has_access   = bool(payment) or (coupon_info is not None and coupon_info['active']) or sub_active or trial_active
+
+    trial_info = None
+    if user['trial_activated_at']:
+        trial_info = {
+            'activated_at': user['trial_activated_at'],
+            'days_remaining': trial_days,
+            'active': trial_active,
+            'expired': not trial_active,
+            'is_trial_only': trial_active and not bool(payment) and not sub_active and (coupon_info is None or not coupon_info['active']),
+        }
 
     sub_info = None
     if user['subscription_status']:
@@ -638,7 +674,39 @@ def me():
         'has_payment': has_access,
         'coupon': coupon_info,
         'subscription': sub_info,
+        'trial': trial_info,
     })
+
+# ─── Trial activate ──────────────────────────────────────────────────────────
+
+@app.route('/api/payment/trial-activate', methods=['POST'])
+@require_auth
+def trial_activate():
+    """Activa el tier prueba $0.99 para el usuario. Solo una vez por cuenta."""
+    db = get_db()
+    user = db.execute(
+        "SELECT trial_activated_at FROM users WHERE id=?", (g.user_id,)
+    ).fetchone()
+
+    if user and user['trial_activated_at']:
+        return jsonify({'error': 'trial_used', 'message': 'Ya usaste tu prueba. Solo se permite una por cuenta.'}), 409
+
+    data = request.json or {}
+    external_id = data.get('external_id', '')
+    method      = data.get('method', 'stripe')
+
+    # Registrar pago de prueba
+    db.execute(
+        "INSERT INTO payments (user_id, amount, currency, method, status, external_id) VALUES (?,?,?,?,?,?)",
+        (g.user_id, TRIAL_PRICE_USD, 'USD', method, 'approved', external_id)
+    )
+    db.execute(
+        "UPDATE users SET trial_activated_at=? WHERE id=?",
+        (datetime.datetime.utcnow().isoformat(), g.user_id)
+    )
+    db.commit()
+    return jsonify({'ok': True, 'message': 'Trial activado', 'days': 14})
+
 
 # ─── Payment routes ───────────────────────────────────────────────────────────
 
@@ -1524,8 +1592,8 @@ def new_test_session():
     test_type = data.get('test_type', 'mental')
     db = get_db()
 
-    # Verificar acceso: pago aprobado, cupón activo, suscripción activa o es admin
-    user = db.execute("SELECT is_admin, coupon_activated_at, subscription_status, subscription_period_end FROM users WHERE id=?", (g.user_id,)).fetchone()
+    # Verificar acceso: pago aprobado, cupón activo, suscripción activa, trial activo o es admin
+    user = db.execute("SELECT is_admin, coupon_activated_at, subscription_status, subscription_period_end, trial_activated_at FROM users WHERE id=?", (g.user_id,)).fetchone()
     payment = db.execute(
         "SELECT id FROM payments WHERE user_id=? AND status='approved' ORDER BY id DESC LIMIT 1",
         (g.user_id,)
@@ -1533,8 +1601,9 @@ def new_test_session():
 
     coupon_access = (_get_coupon_days_remaining(user['coupon_activated_at'] if user else None) or 0) > 0
     sub_access    = _get_subscription_active(user)
+    trial_access  = _get_trial_active(user)
 
-    if not payment and not coupon_access and not sub_access and not (user and user['is_admin']):
+    if not payment and not coupon_access and not sub_access and not trial_access and not (user and user['is_admin']):
         return jsonify({'error': 'no_payment', 'message': 'Necesitas completar el pago para acceder al test'}), 402
 
     payment_id = payment['id'] if payment else None
@@ -1977,7 +2046,7 @@ def dashboard():
 
     # ── Verificar acceso antes de devolver datos ───────────────────────────────
     user_row = db.execute(
-        "SELECT is_admin, coupon_activated_at, subscription_status, subscription_period_end FROM users WHERE id=?",
+        "SELECT is_admin, coupon_activated_at, subscription_status, subscription_period_end, trial_activated_at FROM users WHERE id=?",
         (g.user_id,)
     ).fetchone()
     payment_row = db.execute(
@@ -1985,8 +2054,9 @@ def dashboard():
     ).fetchone()
     coupon_ok = (_get_coupon_days_remaining(user_row['coupon_activated_at'] if user_row else None) or 0) > 0
     sub_ok    = _get_subscription_active(user_row)
+    trial_ok  = _get_trial_active(user_row)
     is_admin  = user_row and user_row['is_admin']
-    if not payment_row and not coupon_ok and not sub_ok and not is_admin:
+    if not payment_row and not coupon_ok and not sub_ok and not trial_ok and not is_admin:
         return jsonify({'error': 'no_access', 'message': 'Acceso no autorizado'}), 403
     # ──────────────────────────────────────────────────────────────────────────
 
@@ -4735,6 +4805,23 @@ def generate_study_plan():
         return jsonify({'error': 'Servicio IA no disponible'}), 503
     db = get_db()
     lang = (request.json or {}).get('lang', 'es')
+
+    # Bloquear plan de estudio para usuarios en tier trial ($0.99)
+    user_trial = db.execute(
+        "SELECT trial_activated_at, coupon_activated_at, subscription_status, subscription_period_end FROM users WHERE id=?",
+        (g.user_id,)
+    ).fetchone()
+    payment_check = db.execute(
+        "SELECT id FROM payments WHERE user_id=? AND status='approved' LIMIT 1", (g.user_id,)
+    ).fetchone()
+    trial_only = (
+        _get_trial_active(user_trial)
+        and not bool(payment_check)
+        and not _get_subscription_active(user_trial)
+        and (_get_coupon_days_remaining(user_trial['coupon_activated_at']) or 0) == 0
+    )
+    if trial_only:
+        return jsonify({'error': 'trial_only', 'message': 'El plan de estudio está disponible en los planes de suscripción.'}), 403
 
     # Obtener scores de los últimos tests completados
     mental_row = db.execute(
