@@ -5302,71 +5302,128 @@ RETENTION_INTERVAL_DAYS = 10
 
 def _generate_retention_email_html(nombre, lang, cycle, coupon_reactivated=False):
     """Genera HTML del mail de retención según idioma y pasos faltantes."""
-    pasos_es = []
-    pasos_pt = []
-    pasos_en = []
-    if not cycle['test_mental']:
-        pasos_es.append('Test Mental')
-        pasos_pt.append('Teste Mental')
-        pasos_en.append('Mental Test')
-    if not cycle['test_tecnico']:
-        pasos_es.append('Test Técnico')
-        pasos_pt.append('Teste Técnico')
-        pasos_en.append('Technical Test')
-    if not cycle['perfil_ia']:
-        pasos_es.append('Generar Perfil IA')
-        pasos_pt.append('Gerar Perfil IA')
-        pasos_en.append('Generate AI Profile')
-    if not cycle['analisis_mano']:
-        pasos_es.append('Análisis de Mano')
-        pasos_pt.append('Análise de Mão')
-        pasos_en.append('Hand Analysis')
-
-    if lang == 'pt':
-        pasos = pasos_pt
-        saludo = f'Olá, {nombre}!'
-        intro = 'Você ainda não completou seu ciclo mínimo no MinDev.'
-        cta_label = 'Continuar no MinDev'
-        footer = 'Você está recebendo este e-mail porque se cadastrou no MinDev.'
-        coupon_msg = '🎁 <strong>Seu cupão foi reativado por mais 30 dias.</strong> Aproveite agora!'
-    elif lang == 'en':
-        pasos = pasos_en
-        saludo = f'Hi, {nombre}!'
-        intro = 'You haven\'t completed your minimum cycle on MinDev yet.'
-        cta_label = 'Continue on MinDev'
-        footer = 'You\'re receiving this email because you signed up on MinDev.'
-        coupon_msg = '🎁 <strong>Your coupon has been reactivated for 30 more days.</strong> Take advantage now!'
-    else:
-        pasos = pasos_es
-        saludo = f'Hola, {nombre}!'
-        intro = 'Todavía no completaste tu ciclo mínimo en MinDev.'
-        cta_label = 'Continuar en MinDev'
-        footer = 'Recibes este correo porque te registraste en MinDev.'
-        coupon_msg = '🎁 <strong>Tu cupón ha sido reactivado por 30 días más.</strong> ¡Aprovéchalo ahora!'
-
-    pasos_html = ''.join(
-        f'<li style="margin:6px 0;color:#e2e8f0;">→ {p}</li>' for p in pasos
-    )
     base_url = os.environ.get('BASE_URL', 'https://mindev-ia.com')
 
+    steps = []
+    if not cycle['test_mental']:
+        steps.append(('🧠', 'Test Mental',      'Teste Mental',     'Mental Test'))
+    if not cycle['test_tecnico']:
+        steps.append(('⚙️', 'Test Técnico',     'Teste Técnico',    'Technical Test'))
+    if not cycle['perfil_ia']:
+        steps.append(('🤖', 'Generar Perfil IA', 'Gerar Perfil IA',  'Generate AI Profile'))
+    if not cycle['analisis_mano']:
+        steps.append(('🃏', 'Análisis de Mano',  'Análise de Mão',   'Hand Analysis'))
+
+    if lang == 'pt':
+        idx = 2
+        saludo       = f'Olá, <strong>{nombre}</strong>!'
+        hook         = '¿Você já parou para pensar quanto dinheiro está perdendo por não conhecer suas falhas no poker?'
+        body         = 'Cada mão jogada sem saber seus <strong>7 principais erros</strong> é dinheiro saindo do seu bolso. No MinDev, a IA identifica suas fugas em segundos — mas para isso você precisa completar seu ciclo de diagnóstico.'
+        once_title   = 'Você faz isso <u>uma única vez</u>.'
+        once_body    = 'Depois, é só subir suas mãos e ver onde está errando — para melhorar seu jogo e <strong>ganhar dinheiro jogando poker</strong>.'
+        pending      = 'Falta completar:'
+        cta_label    = '🚀 Completar meu diagnóstico agora'
+        footer       = 'Você está recebendo este e-mail porque se cadastrou no MinDev.'
+        coupon_msg   = '🎁 <strong>Seu acesso foi reativado por mais 30 dias.</strong> Não deixe passar dessa vez.'
+    elif lang == 'en':
+        idx = 3
+        saludo       = f'Hi, <strong>{nombre}</strong>!'
+        hook         = 'Have you thought about how much money you\'re losing by not knowing your poker leaks?'
+        body         = 'Every hand played without knowing your <strong>7 main mistakes</strong> is money leaving your pocket. MinDev\'s AI identifies your leaks in seconds — but first you need to complete your diagnostic cycle.'
+        once_title   = 'You only do this <u>once</u>.'
+        once_body    = 'After that, just upload your hands and see where you\'re making mistakes — to improve your game and <strong>make money playing poker</strong>.'
+        pending      = 'Still pending:'
+        cta_label    = '🚀 Complete my diagnostic now'
+        footer       = 'You\'re receiving this email because you signed up on MinDev.'
+        coupon_msg   = '🎁 <strong>Your access has been reactivated for 30 more days.</strong> Don\'t miss it this time.'
+    else:
+        idx = 1
+        saludo       = f'Hola, <strong>{nombre}</strong>!'
+        hook         = '¿Alguna vez te has preguntado cuánto dinero estás perdiendo por no conocer tus fallas en el poker?'
+        body         = 'Cada mano jugada sin saber tus <strong>7 principales errores</strong> es dinero que sale de tu bolsillo. En MinDev, la IA identifica tus fugas en segundos — pero para eso necesitas completar tu ciclo de diagnóstico.'
+        once_title   = 'Esto lo haces <u>una sola vez</u>.'
+        once_body    = 'Después, solo subes tus manos y ves dónde estás fallando — para mejorar tu juego y <strong>ganar dinero jugando poker</strong>.'
+        pending      = 'Te falta completar:'
+        cta_label    = '🚀 Completar mi diagnóstico ahora'
+        footer       = 'Recibes este correo porque te registraste en MinDev.'
+        coupon_msg   = '🎁 <strong>Tu acceso ha sido reactivado por 30 días más.</strong> Esta vez no lo dejes pasar.'
+
+    pasos_html = ''.join(f"""
+        <tr>
+          <td style="padding:10px 14px;font-size:1.3rem;width:40px">{s[0]}</td>
+          <td style="padding:10px 0;color:#e2e8f0;font-size:0.95rem;font-weight:600">{s[idx]}</td>
+        </tr>""" for s in steps)
+
     coupon_banner = f"""
-      <div style="background:#14532d;border:1px solid #4ade8055;border-radius:8px;padding:14px 18px;margin:16px 0;color:#4ade80;font-size:0.95rem;">
+      <div style="background:#14532d;border-left:4px solid #4ade80;border-radius:0 8px 8px 0;padding:14px 18px;margin:20px 0;color:#bbf7d0;font-size:0.95rem;line-height:1.5;">
         {coupon_msg}
       </div>""" if coupon_reactivated else ''
 
-    return f"""
-    <div style="background:#0f172a;padding:32px;font-family:sans-serif;max-width:520px;margin:auto;border-radius:12px;">
-      <h2 style="color:#a78bfa;margin-bottom:8px;">MinDev</h2>
-      <p style="color:#e2e8f0;font-size:1.05rem;">{saludo}</p>
-      {coupon_banner}
-      <p style="color:#94a3b8;">{intro}</p>
-      <ul style="list-style:none;padding:0;margin:16px 0;">
-        {pasos_html}
-      </ul>
-      <a href="{base_url}" style="display:inline-block;margin-top:16px;padding:12px 28px;background:#a78bfa;color:#0f172a;border-radius:8px;text-decoration:none;font-weight:bold;">{cta_label}</a>
-      <p style="color:#475569;font-size:0.8rem;margin-top:24px;">{footer}</p>
-    </div>
-    """
+    return f"""<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#0a0f1e;font-family:'Segoe UI',Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#0a0f1e;padding:32px 16px">
+    <tr><td align="center">
+      <table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%">
+
+        <!-- Header -->
+        <tr><td style="background:linear-gradient(135deg,#1e1b4b 0%,#0f172a 100%);border-radius:16px 16px 0 0;padding:28px 32px;border-bottom:1px solid #312e81">
+          <table width="100%" cellpadding="0" cellspacing="0"><tr>
+            <td>
+              <div style="font-size:1.6rem;font-weight:800;color:#a78bfa;letter-spacing:-0.5px">MinDev</div>
+              <div style="font-size:0.72rem;color:#6366f1;letter-spacing:0.12em;text-transform:uppercase;margin-top:2px">Herramientas para aprender rápido y fácil</div>
+            </td>
+            <td align="right" style="font-size:2rem">♠️</td>
+          </tr></table>
+        </td></tr>
+
+        <!-- Body -->
+        <tr><td style="background:#0f172a;padding:32px;border-left:1px solid #1e293b;border-right:1px solid #1e293b">
+
+          <p style="margin:0 0 8px;color:#e2e8f0;font-size:1.1rem;">{saludo}</p>
+
+          {coupon_banner}
+
+          <!-- Hook -->
+          <div style="background:#1e1b4b;border-left:4px solid #a78bfa;border-radius:0 8px 8px 0;padding:16px 18px;margin:20px 0;">
+            <p style="margin:0;color:#c4b5fd;font-size:1rem;font-style:italic;line-height:1.6">{hook}</p>
+          </div>
+
+          <p style="color:#94a3b8;font-size:0.95rem;line-height:1.7;margin:0 0 20px">{body}</p>
+
+          <!-- Once -->
+          <div style="background:#0c1a30;border:1px solid #1e3a5f;border-radius:10px;padding:16px 18px;margin:0 0 24px">
+            <p style="margin:0 0 6px;color:#38bdf8;font-size:0.95rem;">{once_title}</p>
+            <p style="margin:0;color:#7dd3fc;font-size:0.88rem;line-height:1.6">{once_body}</p>
+          </div>
+
+          <!-- Pasos pendientes -->
+          <p style="color:#64748b;font-size:0.8rem;text-transform:uppercase;letter-spacing:0.08em;margin:0 0 8px">{pending}</p>
+          <table width="100%" cellpadding="0" cellspacing="0" style="background:#1e293b;border-radius:10px;overflow:hidden;margin-bottom:28px">
+            {pasos_html}
+          </table>
+
+          <!-- CTA -->
+          <table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center">
+            <a href="{base_url}" style="display:inline-block;padding:15px 36px;background:linear-gradient(135deg,#7c3aed,#a78bfa);color:#ffffff;border-radius:10px;text-decoration:none;font-weight:700;font-size:1rem;letter-spacing:0.02em">
+              {cta_label}
+            </a>
+          </td></tr></table>
+
+        </td></tr>
+
+        <!-- Footer -->
+        <tr><td style="background:#080d1a;border-radius:0 0 16px 16px;padding:20px 32px;border-top:1px solid #1e293b;border:1px solid #1e293b;border-top:none">
+          <p style="margin:0;color:#334155;font-size:0.78rem;text-align:center">{footer}</p>
+          <p style="margin:8px 0 0;text-align:center">
+            <a href="{base_url}" style="color:#4f46e5;font-size:0.78rem;text-decoration:none">mindev-ia.com</a>
+          </p>
+        </td></tr>
+
+      </table>
+    </td></tr>
+  </table>
+</body></html>"""
 
 
 def _run_retention_check():
