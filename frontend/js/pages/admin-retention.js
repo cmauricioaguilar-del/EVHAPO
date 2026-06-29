@@ -120,6 +120,9 @@ function renderRetentionTable(users) {
     const lastMail = u.last_retention_email_at
       ? new Date(u.last_retention_email_at).toLocaleDateString()
       : (isEN ? 'Never' : isPT ? 'Nunca' : 'Nunca');
+    const opened = u.retention_email_opened_at
+      ? `<span style="color:#4ade80;font-size:0.8rem">👁 ${new Date(u.retention_email_opened_at).toLocaleDateString()}</span>`
+      : `<span style="color:#475569;font-size:0.78rem">—</span>`;
     return `
       <tr style="border-top:1px solid var(--border)">
         <td style="padding:10px 8px;color:var(--text1);font-size:0.88rem">${u.nombre}</td>
@@ -129,6 +132,7 @@ function renderRetentionTable(users) {
         <td style="padding:10px 8px;text-align:center">${check(u.cycle.perfil_ia)}</td>
         <td style="padding:10px 8px;text-align:center">${check(u.cycle.analisis_mano)}</td>
         <td style="padding:10px 8px;color:var(--text3);font-size:0.8rem;text-align:center">${lastMail}</td>
+        <td style="padding:10px 8px;text-align:center">${opened}</td>
         <td style="padding:10px 8px;text-align:center">
           <button onclick="sendRetentionNow(${u.id}, this)"
             style="background:#a78bfa22;border:1px solid #a78bfa55;border-radius:6px;padding:5px 12px;color:#a78bfa;cursor:pointer;font-size:0.8rem">
@@ -150,6 +154,7 @@ function renderRetentionTable(users) {
             <th style="padding:8px;text-align:center">${isEN ? 'AI Profile' : isPT ? 'Perfil IA' : 'Perfil IA'}</th>
             <th style="padding:8px;text-align:center">${isEN ? 'Hand' : isPT ? 'Mão' : 'Mano'}</th>
             <th style="padding:8px;text-align:center">${isEN ? 'Last email' : isPT ? 'Último e-mail' : 'Último mail'}</th>
+            <th style="padding:8px;text-align:center">${isEN ? 'Opened' : isPT ? 'Aberto' : 'Abierto'}</th>
             <th style="padding:8px;text-align:center">${isEN ? 'Action' : isPT ? 'Ação' : 'Acción'}</th>
           </tr>
         </thead>

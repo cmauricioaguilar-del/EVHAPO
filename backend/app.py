@@ -313,6 +313,7 @@ def init_db():
         "ALTER TABLE users ADD COLUMN trial_activated_at TEXT DEFAULT NULL",
         # Módulo retención — control de envío de mails de reactivación
         "ALTER TABLE users ADD COLUMN last_retention_email_at TEXT DEFAULT NULL",
+        "ALTER TABLE users ADD COLUMN retention_email_opened_at TEXT DEFAULT NULL",
     ]
     for sql in migrations:
         try:
@@ -5300,7 +5301,7 @@ threading.Thread(target=_coupon_email_scheduler, daemon=True).start()
 RETENTION_INTERVAL_DAYS = 10
 
 
-def _generate_retention_email_html(nombre, lang, cycle, coupon_reactivated=False):
+def _generate_retention_email_html(nombre, lang, cycle, coupon_reactivated=False, user_id=0):
     """Genera HTML del mail de retención según idioma y pasos faltantes."""
     base_url = os.environ.get('BASE_URL', 'https://mindev-ia.com')
 
@@ -5423,6 +5424,7 @@ def _generate_retention_email_html(nombre, lang, cycle, coupon_reactivated=False
       </table>
     </td></tr>
   </table>
+  <img src="{base_url}/api/track/open/{user_id}" width="1" height="1" style="display:none" alt="">
 </body></html>"""
 
 
@@ -5451,7 +5453,7 @@ def _run_retention_check():
                 continue
             lang = u['idioma'] or 'es'
             try:
-                html = _generate_retention_email_html(u['nombre'], lang, cycle)
+                html = _generate_retention_email_html(u['nombre'], lang, cycle, user_id=u['id'])
                 if lang == 'pt':
                     subject = 'MinDev — Complete seu ciclo de treinamento'
                 elif lang == 'en':
@@ -5499,7 +5501,7 @@ def admin_retention_status():
         return jsonify({'error': 'Acceso denegado'}), 403
     db = get_db()
     users = db.execute(
-        """SELECT id, nombre, email, idioma, created_at, last_retention_email_at
+        """SELECT id, nombre, email, idioma, created_at, last_retention_email_at, retention_email_opened_at
            FROM users WHERE is_admin=0 ORDER BY created_at DESC"""
     ).fetchall()
     result = []
@@ -5512,6 +5514,7 @@ def admin_retention_status():
             'lang': u['idioma'] or 'es',
             'created_at': u['created_at'],
             'last_retention_email_at': u['last_retention_email_at'],
+            'retention_email_opened_at': u['retention_email_opened_at'],
             'cycle': cycle,
         })
     completados = sum(1 for r in result if r['cycle']['completado'])
@@ -5521,6 +5524,28 @@ def admin_retention_status():
         'completados': completados,
         'incompletos': len(result) - completados,
         'users': result,
+    })
+
+
+@app.route('/api/track/open/<int:user_id>', methods=['GET'])
+def track_email_open(user_id):
+    """Pixel de tracking 1x1 — registra apertura del mail de retención."""
+    try:
+        db = sqlite3.connect(DB_PATH)
+        db.execute(
+            "UPDATE users SET retention_email_opened_at=? WHERE id=? AND retention_email_opened_at IS NULL",
+            (datetime.datetime.utcnow().isoformat(), user_id)
+        )
+        db.commit()
+        db.close()
+    except Exception:
+        pass
+    # GIF 1x1 transparente
+    pixel = b'\x47\x49\x46\x38\x39\x61\x01\x00\x01\x00\x80\x00\x00\xff\xff\xff\x00\x00\x00\x21\xf9\x04\x00\x00\x00\x00\x00\x2c\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02\x44\x01\x00\x3b'
+    from flask import Response
+    return Response(pixel, mimetype='image/gif', headers={
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
     })
 
 
@@ -5573,7 +5598,7 @@ def admin_retention_send_all():
             db.commit()
             coupon_reactivated = True
         lang = u['idioma'] or 'es'
-        html = _generate_retention_email_html(u['nombre'], lang, cycle, coupon_reactivated=coupon_reactivated)
+        html = _generate_retention_email_html(u['nombre'], lang, cycle, coupon_reactivated=coupon_reactivated, user_id=u['id'])
         if lang == 'pt':
             subject = 'MinDev — Complete seu ciclo de treinamento'
         elif lang == 'en':
@@ -5615,7 +5640,7 @@ def admin_retention_send_now(user_id):
     if cycle['completado']:
         return jsonify({'ok': False, 'message': 'El usuario ya completó el ciclo mínimo'})
     lang = u['idioma'] or 'es'
-    html = _generate_retention_email_html(u['nombre'], lang, cycle)
+    html = _generate_retention_email_html(u['nombre'], lang, cycle, user_id=user_id)
     if lang == 'pt':
         subject = 'MinDev — Complete seu ciclo de treinamento'
     elif lang == 'en':
