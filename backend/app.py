@@ -5475,7 +5475,7 @@ def admin_retention_preview():
         return jsonify({'error': 'Acceso denegado'}), 403
     ADMIN_EMAIL = 'c.mauricio.aguilar@gmail.com'
     # Muestra con ciclo parcial y cupón reactivado
-    cycle_sample = {'test_mental': True, 'test_tecnico': False, 'perfil_ia': False, 'analisis_mano': False, 'completado': False}
+    cycle_sample = {'test_mental': False, 'test_tecnico': False, 'perfil_ia': False, 'analisis_mano': False, 'completado': False}
     html = _generate_retention_email_html('Mauricio', 'es', cycle_sample, coupon_reactivated=True)
     try:
         _smtp_send(ADMIN_EMAIL, '[MUESTRA] MinDev — Retención con cupón reactivado', html)
