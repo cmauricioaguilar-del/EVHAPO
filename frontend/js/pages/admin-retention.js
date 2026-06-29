@@ -23,6 +23,10 @@ async function renderAdminRetention() {
               style="background:#14532d;border:1px solid #4ade8055;border-radius:6px;padding:6px 14px;color:#4ade80;cursor:pointer;font-size:0.85rem">
               📧 ${isEN ? 'Send sample to me' : isPT ? 'Enviar amostra p/ mim' : 'Enviar muestra a mí'}
             </button>
+            <button id="btn-send-all" onclick="sendRetentionAll(this)"
+              style="background:#7c3aed22;border:1px solid #a78bfa55;border-radius:6px;padding:6px 14px;color:#a78bfa;cursor:pointer;font-size:0.85rem;font-weight:600">
+              🚀 ${isEN ? 'Send to all' : isPT ? 'Enviar para todos' : 'Enviar a todos'}
+            </button>
             <button onclick="loadRetentionData()"
               style="background:none;border:1px solid var(--border);border-radius:6px;padding:6px 12px;color:var(--text2);cursor:pointer;font-size:0.85rem">
               ↻ ${isEN ? 'Refresh' : isPT ? 'Atualizar' : 'Actualizar'}
@@ -167,6 +171,38 @@ async function sendRetentionNow(userId, btn) {
       btn.style.borderColor = '#4ade8055';
     } else {
       btn.textContent = res.message || 'Error';
+      btn.style.color = '#f87171';
+      btn.disabled = false;
+    }
+  } catch (e) {
+    btn.textContent = 'Error';
+    btn.style.color = '#f87171';
+    btn.disabled = false;
+  }
+}
+
+async function sendRetentionAll(btn) {
+  const isEN = window._lang === 'en';
+  const isPT = window._lang === 'pt';
+  const confirm_msg = isEN
+    ? 'This will send emails to ALL users with incomplete cycle. Continue?'
+    : isPT ? 'Isso enviará e-mails para TODOS os usuários com ciclo incompleto. Continuar?'
+    : '¿Enviar correos a TODOS los usuarios con ciclo incompleto?';
+  if (!confirm(confirm_msg)) return;
+  btn.disabled = true;
+  btn.textContent = '⏳ Enviando...';
+  try {
+    const res = await Api.post('/api/admin/retention/send-all', {});
+    if (res.ok) {
+      btn.textContent = `✓ ${res.sent} enviados`;
+      btn.style.color = '#4ade80';
+      btn.style.borderColor = '#4ade8055';
+      if (res.errors && res.errors.length) {
+        console.warn('[RETENTION] Errores:', res.errors);
+      }
+      await loadRetentionData();
+    } else {
+      btn.textContent = res.error || 'Error';
       btn.style.color = '#f87171';
       btn.disabled = false;
     }

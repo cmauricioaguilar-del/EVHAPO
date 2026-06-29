@@ -5541,6 +5541,65 @@ def admin_retention_preview():
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/api/admin/retention/send-all', methods=['POST'])
+@require_auth
+def admin_retention_send_all():
+    """Envía mails de retención a todos los usuarios con ciclo incompleto.
+    Si el usuario tiene cupón expirado, lo reactiva por 30 días e informa en el mail."""
+    if not g.is_admin:
+        return jsonify({'error': 'Acceso denegado'}), 403
+    db = get_db()
+    users = db.execute(
+        """SELECT id, nombre, email, idioma, coupon_code, coupon_activated_at
+           FROM users WHERE is_admin=0 ORDER BY id"""
+    ).fetchall()
+    sent = 0
+    skipped = 0
+    errors = []
+    now = datetime.datetime.utcnow()
+    for u in users:
+        cycle = _get_user_cycle_status(u['id'], db)
+        if cycle['completado']:
+            skipped += 1
+            continue
+        # Detectar cupón expirado (tiene cupón pero ya venció)
+        coupon_reactivated = False
+        days_left = _get_coupon_days_remaining(u['coupon_activated_at'])
+        if u['coupon_code'] and u['coupon_activated_at'] and days_left == 0:
+            db.execute(
+                "UPDATE users SET coupon_activated_at=? WHERE id=?",
+                (now.isoformat(), u['id'])
+            )
+            db.commit()
+            coupon_reactivated = True
+        lang = u['idioma'] or 'es'
+        html = _generate_retention_email_html(u['nombre'], lang, cycle, coupon_reactivated=coupon_reactivated)
+        if lang == 'pt':
+            subject = 'MinDev — Complete seu ciclo de treinamento'
+        elif lang == 'en':
+            subject = 'MinDev — Complete your training cycle'
+        else:
+            subject = 'MinDev — Completa tu ciclo de entrenamiento'
+        try:
+            _smtp_send(u['email'], subject, html)
+            db.execute(
+                "UPDATE users SET last_retention_email_at=? WHERE id=?",
+                (now.isoformat(), u['id'])
+            )
+            db.commit()
+            sent += 1
+            print(f'[RETENTION] Enviado a {u["email"]} (cupón reactivado: {coupon_reactivated})')
+        except Exception as e:
+            errors.append({'email': u['email'], 'error': str(e)})
+            print(f'[RETENTION] Error enviando a {u["email"]}: {e}')
+    return jsonify({
+        'ok': True,
+        'sent': sent,
+        'skipped_complete': skipped,
+        'errors': errors,
+    })
+
+
 @app.route('/api/admin/retention/send-now/<int:user_id>', methods=['POST'])
 @require_auth
 def admin_retention_send_now(user_id):
