@@ -311,6 +311,8 @@ def init_db():
         "ALTER TABLE referral_codes ADD COLUMN commission_usd REAL DEFAULT 0",
         # Tier prueba $0.99 — uso único, 14 días
         "ALTER TABLE users ADD COLUMN trial_activated_at TEXT DEFAULT NULL",
+        # Módulo retención — control de envío de mails de reactivación
+        "ALTER TABLE users ADD COLUMN last_retention_email_at TEXT DEFAULT NULL",
     ]
     for sql in migrations:
         try:
@@ -559,6 +561,33 @@ def _get_trial_active(user):
         return False
     trial_at = user['trial_activated_at'] if 'trial_activated_at' in user.keys() else None
     return (_get_trial_days_remaining(trial_at) or 0) > 0
+
+
+def _get_user_cycle_status(user_id, db):
+    """Retorna el estado del ciclo mínimo de un usuario."""
+    test_mental = db.execute(
+        "SELECT 1 FROM test_sessions WHERE user_id=? AND test_type='mental' AND completed=1 LIMIT 1",
+        (user_id,)
+    ).fetchone() is not None
+    test_tecnico = db.execute(
+        "SELECT 1 FROM test_sessions WHERE user_id=? AND test_type='technical' AND completed=1 LIMIT 1",
+        (user_id,)
+    ).fetchone() is not None
+    perfil_ia = db.execute(
+        "SELECT 1 FROM player_profiles WHERE user_id=? AND status='done' LIMIT 1",
+        (user_id,)
+    ).fetchone() is not None
+    analisis_mano = db.execute(
+        "SELECT 1 FROM tournament_analyses WHERE user_id=? LIMIT 1",
+        (user_id,)
+    ).fetchone() is not None
+    return {
+        'test_mental': test_mental,
+        'test_tecnico': test_tecnico,
+        'perfil_ia': perfil_ia,
+        'analisis_mano': analisis_mano,
+        'completado': test_mental and test_tecnico and perfil_ia and analisis_mano,
+    }
 
 
 def _get_subscription_active(user):
@@ -5264,6 +5293,203 @@ def analyze_hands_file():
 
 # Iniciar scheduler de recordatorios de cupones
 threading.Thread(target=_coupon_email_scheduler, daemon=True).start()
+
+
+# ─── Módulo de retención de usuarios ─────────────────────────────────────────
+
+RETENTION_INTERVAL_DAYS = 10
+
+
+def _generate_retention_email_html(nombre, lang, cycle):
+    """Genera HTML del mail de retención según idioma y pasos faltantes."""
+    pasos_es = []
+    pasos_pt = []
+    pasos_en = []
+    if not cycle['test_mental']:
+        pasos_es.append('Test Mental')
+        pasos_pt.append('Teste Mental')
+        pasos_en.append('Mental Test')
+    if not cycle['test_tecnico']:
+        pasos_es.append('Test Técnico')
+        pasos_pt.append('Teste Técnico')
+        pasos_en.append('Technical Test')
+    if not cycle['perfil_ia']:
+        pasos_es.append('Generar Perfil IA')
+        pasos_pt.append('Gerar Perfil IA')
+        pasos_en.append('Generate AI Profile')
+    if not cycle['analisis_mano']:
+        pasos_es.append('Análisis de Mano')
+        pasos_pt.append('Análise de Mão')
+        pasos_en.append('Hand Analysis')
+
+    if lang == 'pt':
+        pasos = pasos_pt
+        saludo = f'Olá, {nombre}!'
+        intro = 'Você ainda não completou seu ciclo mínimo no MinDev.'
+        cta_label = 'Continuar no MinDev'
+        footer = 'Você está recebendo este e-mail porque se cadastrou no MinDev.'
+    elif lang == 'en':
+        pasos = pasos_en
+        saludo = f'Hi, {nombre}!'
+        intro = 'You haven\'t completed your minimum cycle on MinDev yet.'
+        cta_label = 'Continue on MinDev'
+        footer = 'You\'re receiving this email because you signed up on MinDev.'
+    else:
+        pasos = pasos_es
+        saludo = f'Hola, {nombre}!'
+        intro = 'Todavía no completaste tu ciclo mínimo en MinDev.'
+        cta_label = 'Continuar en MinDev'
+        footer = 'Recibes este correo porque te registraste en MinDev.'
+
+    pasos_html = ''.join(
+        f'<li style="margin:6px 0;color:#e2e8f0;">→ {p}</li>' for p in pasos
+    )
+    base_url = os.environ.get('BASE_URL', 'https://mindev-ia.com')
+
+    return f"""
+    <div style="background:#0f172a;padding:32px;font-family:sans-serif;max-width:520px;margin:auto;border-radius:12px;">
+      <h2 style="color:#a78bfa;margin-bottom:8px;">MinDev</h2>
+      <p style="color:#e2e8f0;font-size:1.05rem;">{saludo}</p>
+      <p style="color:#94a3b8;">{intro}</p>
+      <ul style="list-style:none;padding:0;margin:16px 0;">
+        {pasos_html}
+      </ul>
+      <a href="{base_url}" style="display:inline-block;margin-top:16px;padding:12px 28px;background:#a78bfa;color:#0f172a;border-radius:8px;text-decoration:none;font-weight:bold;">{cta_label}</a>
+      <p style="color:#475569;font-size:0.8rem;margin-top:24px;">{footer}</p>
+    </div>
+    """
+
+
+def _run_retention_check():
+    """Detecta usuarios con ciclo incompleto y envía mail si corresponde."""
+    import time as _time
+    print('[RETENTION] Iniciando revisión de retención...')
+    db = sqlite3.connect(DB_PATH)
+    db.row_factory = sqlite3.Row
+    try:
+        cutoff = (datetime.datetime.utcnow() - datetime.timedelta(days=RETENTION_INTERVAL_DAYS)).isoformat()
+        users = db.execute(
+            """SELECT id, nombre, email, lang, last_retention_email_at
+               FROM users
+               WHERE is_admin=0
+               AND (last_retention_email_at IS NULL OR last_retention_email_at < ?)
+               ORDER BY id""",
+            (cutoff,)
+        ).fetchall()
+        sent = 0
+        skipped = 0
+        for u in users:
+            cycle = _get_user_cycle_status(u['id'], db)
+            if cycle['completado']:
+                skipped += 1
+                continue
+            lang = u['lang'] or 'es'
+            try:
+                html = _generate_retention_email_html(u['nombre'], lang, cycle)
+                if lang == 'pt':
+                    subject = 'MinDev — Complete seu ciclo de treinamento'
+                elif lang == 'en':
+                    subject = 'MinDev — Complete your training cycle'
+                else:
+                    subject = 'MinDev — Completa tu ciclo de entrenamiento'
+                _smtp_send(u['email'], subject, html)
+                db.execute(
+                    "UPDATE users SET last_retention_email_at=? WHERE id=?",
+                    (datetime.datetime.utcnow().isoformat(), u['id'])
+                )
+                db.commit()
+                sent += 1
+                print(f'[RETENTION] Mail enviado a {u["email"]}')
+            except Exception as e:
+                print(f'[RETENTION] Error enviando a {u["email"]}: {e}')
+        print(f'[RETENTION] Revisión completada — enviados: {sent}, omitidos (ciclo completo): {skipped}')
+    except Exception as e:
+        print(f'[RETENTION] Error general: {e}')
+    finally:
+        db.close()
+
+
+def _retention_scheduler():
+    """Hilo daemon que corre la revisión de retención cada 10 días."""
+    import time
+    time.sleep(60)  # Esperar a que el servidor esté listo
+    while True:
+        try:
+            _run_retention_check()
+        except Exception as e:
+            print(f'[RETENTION] Scheduler error: {e}')
+        time.sleep(RETENTION_INTERVAL_DAYS * 24 * 3600)
+
+
+threading.Thread(target=_retention_scheduler, daemon=True).start()
+
+
+# ─── Endpoints admin — retención ─────────────────────────────────────────────
+
+@app.route('/api/admin/retention/status', methods=['GET'])
+@require_auth
+def admin_retention_status():
+    if not g.is_admin:
+        return jsonify({'error': 'Acceso denegado'}), 403
+    db = get_db()
+    users = db.execute(
+        """SELECT id, nombre, email, lang, created_at, last_retention_email_at
+           FROM users WHERE is_admin=0 ORDER BY created_at DESC"""
+    ).fetchall()
+    result = []
+    for u in users:
+        cycle = _get_user_cycle_status(u['id'], db)
+        result.append({
+            'id': u['id'],
+            'nombre': u['nombre'],
+            'email': u['email'],
+            'lang': u['lang'] or 'es',
+            'created_at': u['created_at'],
+            'last_retention_email_at': u['last_retention_email_at'],
+            'cycle': cycle,
+        })
+    completados = sum(1 for r in result if r['cycle']['completado'])
+    return jsonify({
+        'ok': True,
+        'total': len(result),
+        'completados': completados,
+        'incompletos': len(result) - completados,
+        'users': result,
+    })
+
+
+@app.route('/api/admin/retention/send-now/<int:user_id>', methods=['POST'])
+@require_auth
+def admin_retention_send_now(user_id):
+    if not g.is_admin:
+        return jsonify({'error': 'Acceso denegado'}), 403
+    db = get_db()
+    u = db.execute(
+        "SELECT id, nombre, email, lang FROM users WHERE id=?", (user_id,)
+    ).fetchone()
+    if not u:
+        return jsonify({'error': 'Usuario no encontrado'}), 404
+    cycle = _get_user_cycle_status(user_id, db)
+    if cycle['completado']:
+        return jsonify({'ok': False, 'message': 'El usuario ya completó el ciclo mínimo'})
+    lang = u['lang'] or 'es'
+    html = _generate_retention_email_html(u['nombre'], lang, cycle)
+    if lang == 'pt':
+        subject = 'MinDev — Complete seu ciclo de treinamento'
+    elif lang == 'en':
+        subject = 'MinDev — Complete your training cycle'
+    else:
+        subject = 'MinDev — Completa tu ciclo de entrenamiento'
+    try:
+        _smtp_send(u['email'], subject, html)
+        db.execute(
+            "UPDATE users SET last_retention_email_at=? WHERE id=?",
+            (datetime.datetime.utcnow().isoformat(), user_id)
+        )
+        db.commit()
+        return jsonify({'ok': True, 'message': f'Mail enviado a {u["email"]}'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 # ─── MinDev Bio ────────────────────────────────────────────────────────────────

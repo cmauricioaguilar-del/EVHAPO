@@ -20,6 +20,7 @@ const App = {
       case 'admin-users':       renderAdminUsers(); break;
       case 'admin-coupons':     renderAdminCoupons(); break;
       case 'admin-analytics':   renderAdminAnalytics(); break;
+      case 'admin-retention':   renderAdminRetention(); break;
       case 'study-plan':        renderStudyPlan(); break;
       case 'sessions':          renderSessions(); break;
       case 'bankroll':          renderBankroll(); break;

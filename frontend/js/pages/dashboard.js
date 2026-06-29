@@ -29,6 +29,7 @@ async function renderDashboard() {
           ${user.is_admin ? `<button class="btn btn-secondary" onclick="App.go('admin-referrals')" style="border-color:var(--accent);color:var(--accent)">♠ ${isEN ? 'Referrals' : isPT ? 'Referidos' : 'Referidos'}</button>` : ''}
           ${user.is_admin ? `<button class="btn btn-secondary" onclick="App.go('admin-users')" style="border-color:var(--accent);color:var(--accent)">👥 ${isEN ? 'Users' : isPT ? 'Usuários' : 'Usuarios'}</button>` : ''}
           ${user.is_admin ? `<button class="btn btn-secondary" onclick="App.go('admin-coupons')" style="border-color:var(--accent);color:var(--accent)">🎟️ ${isEN ? 'Coupons' : isPT ? 'Cupons' : 'Cupones'}</button>` : ''}
+          ${user.is_admin ? `<button class="btn btn-secondary" onclick="App.go('admin-retention')" style="border-color:#f472b6;color:#f472b6">📬 ${isEN ? 'Retention' : isPT ? 'Retenção' : 'Retención'}</button>` : ''}
           <button class="btn btn-secondary" onclick="startNewTest('mental')">🧠 ${isEN ? 'Mental Test' : isPT ? 'Teste Mental' : 'Test Mental'}</button>
           <button class="btn btn-primary"   onclick="startNewTest('technical')">⚙️ ${isEN ? 'Technical Test' : isPT ? 'Teste Técnico' : 'Test Técnico'}</button>
           <button class="btn btn-secondary" onclick="App.go('mindevbio')"
