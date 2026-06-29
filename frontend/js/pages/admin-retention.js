@@ -18,11 +18,16 @@ async function renderAdminRetention() {
           <h3 style="margin:0;font-size:1rem;color:var(--text2)">
             ${isEN ? 'Users with incomplete cycle' : isPT ? 'Usuários com ciclo incompleto' : 'Usuarios con ciclo incompleto'}
           </h3>
-          <button onclick="loadRetentionData()"
-            style="background:none;border:1px solid var(--border);border-radius:6px;padding:6px 12px;color:var(--text2);cursor:pointer;font-size:0.85rem">
-            ↻ ${isEN ? 'Refresh' : isPT ? 'Atualizar' : 'Actualizar'}
-          </button>
-        </div>
+          <div style="display:flex;gap:8px">
+            <button id="btn-preview" onclick="sendRetentionPreview(this)"
+              style="background:#14532d;border:1px solid #4ade8055;border-radius:6px;padding:6px 14px;color:#4ade80;cursor:pointer;font-size:0.85rem">
+              📧 ${isEN ? 'Send sample to me' : isPT ? 'Enviar amostra p/ mim' : 'Enviar muestra a mí'}
+            </button>
+            <button onclick="loadRetentionData()"
+              style="background:none;border:1px solid var(--border);border-radius:6px;padding:6px 12px;color:var(--text2);cursor:pointer;font-size:0.85rem">
+              ↻ ${isEN ? 'Refresh' : isPT ? 'Atualizar' : 'Actualizar'}
+            </button>
+          </div>
         <input type="text" id="retention-search"
           placeholder="${isEN ? 'Search by name or email...' : isPT ? 'Buscar por nome ou e-mail...' : 'Buscar por nombre o email...'}"
           oninput="filterRetentionUsers(this.value)"
@@ -162,6 +167,29 @@ async function sendRetentionNow(userId, btn) {
       btn.style.borderColor = '#4ade8055';
     } else {
       btn.textContent = res.message || 'Error';
+      btn.style.color = '#f87171';
+      btn.disabled = false;
+    }
+  } catch (e) {
+    btn.textContent = 'Error';
+    btn.style.color = '#f87171';
+    btn.disabled = false;
+  }
+}
+
+async function sendRetentionPreview(btn) {
+  const isEN = window._lang === 'en';
+  const isPT = window._lang === 'pt';
+  btn.disabled = true;
+  btn.textContent = '...';
+  try {
+    const res = await Api.post('/api/admin/retention/preview', {});
+    if (res.ok) {
+      btn.textContent = isEN ? 'Sent ✓' : isPT ? 'Enviado ✓' : 'Enviado ✓';
+      btn.style.color = '#4ade80';
+      btn.style.borderColor = '#4ade8055';
+    } else {
+      btn.textContent = res.error || 'Error';
       btn.style.color = '#f87171';
       btn.disabled = false;
     }

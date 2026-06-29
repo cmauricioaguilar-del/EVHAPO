@@ -5300,7 +5300,7 @@ threading.Thread(target=_coupon_email_scheduler, daemon=True).start()
 RETENTION_INTERVAL_DAYS = 10
 
 
-def _generate_retention_email_html(nombre, lang, cycle):
+def _generate_retention_email_html(nombre, lang, cycle, coupon_reactivated=False):
     """Genera HTML del mail de retención según idioma y pasos faltantes."""
     pasos_es = []
     pasos_pt = []
@@ -5328,28 +5328,37 @@ def _generate_retention_email_html(nombre, lang, cycle):
         intro = 'Você ainda não completou seu ciclo mínimo no MinDev.'
         cta_label = 'Continuar no MinDev'
         footer = 'Você está recebendo este e-mail porque se cadastrou no MinDev.'
+        coupon_msg = '🎁 <strong>Seu cupão foi reativado por mais 30 dias.</strong> Aproveite agora!'
     elif lang == 'en':
         pasos = pasos_en
         saludo = f'Hi, {nombre}!'
         intro = 'You haven\'t completed your minimum cycle on MinDev yet.'
         cta_label = 'Continue on MinDev'
         footer = 'You\'re receiving this email because you signed up on MinDev.'
+        coupon_msg = '🎁 <strong>Your coupon has been reactivated for 30 more days.</strong> Take advantage now!'
     else:
         pasos = pasos_es
         saludo = f'Hola, {nombre}!'
         intro = 'Todavía no completaste tu ciclo mínimo en MinDev.'
         cta_label = 'Continuar en MinDev'
         footer = 'Recibes este correo porque te registraste en MinDev.'
+        coupon_msg = '🎁 <strong>Tu cupón ha sido reactivado por 30 días más.</strong> ¡Aprovéchalo ahora!'
 
     pasos_html = ''.join(
         f'<li style="margin:6px 0;color:#e2e8f0;">→ {p}</li>' for p in pasos
     )
     base_url = os.environ.get('BASE_URL', 'https://mindev-ia.com')
 
+    coupon_banner = f"""
+      <div style="background:#14532d;border:1px solid #4ade8055;border-radius:8px;padding:14px 18px;margin:16px 0;color:#4ade80;font-size:0.95rem;">
+        {coupon_msg}
+      </div>""" if coupon_reactivated else ''
+
     return f"""
     <div style="background:#0f172a;padding:32px;font-family:sans-serif;max-width:520px;margin:auto;border-radius:12px;">
       <h2 style="color:#a78bfa;margin-bottom:8px;">MinDev</h2>
       <p style="color:#e2e8f0;font-size:1.05rem;">{saludo}</p>
+      {coupon_banner}
       <p style="color:#94a3b8;">{intro}</p>
       <ul style="list-style:none;padding:0;margin:16px 0;">
         {pasos_html}
@@ -5456,6 +5465,23 @@ def admin_retention_status():
         'incompletos': len(result) - completados,
         'users': result,
     })
+
+
+@app.route('/api/admin/retention/preview', methods=['POST'])
+@require_auth
+def admin_retention_preview():
+    """Envía un mail de muestra a la casilla del admin — simula usuario con cupón expirado."""
+    if not g.is_admin:
+        return jsonify({'error': 'Acceso denegado'}), 403
+    ADMIN_EMAIL = 'c.mauricio.aguilar@gmail.com'
+    # Muestra con ciclo parcial y cupón reactivado
+    cycle_sample = {'test_mental': True, 'test_tecnico': False, 'perfil_ia': False, 'analisis_mano': False, 'completado': False}
+    html = _generate_retention_email_html('Mauricio', 'es', cycle_sample, coupon_reactivated=True)
+    try:
+        _smtp_send(ADMIN_EMAIL, '[MUESTRA] MinDev — Retención con cupón reactivado', html)
+        return jsonify({'ok': True, 'message': f'Muestra enviada a {ADMIN_EMAIL}'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 @app.route('/api/admin/retention/send-now/<int:user_id>', methods=['POST'])
