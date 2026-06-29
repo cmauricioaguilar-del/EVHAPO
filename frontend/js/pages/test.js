@@ -92,6 +92,15 @@ function renderTestSection() {
       <div class="section-intro">
         <h2>${cat.icon} ${cat.label}</h2>
         <p>${cat.description}</p>
+        ${_testState.testType === 'technical' ? `
+        <p style="margin-top:10px;font-size:0.82rem;color:#94a3b8;border-top:1px solid #1e293b;padding-top:10px;line-height:1.6">
+          ${isEN
+            ? '💡 <em>Don\'t worry if you don\'t know some concepts yet — with time you\'ll understand them all. What matters is that you answer based on what you know or believe. The more honestly you respond, the better the AI can help you improve your game.</em>'
+            : isPT
+            ? '💡 <em>Não se preocupe se não conhece alguns conceitos ainda — com o tempo você vai entendê-los. O importante é que responda com base no que sabe ou acredita. Quanto mais honesto for, melhor a IA pode te ajudar a evoluir no poker.</em>'
+            : '💡 <em>No te preocupes si no conoces algunos conceptos todavía — con el tiempo los vas a entender. Lo importante es que respondas según lo que sabes o crees. Mientras más honesto seas, mejor la IA puede ayudarte a mejorar tu juego.</em>'
+          }
+        </p>` : ''}
       </div>
       <div id="questions-container">
         ${questionsHtml}
