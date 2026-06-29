@@ -5369,7 +5369,7 @@ def _run_retention_check():
     try:
         cutoff = (datetime.datetime.utcnow() - datetime.timedelta(days=RETENTION_INTERVAL_DAYS)).isoformat()
         users = db.execute(
-            """SELECT id, nombre, email, lang, last_retention_email_at
+            """SELECT id, nombre, email, idioma, last_retention_email_at
                FROM users
                WHERE is_admin=0
                AND (last_retention_email_at IS NULL OR last_retention_email_at < ?)
@@ -5383,7 +5383,7 @@ def _run_retention_check():
             if cycle['completado']:
                 skipped += 1
                 continue
-            lang = u['lang'] or 'es'
+            lang = u['idioma'] or 'es'
             try:
                 html = _generate_retention_email_html(u['nombre'], lang, cycle)
                 if lang == 'pt':
@@ -5433,7 +5433,7 @@ def admin_retention_status():
         return jsonify({'error': 'Acceso denegado'}), 403
     db = get_db()
     users = db.execute(
-        """SELECT id, nombre, email, lang, created_at, last_retention_email_at
+        """SELECT id, nombre, email, idioma, created_at, last_retention_email_at
            FROM users WHERE is_admin=0 ORDER BY created_at DESC"""
     ).fetchall()
     result = []
@@ -5443,7 +5443,7 @@ def admin_retention_status():
             'id': u['id'],
             'nombre': u['nombre'],
             'email': u['email'],
-            'lang': u['lang'] or 'es',
+            'lang': u['idioma'] or 'es',
             'created_at': u['created_at'],
             'last_retention_email_at': u['last_retention_email_at'],
             'cycle': cycle,
@@ -5465,14 +5465,14 @@ def admin_retention_send_now(user_id):
         return jsonify({'error': 'Acceso denegado'}), 403
     db = get_db()
     u = db.execute(
-        "SELECT id, nombre, email, lang FROM users WHERE id=?", (user_id,)
+        "SELECT id, nombre, email, idioma FROM users WHERE id=?", (user_id,)
     ).fetchone()
     if not u:
         return jsonify({'error': 'Usuario no encontrado'}), 404
     cycle = _get_user_cycle_status(user_id, db)
     if cycle['completado']:
         return jsonify({'ok': False, 'message': 'El usuario ya completó el ciclo mínimo'})
-    lang = u['lang'] or 'es'
+    lang = u['idioma'] or 'es'
     html = _generate_retention_email_html(u['nombre'], lang, cycle)
     if lang == 'pt':
         subject = 'MinDev — Complete seu ciclo de treinamento'
