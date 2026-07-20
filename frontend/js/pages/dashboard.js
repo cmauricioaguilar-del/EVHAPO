@@ -1116,6 +1116,15 @@ async function loadLastTournament() {
         </button>
         <button class="btn btn-primary btn-sm" onclick="tournDownloadPDF()">📄 ${isEN ? 'Download PDF' : isPT ? 'Baixar PDF' : 'Descargar PDF'}</button>
       </div>`;
+
+    // Inyectar botones "Ver mano" si hay datos estructurados
+    if (a.hands_json && window.PokerHandViewer) {
+      try {
+        const handsData = typeof a.hands_json === 'string' ? JSON.parse(a.hands_json) : a.hands_json;
+        const reportEl  = document.getElementById('tourn-report-content');
+        if (reportEl) window.PokerHandViewer.injectHandViewerButtons(reportEl, handsData);
+      } catch (_) {}
+    }
   } catch (e) {
     // Error de red o autenticación — mostrar opción de reintento
     const isEN = I18N.isEN();

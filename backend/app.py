@@ -314,6 +314,8 @@ def init_db():
         # Módulo retención — control de envío de mails de reactivación
         "ALTER TABLE users ADD COLUMN last_retention_email_at TEXT DEFAULT NULL",
         "ALTER TABLE users ADD COLUMN retention_email_opened_at TEXT DEFAULT NULL",
+        # Visualizador de manos — datos estructurados por análisis
+        "ALTER TABLE tournament_analyses ADD COLUMN hands_json TEXT DEFAULT NULL",
     ]
     for sql in migrations:
         try:
@@ -4099,6 +4101,11 @@ def _parse_single_hand(block):
     """Extrae los datos clave de un bloque de mano individual."""
     hand = {}
 
+    # Hand ID (para el visualizador)
+    m = re.search(r'Poker Hand #(TM\d+|\d+)', block)
+    if m:
+        hand['hand_id'] = m.group(1)
+
     # Nivel / blinds
     m = re.search(r'Level\s*(\d+)\s*\((\d[\d,]*)/(\d[\d,]*)', block)
     if m:
@@ -4238,6 +4245,49 @@ def _parse_single_hand(block):
     for x in re.findall(r'Hero: raises ([\d,]+(?:\.\d+)?) to', block):
         invested += float(x.replace(',', ''))
     hand['hero_net'] = round(collected + returned - invested, 2)
+
+    # ── Datos estructurados para el visualizador ──────────────────────────────
+    # Cartas hero como lista ["Qd", "Ad"]
+    hero_cards_raw = hand.get('hero_cards')
+    hand['hero_cards_list'] = hero_cards_raw.split() if hero_cards_raw else []
+
+    # Board separado en flop / turn / river
+    flop_m  = re.search(r'\*\*\* FLOP \*\*\*\s*\[([^\]]+)\]', block)
+    turn_m  = re.search(r'\*\*\* TURN \*\*\*\s*\[[^\]]+\]\s*\[([^\]]+)\]', block)
+    river_m = re.search(r'\*\*\* RIVER \*\*\*\s*\[[^\]]+\]\s*\[([^\]]+)\]', block)
+    hand['flop']  = flop_m.group(1).split()  if flop_m  else []
+    hand['turn']  = turn_m.group(1).split()  if turn_m  else []
+    hand['river'] = river_m.group(1).split() if river_m else []
+
+    # Pot total
+    pot_m = re.search(r'Total pot ([\d,]+)', block)
+    hand['pot'] = int(pot_m.group(1).replace(',', '')) if pot_m else 0
+
+    # Cartas de villanos en showdown (nombre → cartas)
+    villain_cards = {}
+    for nm, cards in re.findall(r'^([^:\n]+?):\s+shows?\s+\[([^\]]+)\]', block, re.MULTILINE):
+        nm = nm.strip()
+        if nm != 'Hero':
+            villain_cards[nm] = cards.split()
+    hand['villain_cards'] = villain_cards
+
+    # Seat map: seat_number → {name, position, chips_start}
+    seat_map = {}
+    for seat_n, seat_name in re.findall(r'^Seat (\d+):\s+([^\(\n]+?)(?:\s*\((\d[\d,]*)\s*in chips\))?$', block, re.MULTILINE):
+        seat_map[int(seat_n)] = {
+            'name':    seat_name.strip(),
+            'chips':   int(seat_n_chips.replace(',', '')) if (seat_n_chips := '') else 0,
+            'position': seat_to_pos.get(int(seat_n), '?') if 'seat_to_pos' in dir() else '?'
+        }
+    # Reconstruir seat_map con chips correctos
+    for seat_n, seat_name, chips_str in re.findall(
+            r'^Seat (\d+):\s+([^\(\n]+?)\s*\((\d[\d,]*)\s*in chips\)', block, re.MULTILINE):
+        seat_map[int(seat_n)] = {
+            'name':     seat_name.strip(),
+            'chips':    int(chips_str.replace(',', '')),
+            'position': name_to_pos.get(seat_name.strip(), '?') if name_to_pos else '?'
+        }
+    hand['seat_map'] = seat_map
 
     # Resumen compact para el prompt
     hand['summary'] = _format_hand_compact(hand)
@@ -4408,14 +4458,41 @@ def analyze_tournament():
         db.commit()
     except Exception:
         pass
+    # Preparar hands_json con datos estructurados para el visualizador
+    hands_json_data = []
+    for h in meta.get('hero_hands', []):
+        if not h.get('hand_id'):
+            continue
+        hands_json_data.append({
+            'hand_id':        h.get('hand_id'),
+            'level':          h.get('level'),
+            'sb':             h.get('sb'),
+            'bb':             h.get('bb'),
+            'hero_cards':     h.get('hero_cards_list', []),
+            'hero_position':  h.get('position'),
+            'hero_chips':     h.get('hero_chips_start'),
+            'hero_net':       h.get('hero_net'),
+            'hero_won':       h.get('hero_won', False),
+            'went_showdown':  h.get('went_showdown', False),
+            'hero_allin':     h.get('hero_allin', False),
+            'flop':           h.get('flop', []),
+            'turn':           h.get('turn', []),
+            'river':          h.get('river', []),
+            'pot':            h.get('pot', 0),
+            'villain_cards':  h.get('villain_cards', {}),
+            'seat_map':       h.get('seat_map', {}),
+            'hero_actions':   h.get('hero_actions', []),
+        })
+
     cursor = db.execute(
         """INSERT INTO tournament_analyses
-           (user_id, tournament_name, platform, buy_in, total_hands, hero_hands, date, status, created_at, position_stats)
-           VALUES (?,?,?,?,?,?,?,?,?,?)""",
+           (user_id, tournament_name, platform, buy_in, total_hands, hero_hands, date, status, created_at, position_stats, hands_json)
+           VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
         (g.user_id, meta['tournament_name'], meta['platform'], meta['buy_in'],
          meta['total_hands'], meta['hero_hands_played'], meta['date'],
          'processing', datetime.datetime.utcnow().isoformat(),
-         _json.dumps(pos_stats) if pos_stats else None)
+         _json.dumps(pos_stats) if pos_stats else None,
+         _json.dumps(hands_json_data) if hands_json_data else None)
     )
     job_id = cursor.lastrowid
     db.commit()
@@ -4457,6 +4534,7 @@ def tournament_job_status(job_id):
 
     if status == 'done':
         result['report'] = row['report_html']
+        result['hands_json'] = row['hands_json']
         result['meta'] = {
             'tournament_name': row['tournament_name'],
             'buy_in':          row['buy_in'],
@@ -4494,6 +4572,7 @@ def tournament_last():
         'date':            row['date'],
         'created_at':      row['created_at'],
         'report_html':     row['report_html'],
+        'hands_json':      row['hands_json'],
     }})
 
 
@@ -4521,7 +4600,7 @@ def get_tournament_analysis(analysis_id):
     ).fetchone()
     if not row:
         return jsonify({'error': 'Análisis no encontrado'}), 404
-    return jsonify({'report': row['report_html'], 'meta': {
+    return jsonify({'report': row['report_html'], 'hands_json': row['hands_json'], 'meta': {
         'tournament_name': row['tournament_name'],
         'platform': row['platform'],
         'buy_in': row['buy_in'],
@@ -4534,10 +4613,13 @@ def get_tournament_analysis(analysis_id):
 def _build_tournament_prompt(nombre, meta, player_profile, lang='es'):
     """Construye el prompt para el análisis de torneo."""
 
-    # Formatear manos seleccionadas
+    # Formatear manos seleccionadas (incluye hand_id para el visualizador)
     _hand_label = 'HAND' if lang == 'en' else 'MÃO' if lang == 'pt' else 'MANO'
+    def _hand_line(i, h):
+        hid = f" [ID:{h['hand_id']}]" if h.get('hand_id') else ''
+        return f"{_hand_label} {i+1}{hid}:\n{h['summary']}"
     hands_text = '\n\n'.join(
-        f"{_hand_label} {i+1}:\n{h['summary']}"
+        _hand_line(i, h)
         for i, h in enumerate(meta.get('selected_hands', [])[:40])
     )
     if not hands_text:
@@ -4655,12 +4737,14 @@ Luego 1 párrafo de síntesis del resultado global de {nombre} (¿llegó tarde o
 OBLIGATORIO: Exactamente 7 decisiones. Si solo encuentras menos casos +EV claros, igual completa hasta 7 (incluye decisiones sólidas/correctas aunque no espectaculares).
 Usa layout de 2 columnas HTML: left=Decisión (con ejemplo real de mano), right=Por qué fue correcta (análisis técnico).
 Cada decisión tiene: título h3 con badge-good, descripción de la mano real del historial INCLUYENDO posición de Hero y posición del/los oponente(s) ("Hero (BTN) vs Villain (BB)"), análisis de por qué fue +EV, impacto estimado.
+OBLIGATORIO: En cada decisión agrega al final del bloque left este atributo HTML oculto exactamente así: <span data-hand-id="ID_DE_LA_MANO" style="display:none"></span> — reemplaza ID_DE_LA_MANO con el ID real entre corchetes [ID:XXXX] que aparece en el encabezado de esa mano en el historial.
 
 ━━━ SECCIÓN 3: LAS 7 PEORES DECISIONES ━━━
 OBLIGATORIO: Exactamente 7 errores. Numéralos "ERROR #1" a "ERROR #7" y NO te detengas antes del #7 bajo ningún concepto.
 Mismo layout 2 columnas: left=Decisión con ejemplo real, right=Una línea de juego alternativa recomendada.
 Cada error: título h3 con badge-bad, descripción de la mano real, línea alternativa recomendada (NUNCA uses las palabras "óptima" ni "GTO" — usa "recomendada", "más sólida", "más rentable a largo plazo"), costo estimado en chips/EV.
 OBLIGATORIO en cada error: indica explícitamente la POSICIÓN de Hero y la POSICIÓN del/los oponente(s) involucrados (ej. "Hero (CO) enfrenta resistencia de Villain1 (BB) y Villain2 (BTN)"). Estos datos vienen en el resumen de cada mano como "Hero:POS" y "vs: nombre(POS), ...".
+OBLIGATORIO: En cada error agrega al final del bloque left este atributo HTML oculto exactamente así: <span data-hand-id="ID_DE_LA_MANO" style="display:none"></span> — reemplaza ID_DE_LA_MANO con el ID real entre corchetes [ID:XXXX] que aparece en el encabezado de esa mano en el historial.
 
 ━━━ SECCIÓN 4: 7 RECOMENDACIONES DE MEJORA ━━━
 Una lista numerada con ítems card-gold. Cada recomendación conecta directamente con uno de los 7 errores. Accionable y específica.

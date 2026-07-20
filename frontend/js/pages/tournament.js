@@ -165,6 +165,15 @@ function _tournShowResult(data) {
       <button class="btn btn-secondary btn-sm" onclick="tournClearFile()">🔄 ${isEN ? 'Analyse other hands' : isPT ? 'Analisar outras mãos' : 'Analizar otras manos'}</button>
       <button class="btn btn-primary btn-sm"   onclick="tournDownloadPDF()">📄 ${isEN ? 'Download PDF' : isPT ? 'Baixar PDF' : 'Descargar PDF'}</button>
     </div>`;
+
+  // Inyectar botones "Ver mano" si hay datos estructurados
+  if (data.hands_json && window.PokerHandViewer) {
+    try {
+      const handsData = typeof data.hands_json === 'string' ? JSON.parse(data.hands_json) : data.hands_json;
+      const reportEl  = document.getElementById('tourn-report-content');
+      if (reportEl) window.PokerHandViewer.injectHandViewerButtons(reportEl, handsData);
+    } catch (_) {}
+  }
 }
 
 function _tournShowError(msg) {
