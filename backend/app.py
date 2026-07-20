@@ -4273,13 +4273,6 @@ def _parse_single_hand(block):
 
     # Seat map: seat_number → {name, position, chips_start}
     seat_map = {}
-    for seat_n, seat_name in re.findall(r'^Seat (\d+):\s+([^\(\n]+?)(?:\s*\((\d[\d,]*)\s*in chips\))?$', block, re.MULTILINE):
-        seat_map[int(seat_n)] = {
-            'name':    seat_name.strip(),
-            'chips':   int(seat_n_chips.replace(',', '')) if (seat_n_chips := '') else 0,
-            'position': seat_to_pos.get(int(seat_n), '?') if 'seat_to_pos' in dir() else '?'
-        }
-    # Reconstruir seat_map con chips correctos
     for seat_n, seat_name, chips_str in re.findall(
             r'^Seat (\d+):\s+([^\(\n]+?)\s*\((\d[\d,]*)\s*in chips\)', block, re.MULTILINE):
         seat_map[int(seat_n)] = {
