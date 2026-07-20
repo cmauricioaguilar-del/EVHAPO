@@ -4246,6 +4246,45 @@ def _parse_single_hand(block):
         invested += float(x.replace(',', ''))
     hand['hero_net'] = round(collected + returned - invested, 2)
 
+    # ── Acciones por street (para el replayer animado) ────────────────────────
+    streets_raw = re.split(
+        r'\*\*\* (HOLE CARDS|FLOP|TURN|RIVER|SHOWDOWN|SUMMARY) \*\*\*',
+        block
+    )
+    street_actions = {'preflop': [], 'flop': [], 'turn': [], 'river': [], 'showdown': []}
+    _action_re = re.compile(
+        r'^([^\n:]+?):\s+(folds|checks|calls|bets|raises|posts|shows?|mucks|collected|is all-in)(.*)$',
+        re.MULTILINE | re.IGNORECASE
+    )
+    _street_map = {'HOLE CARDS': 'preflop', 'FLOP': 'flop', 'TURN': 'turn',
+                   'RIVER': 'river', 'SHOWDOWN': 'showdown'}
+    current_street = None
+    i = 0
+    while i < len(streets_raw):
+        chunk = streets_raw[i]
+        if chunk in _street_map:
+            current_street = _street_map[chunk]
+            i += 1
+            continue
+        if current_street:
+            for m2 in _action_re.finditer(chunk):
+                player = m2.group(1).strip()
+                action = m2.group(2).lower()
+                detail = m2.group(3).strip()
+                # Normalizar monto
+                amount = None
+                amt_m = re.search(r'(\d[\d,]*(?:\.\d+)?)', detail)
+                if amt_m:
+                    amount = int(float(amt_m.group(1).replace(',', '')))
+                street_actions[current_street].append({
+                    'player': player,
+                    'action': action,
+                    'amount': amount,
+                    'detail': detail[:60],
+                })
+        i += 1
+    hand['street_actions'] = street_actions
+
     # ── Datos estructurados para el visualizador ──────────────────────────────
     # Cartas hero como lista ["Qd", "Ad"]
     hero_cards_raw = hand.get('hero_cards')
@@ -4475,6 +4514,7 @@ def analyze_tournament():
             'villain_cards':  h.get('villain_cards', {}),
             'seat_map':       h.get('seat_map', {}),
             'hero_actions':   h.get('hero_actions', []),
+            'street_actions': h.get('street_actions', {}),
         })
 
     cursor = db.execute(
