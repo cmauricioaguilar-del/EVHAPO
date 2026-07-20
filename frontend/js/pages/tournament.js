@@ -245,7 +245,10 @@ async function tournAnalyze() {
     <div class="card" style="text-align:center;padding:48px 20px">
       <div class="spinner" style="margin:0 auto 20px"></div>
       <p class="spinner-msg" style="color:#94a3b8;font-size:1rem;margin-bottom:8px">${_isEN2 ? 'Uploading file and preparing analysis…' : _isPT2 ? 'Enviando arquivo e preparando análise…' : 'Subiendo archivo y preparando análisis…'}</p>
-      <p style="color:#64748b;font-size:0.85rem">${_isEN2 ? 'The AI will read each hand and evaluate your decisions. This may take 1–3 minutes.' : _isPT2 ? 'A IA lerá cada mão e avaliará suas decisões. Isso pode levar 1-3 minutos.' : 'La IA leerá cada mano y evaluará tus decisiones. Esto puede tardar 1-3 minutos.'}</p>
+      <p style="color:#64748b;font-size:0.85rem">${_isEN2 ? 'The AI will read each hand and evaluate your decisions. This may take up to 5 minutes.' : _isPT2 ? 'A IA lerá cada mão e avaliará suas decisões. Isso pode levar até 5 minutos.' : 'La IA leerá cada mano y evaluará tus decisiones. Esto puede tardar hasta 5 minutos.'}</p>
+      <p style="color:#f59e0b;font-size:0.82rem;margin-top:10px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:8px;padding:10px 14px">
+        ⚠️ ${_isEN2 ? 'Do not close or refresh this page while the analysis is running.' : _isPT2 ? 'Não feche nem atualize esta página enquanto a análise estiver em andamento.' : 'No cierres ni recargues esta página mientras el análisis esté en curso.'}
+      </p>
       <div style="margin-top:16px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
         ${(
           _isEN2
