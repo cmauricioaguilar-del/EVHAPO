@@ -5,7 +5,7 @@
 
 // ── Constantes ────────────────────────────────────────────────────────────────
 const _SUITS   = { s: '♠', h: '♥', d: '♦', c: '♣' };
-const _COLORS  = { s: '#c8d6e5', h: '#ef4444', d: '#ef4444', c: '#c8d6e5' };
+const _COLORS  = { s: '#1e293b', h: '#dc2626', d: '#0284c7', c: '#15803d' };
 const _ACTION_LABELS = {
   folds:   { label: 'FOLD',  color: '#64748b' },
   checks:  { label: 'CHECK', color: '#60a5fa' },
