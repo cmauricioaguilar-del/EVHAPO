@@ -94,7 +94,7 @@ function _injectCSS() {
 }
 /* Texto del paño */
 .phv-felt-brand {
-  font-size:clamp(2rem,6vw,3.2rem);font-weight:900;letter-spacing:0.18em;
+  font-size:clamp(6rem,18vw,9.6rem);font-weight:900;letter-spacing:0.18em;
   color:rgba(255,255,255,0.07);text-transform:uppercase;pointer-events:none;
   position:absolute;top:50%;left:50%;transform:translate(-50%,-60%);
   white-space:nowrap;
@@ -109,12 +109,12 @@ function _injectCSS() {
 /* ── Cartas ── */
 .phv-card {
   display:inline-flex;flex-direction:column;align-items:center;justify-content:center;
-  width:68px;height:96px;background:#f8fafc;
+  width:136px;height:192px;background:#f8fafc;
   border-radius:7px;border:1px solid rgba(0,0,0,0.12);
   box-shadow:0 2px 6px rgba(0,0,0,0.5);
   font-weight:800;line-height:1;transition:transform 0.2s;
 }
-.phv-card-sm { width:44px;height:64px; }
+.phv-card-sm { width:88px;height:128px; }
 .phv-card-back {
   background:linear-gradient(135deg,#1e3a8a,#1e40af);
   border-color:#1e3a8a;
@@ -123,10 +123,10 @@ function _injectCSS() {
   content:'';display:block;width:60%;height:70%;
   border:1px solid rgba(255,255,255,0.15);border-radius:2px;
 }
-.phv-card-rank { font-size:1.5rem; }
-.phv-card-sm .phv-card-rank { font-size:1.1rem; }
-.phv-card-suit { font-size:1.7rem;line-height:0.9; }
-.phv-card-sm .phv-card-suit { font-size:1.2rem; }
+.phv-card-rank { font-size:3rem; }
+.phv-card-sm .phv-card-rank { font-size:2.2rem; }
+.phv-card-suit { font-size:3.4rem;line-height:0.9; }
+.phv-card-sm .phv-card-suit { font-size:2.4rem; }
 
 /* Animación entrada de carta */
 @keyframes phv-deal {
@@ -180,7 +180,10 @@ function _injectCSS() {
 .phv-street-chip {
   padding:3px 10px;border-radius:20px;font-size:0.7rem;font-weight:700;
   background:rgba(255,255,255,0.04);color:#475569;border:1px solid rgba(255,255,255,0.06);
-  transition:all 0.2s;
+  transition:all 0.2s;user-select:none;
+}
+.phv-street-chip:hover {
+  background:rgba(255,255,255,0.1);color:#94a3b8;border-color:rgba(255,255,255,0.15);
 }
 .phv-street-chip.active {
   background:rgba(212,175,55,0.15);color:#d4af37;border-color:rgba(212,175,55,0.35);
@@ -465,7 +468,7 @@ function openHandViewer(handId, handsJson) {
 
     <div class="phv-bottom">
       <div class="phv-street-bar">
-        ${streets.map(s => `<span class="phv-street-chip">${s}</span>`).join('')}
+        ${streets.map((s,i) => `<span class="phv-street-chip" data-street-idx="${i}" style="cursor:pointer">${s}</span>`).join('')}
       </div>
       <div class="phv-log"></div>
       <div class="phv-controls">
@@ -522,6 +525,16 @@ function openHandViewer(handId, handsJson) {
       goTo(stepIdx + 1);
     }, speed);
   }
+
+  // Chips de street — saltar al primer paso de esa street
+  const streetKeys = ['preflop','flop','turn','river','showdown'];
+  overlay.querySelectorAll('.phv-street-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const targetStreet = streetKeys[parseInt(chip.dataset.streetIdx)];
+      const targetIdx = steps.findIndex(s => s.street === targetStreet);
+      if (targetIdx >= 0) { stopPlay(); goTo(targetIdx); }
+    });
+  });
 
   btnPlay.onclick = () => { playing ? stopPlay() : startPlay(); };
   btnPrev.onclick = () => { stopPlay(); goTo(stepIdx - 1); };
