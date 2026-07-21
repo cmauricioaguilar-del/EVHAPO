@@ -94,7 +94,7 @@ function _injectCSS() {
 }
 /* Texto del paño */
 .phv-felt-brand {
-  font-size:clamp(6rem,18vw,9.6rem);font-weight:900;letter-spacing:0.18em;
+  font-size:clamp(2rem,6vw,3.2rem);font-weight:900;letter-spacing:0.18em;
   color:rgba(255,255,255,0.07);text-transform:uppercase;pointer-events:none;
   position:absolute;top:50%;left:50%;transform:translate(-50%,-60%);
   white-space:nowrap;
@@ -109,12 +109,12 @@ function _injectCSS() {
 /* ── Cartas ── */
 .phv-card {
   display:inline-flex;flex-direction:column;align-items:center;justify-content:center;
-  width:136px;height:192px;background:#f8fafc;
+  width:68px;height:96px;background:#f8fafc;
   border-radius:7px;border:1px solid rgba(0,0,0,0.12);
   box-shadow:0 2px 6px rgba(0,0,0,0.5);
   font-weight:800;line-height:1;transition:transform 0.2s;
 }
-.phv-card-sm { width:88px;height:128px; }
+.phv-card-sm { width:44px;height:64px; }
 .phv-card-back {
   background:linear-gradient(135deg,#1e3a8a,#1e40af);
   border-color:#1e3a8a;
@@ -123,10 +123,10 @@ function _injectCSS() {
   content:'';display:block;width:60%;height:70%;
   border:1px solid rgba(255,255,255,0.15);border-radius:2px;
 }
-.phv-card-rank { font-size:3rem; }
-.phv-card-sm .phv-card-rank { font-size:2.2rem; }
-.phv-card-suit { font-size:3.4rem;line-height:0.9; }
-.phv-card-sm .phv-card-suit { font-size:2.4rem; }
+.phv-card-rank { font-size:1.5rem; }
+.phv-card-sm .phv-card-rank { font-size:1.1rem; }
+.phv-card-suit { font-size:1.7rem;line-height:0.9; }
+.phv-card-sm .phv-card-suit { font-size:1.2rem; }
 
 /* Animación entrada de carta */
 @keyframes phv-deal {
